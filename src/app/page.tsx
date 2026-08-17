@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TRACKS } from "@/lib/tracks";
-import { recommend, flow, graph, type Compass } from "@/lib/engine";
+import { recommend, flow, graph, clearRecent, getDebugSnapshot, type Compass } from "@/lib/engine";
 import { useFB } from "@/store/fb";
 import { usePlayer } from "@/store/player";
 import { Ambient } from "@/components/Ambient";
@@ -33,9 +33,24 @@ export default function App() {
   const [c, setC] = useState<Compass>({ warm: 0.55, sad: 0.45, organic: 0.5, energy: 0.35, dark: 0.55 });
   const [depth, setDepth] = useState(0.7);
 
-  const res = useMemo(() => recommend(c, by, depth), [c, by, depth]);
-  const fl = useMemo(() => flow(c, by, depth), [c, by, depth]);
-  const g = useMemo(() => graph(by), [by]);
+  // Serialize feedback so any like/dislike always invalidates memo
+  const fbKey = useMemo(
+    () =>
+      Object.entries(by)
+        .map(([k, v]) => `${k}:${v.kind}:${v.reason || ""}`)
+        .sort()
+        .join("|"),
+    [by]
+  );
+
+  const res = useMemo(() => recommend(c, by, depth), [c, by, depth, fbKey]);
+  const fl = useMemo(() => flow(c, by, depth), [c, by, depth, fbKey]);
+  const g = useMemo(() => graph(by), [by, fbKey]);
+
+  if (typeof window !== "undefined") {
+    (window as any).__RESONANT__ = { clearRecent, getDebugSnapshot, recommend, flow };
+  }
+
   const maxE = Math.max(...fl.path.map((p) => p.e), 0.01);
   const queue = res.items.map((x) => x.t);
 
