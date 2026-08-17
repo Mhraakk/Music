@@ -1,6 +1,5 @@
 /**
- * Recommendation Orchestrator — decides HOW candidates are gathered and ranked.
- * Never returns an empty list. Produces top-K (default 12) with pool provenance.
+ * Recommendation Orchestrator
  */
 import { TRACKS } from "@/lib/tracks";
 import { recommend, graph, type Compass, type FB, type Scored } from "@/lib/engine";
@@ -45,9 +44,11 @@ export function orchestrateRecommendations(
   const { merged, stats } = retrievePools(c, fb, depth);
   const sourceById = new Map(merged.map((m) => [m.t.id, m.sources]));
 
-  const ranked = recommend(c, fb, depth, limit);
+  // Engine currently ranks a fixed top-K; slice to limit
+  const ranked = recommend(c, fb, depth);
+  const rankedItems = ranked.items.slice(0, limit);
 
-  const items: OrchestratedItem[] = ranked.items.map((x) => {
+  const items: OrchestratedItem[] = rankedItems.map((x) => {
     const sources = sourceById.get(x.t.id) || (["taste-neighbor"] as PoolName[]);
     const srcLabel = SOURCE_LABEL[sources[0]] || "catalog";
     return {
@@ -94,7 +95,7 @@ export function orchestrateRecommendations(
   }
 
   const g = graph(fb);
-  let tier = ranked.tier;
+  let tier = ranked.tier || "primary";
   let message =
     ranked.message ||
     `Multi-pool orchestration · ${merged.length} candidates → top ${items.length}`;

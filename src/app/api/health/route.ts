@@ -13,8 +13,7 @@ export async function GET() {
     const res = recommend(
       { warm: 0.55, sad: 0.45, organic: 0.5, energy: 0.35, dark: 0.55 },
       {},
-      0.7,
-      8
+      0.7
     );
     itemCount = res.items.length;
     recOk = itemCount > 0;

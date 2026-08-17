@@ -1,6 +1,5 @@
 /**
- * M4 — Journey Engine v2
- * Roles: open · bridge · lift · deepen · peak · land
+ * Journey Engine v2
  */
 import { TRACKS, type Track } from "@/lib/tracks";
 import {
@@ -14,32 +13,14 @@ import {
 import { getSession } from "@/lib/taste/session";
 
 export type JourneyRole = "open" | "bridge" | "lift" | "deepen" | "peak" | "land";
-
 export type JourneyStep = {
-  t: Track;
-  role: JourneyRole;
-  chapter: string;
-  reason: string;
-  transitionScore: number;
-  e: number;
+  t: Track; role: JourneyRole; chapter: string; reason: string; transitionScore: number; e: number;
 };
-
-export type JourneyPlan = {
-  path: JourneyStep[];
-  voice: string;
-  arc: string;
-  totalTransition: number;
-};
+export type JourneyPlan = { path: JourneyStep[]; voice: string; arc: string; totalTransition: number };
 
 const ROLE_CHAPTER: Record<JourneyRole, string> = {
-  open: "Open",
-  bridge: "Bridge",
-  lift: "Lift",
-  deepen: "Deepen",
-  peak: "Peak",
-  land: "Land",
+  open: "Open", bridge: "Bridge", lift: "Lift", deepen: "Deepen", peak: "Peak", land: "Land",
 };
-
 const ROLE_SEQUENCE: JourneyRole[] = ["open", "bridge", "lift", "deepen", "peak", "land"];
 
 export function transitionScore(a: Track, b: Track, role: JourneyRole): number {
@@ -47,8 +28,7 @@ export function transitionScore(a: Track, b: Track, role: JourneyRole): number {
   const ideal: Record<JourneyRole, number> = {
     open: 0.35, bridge: 0.4, lift: 0.55, deepen: 0.5, peak: 0.65, land: 0.35,
   };
-  const target = ideal[role];
-  const distFit = 1 - Math.min(1, Math.abs(dist - target) / 0.8);
+  const distFit = 1 - Math.min(1, Math.abs(dist - ideal[role]) / 0.8);
   let energyMove = 0;
   if (role === "lift" || role === "peak") energyMove = b.v.e > a.v.e ? 0.35 : -0.15;
   else if (role === "land" || role === "deepen") energyMove = b.v.e <= a.v.e + 0.05 ? 0.25 : -0.1;
@@ -72,7 +52,7 @@ function roleReason(role: JourneyRole, t: Track): string {
 export function buildJourneyPlan(c: Compass, fb: FB, depth: number, length = 6): JourneyPlan {
   const roles = ROLE_SEQUENCE.slice(0, Math.min(6, Math.max(4, length)));
   const g = graph(fb);
-  const ranked = recommend(c, fb, depth, 16);
+  const ranked = recommend(c, fb, depth);
   const pool = ranked.items.map((x) => x.t);
   const extra = TRACKS.filter((t) => !pool.find((p) => p.id === t.id));
   const candidates = [...pool, ...extra];
@@ -103,7 +83,6 @@ export function buildJourneyPlan(c: Compass, fb: FB, depth: number, length = 6):
     }
     if (!best) {
       best = candidates.find((t) => !used.has(t.id)) || TRACKS[i % TRACKS.length];
-      bestScore = 0;
     }
     used.add(best.id);
     path.push({
