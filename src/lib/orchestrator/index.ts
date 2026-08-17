@@ -100,9 +100,11 @@ export function orchestrateRecommendations(
     ranked.message ||
     `Multi-pool orchestration · ${merged.length} candidates → top ${items.length}`;
 
-  let health =
-    ranked.health ||
-    scoreRecommendationHealth({ items, tier, catalogSize: TRACKS.length });
+  let health = scoreRecommendationHealth({
+    items,
+    tier,
+    catalogSize: TRACKS.length,
+  });
 
   if (!health.ok && tier === "primary") {
     tier = "relaxed";
@@ -135,7 +137,7 @@ export function orchestrateRecommendations(
       poolSize: merged.length,
       latencyMs: Math.round(latencyMs),
       catalogSize: TRACKS.length,
-      exposureSuppressed: ranked.metrics?.exposureSuppressed ?? 0,
+      exposureSuppressed: 0,
     },
     graph: {
       voice: g.voice,
