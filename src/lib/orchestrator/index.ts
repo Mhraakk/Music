@@ -108,13 +108,12 @@ export function orchestrateRecommendations(
     ranked.message ||
     `Multi-pool orchestration · ${merged.length} candidates → top ${items.length}`;
 
-  let health =
-    ranked.health ||
-    scoreRecommendationHealth({
-      items,
-      tier,
-      catalogSize: TRACKS.length,
-    });
+  // Always compute full HealthResult (requires breakdown) — never use partial ranked.health
+  let health = scoreRecommendationHealth({
+    items,
+    tier,
+    catalogSize: TRACKS.length,
+  });
 
   if (!health.ok && tier === "primary") {
     tier = "relaxed";
