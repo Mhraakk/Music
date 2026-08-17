@@ -9,6 +9,7 @@ import {
   emotionalDist,
   type Compass,
   type FB,
+  type FE,
 } from "@/lib/engine";
 import type { AgentContext, ToolCall, ToolResult, PlaylistDraft } from "./types";
 
@@ -56,11 +57,12 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
         if (!t) return { name, ok: false, error: "Track not in catalog" };
         const kind = String(args.kind || "more");
         const key = keyOf(t.artist, t.title);
+        const fe: FE = { kind, reason: args.reason as string | undefined };
         return {
           name,
           ok: true,
           data: { track: `${t.artist} — ${t.title}`, kind },
-          effects: [{ type: "setFeedback", key, kind, reason: args.reason as string | undefined }],
+          effects: [{ type: "setFeedback", key, fe }],
         };
       }
 
@@ -97,9 +99,7 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
             tier: res.tier,
             message: res.message,
           },
-          effects: applied.length
-            ? [{ type: "setCompass", compass: c }]
-            : [],
+          effects: applied.length ? [{ type: "setCompass", compass: c }] : [],
         };
       }
 
