@@ -1,21 +1,17 @@
-# RESONANT — Emotional Taste Graph
+# RESONANT v4 — Liquid Glass
 
-Personal music intelligence. Competes on **emotional correctness**, not catalog size.
+Cinematic music intelligence. Artwork-driven. Emotional taste graph.
 
-## Features
-- Mood Compass (warm / sad / organic / energy / dark)
-- Rejection memory (too mainstream, too cold, too fast, never again…)
-- Continuous flow: Open → Rise → Settle → Land
-- more like this / less like this / reject / heard
-- Taste graph voice + DNA bars + signal timeline
-- Never-empty fallback with explanation
-- Deep links: Spotify, Apple Music, YouTube Music, SoundCloud
+## What changed in v4
+- Real album artwork on every track
+- Persistent floating glass Mini Player
+- Immersive Now Playing (artwork illuminates the room)
+- Liquid Glass material system (glass-1 … glass-4)
+- Ambient environment derived from cover colors
+- Hero discovery card + editorial track cards
+- Preserved recommendation engine + rejection memory
 
-## Run locally
+## Run
 ```bash
-npm i
-npm run dev
+npm i && npm run dev
 ```
-
-## Deploy
-Connected to Vercel. Push to `main` triggers production build.
