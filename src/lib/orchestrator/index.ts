@@ -1,5 +1,6 @@
 /**
- * Recommendation Orchestrator
+ * Recommendation Orchestrator — decides HOW candidates are gathered and ranked.
+ * Never returns an empty list. Produces top-K (default 12) with pool provenance.
  */
 import { TRACKS } from "@/lib/tracks";
 import { recommend, graph, type Compass, type FB, type Scored } from "@/lib/engine";
@@ -31,11 +32,16 @@ const SOURCE_LABEL: Record<PoolName, string> = {
   "micro-texture": "same texture band",
 };
 
+/**
+ * Full orchestrated recommendation path.
+ * 1) Multi-pool retrieval  2) Engine rank with large limit
+ * 3) Annotate pool sources  4) Health gate
+ */
 export function orchestrateRecommendations(
   c: Compass,
   fb: FB,
   depth: number,
-  opts?: { limit?: number }
+  opts?: { limit?: number; excludeIds?: string[] }
 ): OrchestratorResult {
   const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
   const limit = Math.min(Math.max(opts?.limit ?? 12, 3), 16);
@@ -44,11 +50,11 @@ export function orchestrateRecommendations(
   const { merged, stats } = retrievePools(c, fb, depth);
   const sourceById = new Map(merged.map((m) => [m.t.id, m.sources]));
 
-  // Engine currently ranks a fixed top-K; slice to limit
-  const ranked = recommend(c, fb, depth);
-  const rankedItems = ranked.items.slice(0, limit);
+  // Single engine pass with expanded limit — never-empty, weighted, exposure-aware
+  // excludeIds hard-blocks already-shown tracks for Show More / Fresh cycles
+  const ranked = recommend(c, fb, depth, limit, opts?.excludeIds);
 
-  const items: OrchestratedItem[] = rankedItems.map((x) => {
+  const items: OrchestratedItem[] = ranked.items.map((x) => {
     const sources = sourceById.get(x.t.id) || (["taste-neighbor"] as PoolName[]);
     const srcLabel = SOURCE_LABEL[sources[0]] || "catalog";
     return {
@@ -59,10 +65,12 @@ export function orchestrateRecommendations(
     };
   });
 
+  // If engine returned fewer than limit, fill from multi-pool (non-vetoed, non-excluded)
   const seen = new Set(items.map((i) => i.t.id));
+  const hardExclude = new Set(opts?.excludeIds || []);
   if (items.length < limit) {
     const fill = [...merged]
-      .filter((m) => !seen.has(m.t.id))
+      .filter((m) => !seen.has(m.t.id) && !hardExclude.has(m.t.id))
       .filter((m) => {
         const key = `${m.t.artist.toLowerCase().trim()}::${m.t.title.toLowerCase().trim()}`;
         const fe = fb[key];
@@ -95,16 +103,18 @@ export function orchestrateRecommendations(
   }
 
   const g = graph(fb);
-  let tier = ranked.tier || "primary";
+  let tier = ranked.tier;
   let message =
     ranked.message ||
     `Multi-pool orchestration · ${merged.length} candidates → top ${items.length}`;
 
-  let health = scoreRecommendationHealth({
-    items,
-    tier,
-    catalogSize: TRACKS.length,
-  });
+  let health =
+    ranked.health ||
+    scoreRecommendationHealth({
+      items,
+      tier,
+      catalogSize: TRACKS.length,
+    });
 
   if (!health.ok && tier === "primary") {
     tier = "relaxed";
@@ -137,7 +147,7 @@ export function orchestrateRecommendations(
       poolSize: merged.length,
       latencyMs: Math.round(latencyMs),
       catalogSize: TRACKS.length,
-      exposureSuppressed: 0,
+      exposureSuppressed: ranked.metrics?.exposureSuppressed ?? 0,
     },
     graph: {
       voice: g.voice,
