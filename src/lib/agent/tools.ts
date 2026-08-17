@@ -17,6 +17,8 @@ function uid() {
   return `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+type PlayerAction = "play" | "toggle" | "next" | "prev" | "pause" | "expand" | "collapse";
+
 export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
   const name = call.name;
   const args = (call.args || {}) as Record<string, unknown>;
@@ -164,7 +166,9 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
       }
 
       case "controlPlayer": {
-        const action = String(args.action || "play");
+        const raw = String(args.action || "toggle");
+        const allowed: PlayerAction[] = ["play", "toggle", "next", "prev", "pause", "expand", "collapse"];
+        const action: PlayerAction = (allowed.includes(raw as PlayerAction) ? raw : "toggle") as PlayerAction;
         return {
           name,
           ok: true,
