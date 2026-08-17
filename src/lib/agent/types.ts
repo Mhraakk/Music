@@ -14,7 +14,25 @@ export type AgentToolName =
   | "buildJourney"
   | "controlPlayer"
   | "createPlaylistDraft"
-  | "confirmPlaylistExport";
+  | "confirmPlaylistExport"
+  | "getTasteTwin"
+  | "askTasteTwin"
+  | "setDiscoveryTemperature"
+  | "setContextLock"
+  | "parallelUniverse"
+  | "proposeActiveLearning"
+  | "sessionNarrative"
+  | "resetSessionRoom"
+  | "autopsyTrack"
+  | "counterfactual"
+  | "textureSearch"
+  | "sceneDiscover"
+  | "influenceGraph"
+  | "runPortal"
+  | "getRecommendationHealth"
+  | "reportRecommendationFailure"
+  | "getTasteDNA"
+  | "recordSkip";
 
 export type ToolCall = {
   name: AgentToolName;
@@ -26,7 +44,9 @@ export type ToolResult = {
   ok: boolean;
   data?: unknown;
   error?: string;
+  /** Side-effects the client must apply (player, fb, compass) */
   effects?: AgentEffect[];
+  /** Requires explicit user confirm before irreversible action */
   needsConfirm?: boolean;
   confirmId?: string;
 };
@@ -59,7 +79,9 @@ export type PlaylistDraft = {
 
 export type AgentRequest = {
   message: string;
+  /** Client snapshot so tools run with real taste/player state */
   context: AgentContext;
+  /** If user confirms a pending export */
   confirmId?: string;
 };
 
