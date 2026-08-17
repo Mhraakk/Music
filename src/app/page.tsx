@@ -22,37 +22,75 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
   );
 }
 
+function safeRecommend(c: Compass, by: Record<string, { kind: string; reason?: string }>, depth: number) {
+  try {
+    const r = recommend(c, by, depth);
+    if (r?.items?.length) return r;
+  } catch (e) {
+    console.error("[RESONANT] recommend failed", e);
+  }
+  // Absolute UI fallback — never blank
+  return {
+    items: TRACKS.slice(0, 8).map((t, i) => ({ t, s: 1 - i * 0.01, reason: t.why })),
+    message: "Showing open catalog.",
+    graph: graph(by || {}),
+    tier: "emergency",
+  };
+}
+
 export default function App() {
   const by = useFB((s) => s.byTrack);
   const mem = useFB((s) => s.memory);
   const liked = useFB((s) => s.liked());
   const hated = useFB((s) => s.hated());
+  const setFB = useFB((s) => s.setFB);
   const play = usePlayer((s) => s.play);
 
   const [tab, setTab] = useState<"graph" | "flow" | "self">("graph");
   const [c, setC] = useState<Compass>({ warm: 0.55, sad: 0.45, organic: 0.5, energy: 0.35, dark: 0.55 });
   const [depth, setDepth] = useState(0.7);
+  const [refresh, setRefresh] = useState(0);
 
-  // Serialize feedback so any like/dislike always invalidates memo
   const fbKey = useMemo(
     () =>
       Object.entries(by)
         .map(([k, v]) => `${k}:${v.kind}:${v.reason || ""}`)
         .sort()
-        .join("|"),
-    [by]
+        .join("|") + `|r${refresh}`,
+    [by, refresh]
   );
 
-  const res = useMemo(() => recommend(c, by, depth), [c, by, depth, fbKey]);
-  const fl = useMemo(() => flow(c, by, depth), [c, by, depth, fbKey]);
+  const res = useMemo(() => safeRecommend(c, by, depth), [c, by, depth, fbKey]);
+  const fl = useMemo(() => {
+    try {
+      return flow(c, by, depth);
+    } catch {
+      return {
+        path: TRACKS.slice(0, 6).map((t, i) => ({ t, reason: t.why, chapter: "Open", e: 0.4 })),
+        graph: graph(by),
+      };
+    }
+  }, [c, by, depth, fbKey]);
   const g = useMemo(() => graph(by), [by, fbKey]);
 
   if (typeof window !== "undefined") {
-    (window as any).__RESONANT__ = { clearRecent, getDebugSnapshot, recommend, flow };
+    (window as any).__RESONANT__ = { clearRecent, getDebugSnapshot, recommend, flow, last: res };
   }
 
-  const maxE = Math.max(...fl.path.map((p) => p.e), 0.01);
-  const queue = res.items.map((x) => x.t);
+  const maxE = Math.max(...(fl.path?.map((p) => p.e) || [0.4]), 0.01);
+  const items = res.items?.length ? res.items : TRACKS.slice(0, 8).map((t) => ({ t, reason: t.why, s: 1 }));
+  const queue = items.map((x) => x.t);
+
+  const resetTaste = () => {
+    Object.keys(by).forEach((k) => setFB(k, null));
+    clearRecent();
+    setRefresh((n) => n + 1);
+  };
+
+  const shuffleFresh = () => {
+    clearRecent();
+    setRefresh((n) => n + 1);
+  };
 
   return (
     <div className="relative min-h-dvh">
@@ -67,9 +105,14 @@ export default function App() {
               <p className="text-[10px] text-white/30">Emotional taste graph</p>
             </div>
           </div>
-          <div className="glass-1 rounded-full px-3 py-1.5 flex gap-3 text-[11px]">
-            <span className="text-emerald-400/85">+{liked}</span>
-            <span className="text-red-400/85">−{hated}</span>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={shuffleFresh} className="glass-1 rounded-full px-3 py-1.5 text-[10px] text-[#e8a06a]/90 pressable">
+              Fresh
+            </button>
+            <div className="glass-1 rounded-full px-3 py-1.5 flex gap-3 text-[11px]">
+              <span className="text-emerald-400/85">+{liked}</span>
+              <span className="text-red-400/85">−{hated}</span>
+            </div>
           </div>
         </header>
 
@@ -82,20 +125,20 @@ export default function App() {
               Artwork, atmosphere, rejection memory — recommendations that pass an emotional test.
             </p>
 
-            {res.items[0] && (
-              <button type="button" onClick={() => play(res.items[0].t, queue)} className="mt-6 w-full text-left glass-3 glass-edge rounded-3xl overflow-hidden pressable group">
+            {items[0] && (
+              <button type="button" onClick={() => play(items[0].t, queue)} className="mt-6 w-full text-left glass-3 glass-edge rounded-3xl overflow-hidden pressable group">
                 <div className="relative aspect-[16/10] overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={res.items[0].t.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img src={items[0].t.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/90 mb-1">Hero discovery</p>
-                    <p className="text-xl font-semibold text-white">{res.items[0].t.title}</p>
-                    <p className="text-sm text-white/60">{res.items[0].t.artist}</p>
+                    <p className="text-xl font-semibold text-white">{items[0].t.title}</p>
+                    <p className="text-sm text-white/60">{items[0].t.artist}</p>
                   </div>
                 </div>
                 <div className="p-3.5">
-                  <p className="text-[12px] text-[#d4a574]/90 leading-snug">{res.items[0].reason}</p>
+                  <p className="text-[12px] text-[#d4a574]/90 leading-snug">{items[0].reason}</p>
                 </div>
               </button>
             )}
@@ -111,28 +154,42 @@ export default function App() {
             </section>
 
             <div className="mt-3 glass-1 rounded-xl px-3.5 py-2.5 text-[11px] text-white/50 leading-relaxed">
-              <span className="text-[#e8a06a]/90">Graph · </span>{res.graph.voice}
-              {res.graph.avoids.length > 0 && <span className="text-white/30"> · avoids {res.graph.avoids.slice(0, 3).join(", ")}</span>}
+              <span className="text-[#e8a06a]/90">Graph · </span>{res.graph?.voice || g.voice}
+              {(res.graph?.avoids?.length || 0) > 0 && (
+                <span className="text-white/30"> · avoids {(res.graph?.avoids || []).slice(0, 3).join(", ")}</span>
+              )}
             </div>
 
             {res.message && (
               <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-100/90">{res.message}</div>
             )}
 
-            <h2 className="mt-7 text-[10px] uppercase tracking-[0.15em] text-white/35">Passes emotional test</h2>
+            <div className="mt-5 flex items-center justify-between">
+              <h2 className="text-[10px] uppercase tracking-[0.15em] text-white/35">Passes emotional test · {items.length}</h2>
+              <button type="button" onClick={shuffleFresh} className="text-[10px] text-[#e8a06a]/85 pressable">
+                Show more →
+              </button>
+            </div>
             <div className="mt-2.5 space-y-3">
-              {res.items.map(({ t, reason }, i) => (
-                <TrackCard key={t.id} track={t} reason={reason} variant={i === 0 ? "editorial" : "discovery"} queue={queue} />
+              {items.map(({ t, reason }, i) => (
+                <TrackCard key={`${t.id}-${refresh}-${i}`} track={t} reason={reason} variant={i === 0 ? "editorial" : "discovery"} queue={queue} />
               ))}
             </div>
+
+            {items.length === 0 && (
+              <div className="mt-4 glass-2 rounded-2xl p-4 text-center">
+                <p className="text-sm text-white/60">No tracks ranked — recovering…</p>
+                <button type="button" onClick={shuffleFresh} className="mt-3 text-[12px] text-[#e8a06a] pressable">Reload recommendations</button>
+              </div>
+            )}
           </>
         )}
 
         {tab === "flow" && (
           <>
             <h1 className="mt-7 text-2xl font-semibold text-[#f8f4ee]">Continuous flow</h1>
-            <p className="text-sm text-white/40 mt-1">Open → rise → settle → land. Hard emotional cuts are penalized.</p>
-            <p className="text-[11px] text-[#e8a06a]/80 mt-2">{fl.graph.voice}</p>
+            <p className="text-sm text-white/40 mt-1">Open → rise → settle → land.</p>
+            <p className="text-[11px] text-[#e8a06a]/80 mt-2">{fl.graph?.voice}</p>
             <section className="mt-4 glass-2 glass-edge rounded-2xl p-4 space-y-3">
               <Slider label="Warm" value={c.warm} onChange={(n) => setC({ ...c, warm: n })} />
               <Slider label="Sad" value={c.sad} onChange={(n) => setC({ ...c, sad: n })} />
@@ -140,15 +197,15 @@ export default function App() {
               <Slider label="Dark" value={c.dark} onChange={(n) => setC({ ...c, dark: n })} />
             </section>
             <div className="mt-4 flex items-end gap-1.5 h-16 px-1">
-              {fl.path.map((p, i) => (
+              {(fl.path || []).map((p, i) => (
                 <div key={i} className="flex-1 flex flex-col justify-end h-full">
                   <div className="w-full rounded-t-md bg-gradient-to-t from-[#6b3a18] to-[#e8a06a]" style={{ height: `${(p.e / maxE) * 100}%`, minHeight: 4 }} />
                 </div>
               ))}
             </div>
             <div className="mt-5 space-y-3">
-              {fl.path.map(({ t, reason, chapter }) => (
-                <TrackCard key={t.id + chapter} track={t} reason={reason} chapter={chapter} queue={fl.path.map((x) => x.t)} />
+              {(fl.path || []).map(({ t, reason, chapter }) => (
+                <TrackCard key={t.id + chapter} track={t} reason={reason} chapter={chapter} queue={(fl.path || []).map((x) => x.t)} />
               ))}
             </div>
           </>
@@ -157,12 +214,15 @@ export default function App() {
         {tab === "self" && (
           <>
             <h1 className="mt-7 text-2xl font-semibold text-[#f8f4ee]">Knows you</h1>
-            <p className="text-sm text-white/40 mt-1">Every signal rewires the graph. Not a scoreboard — a memory.</p>
+            <p className="text-sm text-white/40 mt-1">Every signal rewires the graph.</p>
             <div className="mt-5 glass-3 glass-edge rounded-2xl p-5">
               <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/85 mb-2">Taste graph voice</p>
               <p className="text-lg text-[#f8f4ee] leading-snug">{g.voice}</p>
               {g.avoids.length > 0 && <p className="mt-3 text-[12px] text-white/40">Avoids: {g.avoids.join(" · ")}</p>}
               <p className="mt-2 text-[11px] text-white/30">+{g.liked} attract · −{g.hated} reject</p>
+              <button type="button" onClick={resetTaste} className="mt-4 text-[11px] text-red-300/80 pressable underline">
+                Reset all taste memory
+              </button>
             </div>
             <div className="mt-6 space-y-3">
               {([["Dark", g.attract.d], ["Warm", g.attract.w], ["Organic", g.attract.o], ["Energy", g.attract.e], ["Sad", g.attract.s], ["Mainstream pull", g.attract.m]] as [string, number][]).map(([label, v]) => (
