@@ -63,9 +63,19 @@ export type LibraryTrack = {
   aspect: number;
 };
 
-function aspectFor(track: DriftTrack): number {
-  // Cinematic, spacious positions get taller crops; tight intimate ones stay
-  // square. Deterministic, so the grid does not reshuffle between renders.
+function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
+  /**
+   * Letterboxed artwork must stay square. A fair amount of Apple artwork is a
+   * non-square photograph padded to square with solid black or white bars;
+   * cropping that into a taller tile keeps the bars and reads as a broken image
+   * rather than as a sleeve. At 1:1 the bars are simply part of the cover, which
+   * is what the label intended.
+   */
+  if (media?.letterboxed) return 1;
+
+  // Otherwise, cinematic and spacious positions get taller crops while tight
+  // intimate ones stay square, so the columns have some rhythm instead of
+  // reading as a spreadsheet. Deterministic, so the grid never reshuffles.
   const cinematic = cinematicMagnitude(track.csv);
   if (cinematic > 0.72) return 1.34;
   if (cinematic > 0.6) return 1.18;
@@ -98,7 +108,7 @@ function toLibraryTrack(track: DriftTrack): LibraryTrack {
     cinematic: cinematicMagnitude(track.csv),
     shape: describeVector(track.vector),
     note: track.note,
-    aspect: aspectFor(track),
+    aspect: aspectFor(track, media),
   };
 }
 

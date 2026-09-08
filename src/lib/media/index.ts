@@ -39,6 +39,12 @@ export type TrackMedia = {
   averageColor?: string;
   palette?: string[];
   isDark?: boolean;
+  /**
+   * True when the sleeve is a non-square image padded to square with solid
+   * bars. Such artwork must be rendered at 1:1 — cropping it to a taller tile
+   * keeps the bars and reads as a broken image.
+   */
+  letterboxed?: boolean;
   unresolved?: boolean;
 };
 

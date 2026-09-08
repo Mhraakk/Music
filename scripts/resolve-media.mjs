@@ -32,6 +32,13 @@ const sharp = require("sharp");
 
 const OUT = "src/lib/media/catalog-media.json";
 const FORCE = process.argv.includes("--force");
+/**
+ * Re-analyses artwork already resolved — colours and letterbox detection — with
+ * no API calls at all. Tuning the colour extraction should not cost a full
+ * re-resolve, and the public search endpoint rate-limits hard enough that
+ * re-querying 65 positions to change a threshold is a bad trade.
+ */
+const RECOLOR = process.argv.includes("--recolor");
 const SEARCH = "https://itunes.apple.com/search";
 
 /* ─────────────────────────── catalog extraction ─────────────────────────── */
@@ -237,6 +244,46 @@ async function extractColours(url) {
     }
   }
 
+  /**
+   * LETTERBOX DETECTION
+   *
+   * A fair amount of Apple artwork is a non-square photograph padded to square
+   * with solid black or white bars. Cropping that to a taller tile keeps the
+   * bars and reads as a broken image rather than as a sleeve, so the grid needs
+   * to know and render those square.
+   *
+   * Detected by comparing the outer rows against the middle: a genuine dark
+   * sleeve is dark throughout, whereas a letterboxed one has near-uniform
+   * extremes at both edges and materially different content in the centre.
+   */
+  const rowLuminance = [];
+  for (let y = 0; y < 64; y++) {
+    let sum = 0;
+    for (let x = 0; x < 64; x++) {
+      const i = (y * 64 + x) * channels;
+      sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+    rowLuminance.push(sum / 64);
+  }
+
+  const edge = 5;
+  const top = rowLuminance.slice(0, edge);
+  const bottom = rowLuminance.slice(-edge);
+  const middle = rowLuminance.slice(edge * 3, -edge * 3);
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const middleMean = mean(middle);
+
+  const barLike = (band) => {
+    const m = mean(band);
+    const uniform = Math.max(...band) - Math.min(...band) < 26;
+    const extreme = m < 26 || m > 232;
+    // Must differ from the picture by a real margin, or a black-on-black sleeve
+    // would be misread as bars.
+    return uniform && extreme && Math.abs(m - middleMean) > 52;
+  };
+
+  const letterboxed = barLike(top) && barLike(bottom);
+
   const palette = [...bins.values()]
     .map((bin) => {
       const r = bin.r / bin.n;
@@ -267,6 +314,7 @@ async function extractColours(url) {
     averageColor: toHex(average),
     palette: palette.slice(0, 4).map((c) => toHex(c)),
     isDark: rgbToHsl(average.r, average.g, average.b).l < 0.42,
+    letterboxed,
   };
 }
 
@@ -291,6 +339,37 @@ let missed = 0;
 let skipped = 0;
 
 let throttledOut = 0;
+
+if (RECOLOR) {
+  let recoloured = 0;
+  let letterboxes = 0;
+
+  for (const [id, entry] of Object.entries(media)) {
+    const source = entry.thumbUrl ?? entry.artworkUrl;
+    if (!source) continue;
+    try {
+      const colours = await extractColours(source);
+      if (!colours) continue;
+      media[id] = { ...entry, ...colours };
+      recoloured += 1;
+      if (colours.letterboxed) letterboxes += 1;
+      console.log(
+        `  ${colours.letterboxed ? "letterbox" : "ok       "}  ` +
+          `${entry.resolvedArtist} — ${entry.resolvedTitle}  ${colours.searchColor}`
+      );
+    } catch (error) {
+      console.log(`  warn   ${id}: ${error.message}`);
+    }
+  }
+
+  await mkdir(path.dirname(OUT), { recursive: true });
+  const file = JSON.parse(await readFile(OUT, "utf8"));
+  file.media = media;
+  file.generatedAt = new Date().toISOString();
+  await writeFile(OUT, `${JSON.stringify(file, null, 2)}\n`);
+  console.log(`\nrecoloured ${recoloured}, letterboxed ${letterboxes}\nwrote ${OUT}`);
+  process.exit(0);
+}
 
 for (const entry of catalog) {
   if (media[entry.id]?.artworkUrl && !FORCE) {
