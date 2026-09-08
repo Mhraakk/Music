@@ -3,8 +3,19 @@
 Music modelled as emotional structure evolving over time. No genre tags, no BPM, no
 popularity ranking, no playlists, no next button.
 
-Mounted at `/drift`, alongside the existing RESONANT surface at `/`. The two share a track
-catalog and nothing else — see [Why it is a separate surface](#why-it-is-a-separate-surface).
+## Surfaces
+
+The engine described here drives three interfaces, which share the catalog and the cognitive
+core and agree on nothing else visually. Design tokens are scoped per surface so they cannot
+contaminate each other — see [Why they are separate surfaces](#why-they-are-separate-surfaces).
+
+| Route | Surface | Design |
+|---|---|---|
+| `/` | Discover | Image-led. Masonry of real album artwork, warm off-white paper, search by colour. See [§9](#9-the-image-led-surface). |
+| `/drift` | Emotional map | Brutalist. Flat, 0px radius, no artwork, 8px grid. See [§5](#5-design-system-drift). |
+| `/classic` | Original RESONANT | Liquid glass. Blur, elevation, 22px corners. Unchanged. |
+
+`/` is the primary surface. Everything from §1 to §4 below is common to all three.
 
 ---
 
@@ -290,7 +301,7 @@ one rendering of it.
 
 ---
 
-## 5. Design system
+## 5. Design system (`/drift`)
 
 Brutalist emotionalism, enforced structurally in `src/app/drift/drift.css` rather than
 trusted to review:
@@ -322,14 +333,18 @@ Tailwind shadow utility must lose without anyone having to catch it in review.
   strip, and a photographic cover would smuggle a gradient onto a surface that forbids them.
   The room's colour is the artwork.
 
-### Why it is a separate surface
+### Why they are separate surfaces
 
-The existing app at `/` is a liquid-glass system built on backdrop blur, layered shadows and
-22px corners. Sonic Drift's brief mandates the exact inverse. Rather than delete working
-software or let two contradictory systems fight over the same tokens, the design system is
-scoped under `.sonic-drift` and the two coexist. Only the track catalog is shared, and it
-crosses the boundary through a documented projection in `src/lib/drift/catalog.ts` that strips
-album, year, artwork and every other conventional field.
+Three design systems live in this application and each contradicts the others. The original
+RESONANT surface is liquid glass — backdrop blur, layered shadows, 22px corners. The drift
+surface mandates the exact inverse: flat, zero radius, no imagery. The discover surface is
+image-led, with soft corners and full-bleed artwork on warm paper.
+
+Rather than delete working software or let contradictory systems fight over the same tokens,
+each is scoped to its own root class — `.sonic-drift`, `.cosmos` — and they coexist. The
+catalog is the only thing shared, and it crosses into the drift ontology through a documented
+projection in `src/lib/drift/catalog.ts` that strips album, year, artwork and every other
+conventional field.
 
 ---
 
@@ -399,3 +414,104 @@ eventually exhaust the admissible pool, after which the engine could only repeat
 | `src/context/DriftContext.tsx` | The arc as emotional vectors, signal ledger, branch memory |
 | `src/components/drift/` | CognitivePlayer, EmotionalTopography, DriftArcRail, manifest |
 | `src/app/drift/` | RSC page, Poppins layout, scoped design system |
+
+---
+
+## 9. The image-led surface
+
+The primary surface at `/` inverts the drift surface's austerity: warm off-white paper, a
+dense masonry of full-bleed album artwork, soft 10px corners, tight near-black display type,
+and floating pill controls. Tokens are scoped under `.cosmos`.
+
+### There were no images
+
+The blocker was not design, it was data. The upstream catalog's `coverUrl` fields were
+placeholders — 60 tracks shared 13 URLs between them, and 40 of those 60 returned 404. That
+is survivable for a text-led interface and fatal for an image-led one.
+
+`scripts/resolve-media.mjs` resolves the catalog against the **iTunes Search API**, which
+needs no key, no OAuth and no developer account, and commits the result to
+`src/lib/media/catalog-media.json`. Results:
+
+| | |
+|---|---|
+| Real 1000px artwork | 64 / 65 positions |
+| 30-second previews | 64 / 65 positions |
+| Distinct dominant colours | 57 / 64 |
+| Genuine misses | 1 (Hraach — *Resonance*, not on Apple Music) |
+
+The previews matter more than the artwork. Before this, every phase was silent until someone
+configured Apple MusicKit; now the app plays audio with **zero credentials**. MusicKit and
+SoundCloud remain the high-fidelity paths, but the floor is no longer silence.
+
+### Colours are extracted, not guessed
+
+Dominant colours are computed locally with `sharp` at resolve time. Not in the browser,
+because reading pixels from a remote sleeve needs CORS headers Apple does not always send, and
+because colour search has to rank the whole catalog instantly rather than after 64 image
+decodes.
+
+`sharp.stats().dominant` is a poor search key on its own: it reports the most *frequent*
+colour, which on a typical sleeve is the near-black or near-white background rather than the
+colour a person would say the cover is. So the palette is quantised to a 32-level grid,
+near-greyscale bins are discounted, and the winner is chosen on frequency weighted by
+saturation and mid-lightness.
+
+The distance metric matters as much as the extraction. Hue is compared on the circle and
+discounted when either colour is too desaturated to meaningfully have one — but discounting
+hue *alone* rewards greyscale for being unfalsifiable, since a colour with no hue is never
+wrong about hue. Monochrome artwork consequently ranked near the top of every colour search.
+Chroma mismatch is therefore its own heavily-weighted term: for a deep-blue query, a near-grey
+navy moved from 0.097 to 0.349.
+
+Search **ranks rather than filters**. A hard threshold on an unusual hue returns an empty
+grid, which reads as a broken feature rather than an honest "nothing is quite this colour,
+here is what is closest".
+
+### Letterboxed sleeves
+
+A fair amount of Apple artwork is a non-square photograph padded to square with solid bars —
+Slint's *Spiderland* measures luminance 0–2 in its outer rows against 131–195 through the
+middle. Cropping that into a tall tile keeps the bars, so correct `object-fit: cover`
+rendering looks like a broken image.
+
+The resolver detects it by comparing the outer rows against the centre, requiring both edges
+to be near-uniform, extreme, *and* materially different from the picture, so a genuinely dark
+sleeve is not misread. 7 of 64 are letterboxed and render at 1:1, where the bars are simply
+part of the cover the label shipped.
+
+### Nothing on these pages is invented
+
+- **Collections** are regions of the emotional topography. Membership is by proximity to a
+  region's centre, so a position can appear in two neighbouring collections — which is true
+  of the music.
+- **Curators** are the engine's aesthetic anchors, listing the positions for which each is the
+  nearest anchor. There are no fabricated follower counts and no invented avatars: an anchor's
+  identity mark is a mosaic of the sleeves it calibrates.
+- **Text search** covers artist, title, album, region and the engine's own description of
+  emotional shape. There is no genre index, so "fragile" and "wide room" are first-class
+  queries in a way that "deep house" deliberately is not.
+
+### The engine is still the brain
+
+Tapping a sleeve does not enqueue it — it starts a drift from there, and
+`get_next_emotional_drift` chooses what follows from implicit feedback. There is still no next
+button. The level slider remains a genuine *input* to the engine, and the now-playing sheet
+draws the vocal fragility windows onto the timeline so the listener can see when a gesture
+counts for more, rather than being measured in secret.
+
+One correction the visual surface forced: an unresolved phase completing is recorded as
+`stillness`, not `dwell_complete`. Crediting an inaudible phase as a full dwell manufactured a
+stream of strong positives and pinned the engine in `deepen`.
+
+### Regenerating media
+
+```bash
+npm run resolve:media              # resolve anything missing
+node scripts/resolve-media.mjs --recolor   # re-analyse colours only, no API calls
+node scripts/resolve-media.mjs --force     # re-resolve everything
+```
+
+The public endpoint rate-limits hard. Throttled requests are left absent rather than recorded
+as misses, so a re-run retries them — an earlier version conflated the two and permanently
+marked 29 tracks as having no artwork, including several verified by hand to resolve fine.
