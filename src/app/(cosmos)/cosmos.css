@@ -563,6 +563,36 @@ body:has(.cosmos) {
   background: var(--ink);
 }
 
+/*
+ * SIGNATURE PLATE
+ *
+ * Sized from the viewport height rather than its width, so a whole plate and
+ * its caption are visible at once on any screen without scrolling to read the
+ * caption. Constraining by width alone left portrait plates small on wide
+ * screens and pushed their captions underneath the floating nav.
+ *
+ * `height` is definite and `width` follows from `aspect-ratio`. On a narrow
+ * screen `max-width` clamps first and the ratio gives; `object-fit: cover` on
+ * the image absorbs that rather than distorting it.
+ */
+.cx-plate {
+  position: relative;
+  height: min(64vh, 660px);
+  width: auto;
+  max-width: min(92vw, 940px);
+  overflow: hidden;
+  border-radius: var(--r-card);
+  box-shadow: var(--lift-2);
+}
+
+@media (max-width: 640px) {
+  .cx-plate {
+    height: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
 /* Skeleton shimmer for tiles awaiting artwork. */
 @keyframes cx-pulse {
   0%,

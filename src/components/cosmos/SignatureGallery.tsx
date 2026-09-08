@@ -66,32 +66,31 @@ export function SignatureGallery({ plates }: { plates: SignaturePlate[] }) {
           ref={(el) => {
             sectionRefs.current[index] = el;
           }}
-          className="flex min-h-[86vh] flex-col justify-center py-16"
+          // Bottom padding clears the floating nav, which otherwise sits over
+          // the caption of whichever plate is centred.
+          className="flex min-h-[90vh] flex-col justify-center pb-28 pt-16"
         >
           <figure className="flex flex-col items-center">
             <div
-              className="relative w-full overflow-hidden"
+              className="cx-plate"
               style={{
-                maxWidth: plate.width >= plate.height ? 900 : 560,
                 // Reserved from the real dimensions, so nothing reflows on load.
                 aspectRatio: `${plate.width} / ${plate.height}`,
-                borderRadius: "var(--r-card)",
                 backgroundColor: plate.average,
-                boxShadow: "var(--lift-2)",
               }}
             >
               <Image
                 src={plate.src}
                 alt={plate.title}
                 fill
-                sizes="(min-width: 1024px) 900px, 92vw"
+                sizes="(min-width: 1024px) 940px, 92vw"
                 // The first plate is the largest thing above the fold.
                 priority={index === 0}
                 style={{ objectFit: "cover" }}
               />
             </div>
 
-            <figcaption className="mt-8 w-full max-w-[46ch]">
+            <figcaption className="mt-6 w-full max-w-[52ch]">
               <div className="flex items-baseline justify-between gap-4">
                 <h2 className="cx-heading">{plate.title}</h2>
                 <span className="cx-mono shrink-0">
