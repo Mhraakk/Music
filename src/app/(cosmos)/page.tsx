@@ -12,8 +12,12 @@
 
 import Link from "next/link";
 import { collections, featured, library } from "@/lib/library";
+import { signaturePlates } from "@/lib/signature";
 import { CollectionRail } from "@/components/cosmos/CollectionRail";
 import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
+
+/** The three signature plates reduced to their colours, as a maker's mark. */
+const SIGNATURE_TINTS = signaturePlates().map((plate) => plate.tint);
 
 export default function DiscoverPage() {
   const tracks = library();
@@ -73,6 +77,26 @@ export default function DiscoverPage() {
         </h2>
         <DiscoverSurface tracks={opening} />
       </section>
+
+      {/*
+        The maker's mark, placed where a signature belongs: at the end, quietly,
+        after the work rather than in front of it.
+      */}
+      <footer className="border-t border-[var(--hairline)] pb-24 pt-8">
+        <Link href="/signature" className="group inline-flex items-center gap-3">
+          <span className="flex -space-x-2">
+            {SIGNATURE_TINTS.map((tint) => (
+              <span
+                key={tint}
+                className="h-5 w-5 rounded-full ring-2 ring-[var(--paper)]"
+                style={{ backgroundColor: tint }}
+                aria-hidden
+              />
+            ))}
+          </span>
+          <span className="cx-meta group-hover:text-[var(--ink)]">Signed — three photographs</span>
+        </Link>
+      </footer>
     </main>
   );
 }
