@@ -252,11 +252,23 @@ async function verifySession() {
 async function verifyDeepenIntensifies() {
   section("Deepen semantics");
 
+  // A deliberately cold, heavy starting position, so progress toward the warm
+  // destination is unambiguous in a single axis.
+  const here = {
+    depth: 0.9,
+    narrative: 0.5,
+    fragility: 0.7,
+    cinema: 0.85,
+    warmth: 0.25,
+    imperfection: 0.6,
+    insistence: 0.2,
+  };
   const shared = {
     sessionId: "verify-deepen",
     origin: "deep_melancholy",
     destination: "cinematic_warmth",
     history: ["l-3", "l-19"],
+    trajectory: [here, here],
     branches: {},
   };
   const at = Date.now();
@@ -280,13 +292,30 @@ async function verifyDeepenIntensifies() {
     "more evidence raises confidence",
     `${weak.reading.confidence.toFixed(2)} → ${strong.reading.confidence.toFixed(2)}`
   );
-  // Regression guard: confidence used to shrink the step, freezing the drift on
-  // the listener's strongest moment instead of going further into it.
-  check(
-    strong.phase.step >= weak.phase.step,
-    "higher confidence does not shrink the deepen step",
-    `${weak.phase.step.toFixed(3)} → ${strong.phase.step.toFixed(3)}`
-  );
+
+  /**
+   * Regression guard for the freeze. `deepen` once combined a step that shrank
+   * with confidence and an aim that dropped the destination entirely, so the
+   * strongest resonance produced the least movement and a session could stall
+   * on one position forever.
+   *
+   * Note this asserts *progress*, not step length. A smaller step at higher
+   * confidence is now correct: the aim retains a destination component, and
+   * strong resonance legitimately means staying nearer to what is working. What
+   * must never happen again is the drift ceasing to advance.
+   */
+  for (const [label, result] of [["low", weak], ["high", strong]]) {
+    check(
+      result.phase.target.warmth > here.warmth,
+      `deepen still advances toward the destination at ${label} confidence`,
+      `warmth ${here.warmth.toFixed(2)} → ${result.phase.target.warmth.toFixed(2)}`
+    );
+    check(
+      result.phase.step > 0.004,
+      `deepen produces a non-zero step at ${label} confidence`,
+      `step ${result.phase.step.toFixed(4)}`
+    );
+  }
 }
 
 async function verifySilentSessionRestraint() {
@@ -340,6 +369,69 @@ async function verifySilentSessionRestraint() {
   );
 }
 
+async function verifyArrival() {
+  section("Long-session arrival");
+
+  // A listener who names a destination must reach it, whether they engage or
+  // sit still. Two defects used to prevent that: `deepen` dropped the
+  // destination from its aim entirely, and the engine treated the served
+  // track's position as "where the session is", so once a region ran thin the
+  // compromise occupant dragged the whole trajectory back the way it came.
+  const run = async (kind) => {
+    const arc = [];
+    let branches = {};
+    let signals = [];
+    for (let i = 0; i < 18; i++) {
+      const recent = arc.slice(-24);
+      const decision = await callTool("get_next_emotional_drift", {
+        sessionId: `verify-arrival-${kind}`,
+        origin: "deep_melancholy",
+        destination: "cinematic_warmth",
+        history: recent.map((p) => p.trackId),
+        trajectory: recent.map((p) => p.target),
+        signals: signals.slice(-12),
+        branches,
+      });
+      branches = decision.branches;
+      arc.push(decision.phase);
+      signals.push({
+        kind,
+        trackId: decision.phase.trackId,
+        progress: 1,
+        fragility: 0,
+        magnitude: 0,
+        at: Date.now(),
+      });
+    }
+    return arc;
+  };
+
+  for (const [kind, label] of [
+    ["stillness", "passive listener"],
+    ["dwell_complete", "engaged listener"],
+  ]) {
+    const arc = await run(kind);
+    const final = arc[arc.length - 1];
+    const tailWarmth = arc.slice(-6).map((p) => p.target.warmth);
+
+    check(
+      final.region === "cinematic_warmth",
+      `${label} arrives at the named destination`,
+      `${final.region}, warmth ${final.target.warmth.toFixed(2)}`
+    );
+    check(
+      Math.min(...tailWarmth) > 0.6,
+      `${label} holds the destination once reached`,
+      `min warmth over last 6 phases ${Math.min(...tailWarmth).toFixed(2)}`
+    );
+    check(
+      final.target.warmth > arc[0].target.warmth,
+      `${label} ends warmer than it began`,
+      `${arc[0].target.warmth.toFixed(2)} → ${final.target.warmth.toFixed(2)}`
+    );
+  }
+}
+
 /* ──────────────────────────────────── main ──────────────────────────────────── */
 
 try {
@@ -350,6 +442,7 @@ try {
   await verifySession();
   await verifyDeepenIntensifies();
   await verifySilentSessionRestraint();
+  await verifyArrival();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

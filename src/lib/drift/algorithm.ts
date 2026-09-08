@@ -511,8 +511,18 @@ export function redirectDrift(input: RedirectInput): RedirectResult {
 /* ──────────────────────────── SINGLE-STEP DRIFT ──────────────────────────── */
 
 export type NextPhaseInput = {
-  /** Positions already heard this session, oldest first. */
-  history: EmotionalVector[];
+  /**
+   * The engine's own intended path — the target of each phase so far, oldest
+   * first. This, not the list of tracks that ended up occupying those targets,
+   * is what "where the session is" means.
+   *
+   * The distinction matters once a region runs thin. If the catalog cannot offer
+   * a warm enough occupant for a warm target, the honest answer is to serve the
+   * nearest admissible track and *keep aiming warm*. Treating the compromise
+   * occupant as the new position instead lets pool scarcity rewrite the
+   * engine's intent, and the trajectory collapses back the way it came.
+   */
+  trajectory: EmotionalVector[];
   destination: CoordinateId | string;
   reading: ResonanceReading;
   branches?: BranchState;
@@ -537,8 +547,8 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
   const pool = admissiblePool();
   if (pool.length === 0) return null;
 
-  const here = input.history.length
-    ? input.history[input.history.length - 1]
+  const here = input.trajectory.length
+    ? input.trajectory[input.trajectory.length - 1]
     : coordinateOrDefault(null, "deep_melancholy").vector;
 
   const { mode, confidence } = input.reading;
@@ -564,7 +574,22 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
         return acc;
       }, {} as EmotionalVector)
     );
-    aim = lerpVector(here, amplified, 0.75);
+    const intensified = lerpVector(here, amplified, 0.75);
+    /**
+     * Deepening changes *how* the drift travels, not *whether* it arrives.
+     * Dropping the destination here meant a long run of positive signals could
+     * strand a session: a listener who asked for Cinematic Warmth and then sat
+     * still accumulated consistent positives, and the engine intensified
+     * whatever region it happened to be in until it never left. Strong
+     * resonance earns a richer, slower route to the stated destination — it
+     * does not earn an abandoned trip.
+     *
+     * Confidence sets how much of the current pattern is preserved, mirroring
+     * `redirectDrift`, which pulls the destination toward the resonating
+     * position rather than discarding it. Even at full confidence a tenth of
+     * the aim still points at where the listener said they were going.
+     */
+    aim = lerpVector(destination.vector, intensified, 0.55 + confidence * 0.35);
   } else if (mode === "prune") {
     const region = nearestCoordinate(here).coordinate.id;
     branches[region] = { status: "pruned", visits: (branches[region]?.visits ?? 0) + 1 };
@@ -575,7 +600,7 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
   } else {
     const region = nearestCoordinate(here).coordinate.id;
     const neighbours = adjacentCoordinates(region, 3).filter((c) => branches[c.id]?.status !== "pruned");
-    const lateral = neighbours[Math.floor(hash01(`${input.seed ?? "x"}:${input.history.length}`) * Math.max(1, neighbours.length))];
+    const lateral = neighbours[Math.floor(hash01(`${input.seed ?? "x"}:${input.trajectory.length}`) * Math.max(1, neighbours.length))];
     // Split the difference between a lateral hop and the stated destination, so
     // exploration never abandons where the listener said they were going.
     aim = lerpVector((lateral ?? destination).vector, destination.vector, 0.4);
@@ -590,7 +615,7 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
     used,
     usedArtists: new Set(),
     branches,
-    seed: `${input.seed ?? "next"}:${input.history.length}`,
+    seed: `${input.seed ?? "next"}:${input.trajectory.length}`,
     pool,
   });
   if (!picked) return null;
@@ -601,7 +626,7 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
 
   return {
     phase: {
-      index: input.history.length,
+      index: input.trajectory.length,
       target,
       region,
       trackId: track.id,

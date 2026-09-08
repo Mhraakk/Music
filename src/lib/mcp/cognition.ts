@@ -85,8 +85,11 @@ export type DriftRequestInput = {
   sessionId: string;
   origin: string;
   destination: string;
-  /** Substrate positions already heard this session, oldest first. */
-  history: EmotionalVector[];
+  /**
+   * The engine's own intended path so far — one target vector per phase, oldest
+   * first. Authoritative for "where the session is"; see `NextPhaseInput`.
+   */
+  trajectory: EmotionalVector[];
   /** Track ids already heard, excluded from selection. */
   exclude: string[];
   signals: ResonanceSignal[];
@@ -214,13 +217,13 @@ type GeminiProposal = {
 
 function buildPrompt(input: {
   reading: ResonanceReading;
-  history: EmotionalVector[];
+  trajectory: EmotionalVector[];
   target: EmotionalVector;
   destination: string;
   candidates: Candidate[];
 }): string {
   const dest = coordinateOrDefault(input.destination, "cinematic_warmth");
-  const arc = input.history.slice(-4).map((v, i) => {
+  const arc = input.trajectory.slice(-4).map((v, i) => {
     const region = nearestCoordinate(v).coordinate;
     return `  ${i + 1}. ${region.label} — ${describeVector(v)} (AVI ${acousticVulnerability(v).toFixed(2)})`;
   });
@@ -303,7 +306,7 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
 
   // 1. Deterministic baseline. Always computed, always admissible.
   const baseline = nextPhase({
-    history: input.history,
+    trajectory: input.trajectory,
     destination: input.destination,
     reading,
     branches: input.branches,
@@ -344,7 +347,7 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
         system: SYSTEM_INSTRUCTION,
         prompt: buildPrompt({
           reading,
-          history: input.history,
+          trajectory: input.trajectory,
           target: phase.target,
           destination: input.destination,
           candidates: shortlist,
@@ -362,7 +365,7 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
           verification: null,
         };
       } else {
-        const previous = input.history.length ? input.history[input.history.length - 1] : null;
+        const previous = input.trajectory.length ? input.trajectory[input.trajectory.length - 1] : null;
         const verification = verifyProposal(outcome.value, shortlist, previous);
 
         if (verification.accepted && verification.track) {

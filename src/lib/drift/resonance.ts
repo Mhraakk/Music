@@ -64,7 +64,10 @@ const BASE_WEIGHT: Record<ResonanceSignalKind, number> = {
   abandon: -0.82,
   seek_back: 0.48,
   seek_forward: -0.58,
-  stillness: 0.24,
+  // Passivity is the weakest evidence available. It is not nothing — someone who
+  // never reaches for the dial is not objecting — but it must not accumulate
+  // into a conviction strong enough to redirect a drift the listener asked for.
+  stillness: 0.14,
 };
 
 /** Signals whose meaning depends on landing inside a fragility window. */

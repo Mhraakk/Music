@@ -343,12 +343,14 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
          * recurs within an hour of listening and shallow enough that the map
          * stays fully reachable.
          */
-        const heard = live.current.arc.slice(-24).map((p) => p.trackId);
+        const recent = live.current.arc.slice(-24);
         const outcome = await getNextEmotionalDrift({
           sessionId,
           origin: live.current.origin ?? "deep_melancholy",
           destination: live.current.destination ?? "cinematic_warmth",
-          history: heard,
+          history: recent.map((p) => p.trackId),
+          // The engine's own intended path, not the tracks that occupied it.
+          trajectory: recent.map((p) => p.target),
           signals: live.current.signals,
           branches: live.current.branches,
         });

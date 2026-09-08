@@ -93,8 +93,25 @@ export const TOOLS: readonly ToolDescriptor[] = [
         },
         history: {
           type: "array",
-          description: "Track ids already heard this session, oldest first.",
+          description:
+            "Track ids already heard this session, oldest first. Used for exclusion. " +
+            "A rolling window is expected — a drift has no end, so an unbounded history " +
+            "would eventually exhaust the admissible pool.",
           items: { type: "string" },
+        },
+        trajectory: {
+          type: "array",
+          description:
+            "The engine's own intended path: one target vector per phase so far, oldest " +
+            "first. Authoritative for where the session is. Falls back to the substrate " +
+            "positions of the heard tracks when omitted, which is less accurate once a " +
+            "region runs thin and a compromise occupant has to be served.",
+          items: {
+            type: "object",
+            properties: Object.fromEntries(
+              AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+            ),
+          },
         },
         signals: {
           type: "array",
@@ -256,18 +273,28 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
   const origin = asString(args.origin, "deep_melancholy");
   const heard = asStringArray(args.history);
 
-  // Track ids are resolved to substrate positions here; the arc the cognition
-  // layer reasons about is a sequence of emotional vectors, not of songs.
-  const history: EmotionalVector[] = heard
-    .map((id) => driftTrack(id)?.vector)
-    .filter((v): v is EmotionalVector => Boolean(v));
+  /**
+   * The arc the cognition layer reasons about is a sequence of emotional
+   * vectors, not of songs. A caller that has tracked its own targets should send
+   * them; otherwise they are reconstructed from the heard tracks, which is a
+   * reasonable approximation until a region runs thin and the engine has to
+   * serve an imperfect occupant.
+   */
+  const supplied = Array.isArray(args.trajectory)
+    ? args.trajectory.map((raw) => parseVector(raw))
+    : [];
+  const trajectory: EmotionalVector[] = supplied.length
+    ? supplied
+    : heard
+        .map((id) => driftTrack(id)?.vector)
+        .filter((v): v is EmotionalVector => Boolean(v));
 
   try {
     const decision = await decideNextDrift({
       sessionId,
       origin,
       destination,
-      history,
+      trajectory,
       exclude: heard,
       signals: parseSignals(args.signals),
       branches: parseBranches(args.branches),

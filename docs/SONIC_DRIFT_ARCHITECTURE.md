@@ -195,9 +195,11 @@ room the listener is already leaving.
 
 The reading maps to one of three behaviours:
 
-- **deepen** — amplify the strongest axes of the current position; step length *grows* with
-  confidence, because the aim has no lateral component so a longer step goes further into
-  the same character rather than wandering out of it.
+- **deepen** — amplify the strongest axes of the current position, blended with the stated
+  destination so that deepening changes *how* the drift travels rather than *whether* it
+  arrives. Confidence sets how much of the current pattern is preserved, but even at full
+  confidence a tenth of the aim still points where the listener said they were going. Strong
+  resonance earns a richer, slower route — not an abandoned trip.
 - **prune** — mark the region refused in branch memory and reroute to the furthest still-open
   neighbour. Leaving should feel like leaving.
 - **explore** — hop to an adjacent region, split against the stated destination so
@@ -211,6 +213,17 @@ Two structural constraints keep an arc listenable:
   the *target's* intended distance. Without this, a high-resonance track wins phases it is
   pointing away from and the drift reads as going backwards. Measuring against the target
   rather than the destination keeps it compatible with the bow.
+
+One further distinction is load-bearing: **the engine reasons about its own intended path, not
+about the tracks that occupied it.** `get_next_emotional_drift` takes a `trajectory` of target
+vectors alongside the `history` of track ids, and only the latter is used for exclusion.
+
+This matters once a region runs thin. The catalog is noir-heavy, so a long drift toward warmth
+eventually exhausts the warm positions and the engine must serve the nearest admissible track —
+a cold one. Treating that compromise occupant as the new position let pool scarcity rewrite the
+engine's intent, and an 18-phase drift toward Cinematic Warmth would climb to warmth 0.89 and
+then collapse all the way back to 0.27. Aiming from intent instead holds the destination:
+warmth now rises monotonically to 0.89 and stays there.
 
 ---
 
@@ -349,13 +362,16 @@ npm run dev
 node scripts/verify-drift-engine.mjs     # drives /api/mcp end to end
 ```
 
-35 checks. The script asserts the MCP handshake and notification semantics, that all nine
+44 checks. The script asserts the MCP handshake and notification semantics, that all nine
 coordinates pass admissibility, that each rejection rule fires on its canonical shape while
 every anchor shape is admitted, that a planned arc respects the seam cap and bows through its
-deepest point mid-arc, that an eight-phase session with mixed feedback produces no repeats and
-prunes a branch when the listener walks out, and two regression guards for defects it caught:
-that confidence does not shrink the deepen step, and that a silent session never reaches high
-conviction.
+deepest point mid-arc, and that an eight-phase session with mixed feedback produces no repeats
+and prunes a branch when the listener walks out.
+
+The rest are regression guards for defects it caught: that a silent session never reaches high
+conviction, that `deepen` keeps advancing toward the destination at every confidence level, and
+that both a passive and an engaged listener reach the destination they named across eighteen
+phases and hold it once there.
 
 An unresolved phase completing is recorded as `stillness`, not `dwell_complete`. Crediting an
 inaudible phase as a full dwell manufactures a stream of strong positives and pins the engine

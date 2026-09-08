@@ -74,7 +74,10 @@ export function getNextEmotionalDrift(args: {
   sessionId: string;
   origin: string;
   destination: string;
+  /** Track ids for exclusion. */
   history: string[];
+  /** The engine's intended path — authoritative for where the session is. */
+  trajectory: EmotionalVector[];
   signals: ResonanceSignal[];
   branches: BranchState;
 }): Promise<McpCallOutcome<NextDriftPayload>> {
