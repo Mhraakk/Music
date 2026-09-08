@@ -19,6 +19,11 @@ export const metadata = {
   description: "The reference positions the emotional substrate is calibrated against.",
 };
 
+/** St Germain calibrates exactly one position, so "1 positions" was on screen. */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 export default function CuratorsPage() {
   const profiles = curators();
 
@@ -66,7 +71,7 @@ export default function CuratorsPage() {
               <h2 className="cx-heading">{profile.name}</h2>
               <p className="cx-body cx-truncate">{profile.bio}</p>
               <p className="cx-meta mt-1">
-                {profile.tracks.length} positions · {profile.regions.length} regions
+                {plural(profile.tracks.length, "position")} · {plural(profile.regions.length, "region")}
               </p>
             </div>
 

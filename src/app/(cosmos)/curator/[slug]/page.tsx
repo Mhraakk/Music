@@ -61,8 +61,12 @@ export default async function CuratorPage({ params }: { params: Promise<{ slug: 
           <p className="cx-body mx-auto mt-3 max-w-[42ch]">{profile.bio}</p>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            <span className="cx-meta">{profile.tracks.length} positions</span>
-            <span className="cx-meta">{profile.regions.length} regions</span>
+            <span className="cx-meta">
+              {profile.tracks.length} {profile.tracks.length === 1 ? "position" : "positions"}
+            </span>
+            <span className="cx-meta">
+              {profile.regions.length} {profile.regions.length === 1 ? "region" : "regions"}
+            </span>
           </div>
 
           <p className="cx-label mt-4">{profile.shape}</p>
