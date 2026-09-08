@@ -289,6 +289,57 @@ async function verifyDeepenIntensifies() {
   );
 }
 
+async function verifySilentSessionRestraint() {
+  section("Silent-session restraint");
+
+  // A phase with no resolved audio still advances, but its completion is
+  // recorded as `stillness` rather than `dwell_complete`. Crediting an inaudible
+  // phase as a full dwell manufactures strong positives and pins the engine in
+  // `deepen` for an entire session, which is what this guards against.
+  const run = async (kind) => {
+    let history = [];
+    let branches = {};
+    let signals = [];
+    let last = null;
+    for (let i = 0; i < 6; i++) {
+      const decision = await callTool("get_next_emotional_drift", {
+        sessionId: `verify-silent-${kind}`,
+        origin: "deep_melancholy",
+        destination: "cinematic_warmth",
+        history,
+        signals,
+        branches,
+      });
+      branches = decision.branches;
+      history.push(decision.phase.trackId);
+      last = decision.reading;
+      signals.push({
+        kind,
+        trackId: decision.phase.trackId,
+        progress: 1,
+        fragility: 0,
+        magnitude: 0,
+        at: Date.now(),
+      });
+    }
+    return last;
+  };
+
+  const still = await run("stillness");
+  const dwelt = await run("dwell_complete");
+
+  check(
+    still.confidence < dwelt.confidence,
+    "stillness builds less confidence than a real dwell",
+    `${still.confidence.toFixed(2)} vs ${dwelt.confidence.toFixed(2)}`
+  );
+  check(
+    still.confidence < 0.7,
+    "a silent session does not reach high conviction",
+    `confidence ${still.confidence.toFixed(2)} after 6 phases`
+  );
+}
+
 /* ──────────────────────────────────── main ──────────────────────────────────── */
 
 try {
@@ -298,6 +349,7 @@ try {
   await verifyArc();
   await verifySession();
   await verifyDeepenIntensifies();
+  await verifySilentSessionRestraint();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

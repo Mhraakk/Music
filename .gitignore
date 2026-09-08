@@ -11,7 +11,8 @@
 # next.js
 /.next/
 /out/
-next-env.d.ts
+# next-env.d.ts is deliberately NOT ignored: it is already tracked here, and
+# ignoring a tracked file only hides the fact that Next rewrites it on build.
 
 # production
 /build

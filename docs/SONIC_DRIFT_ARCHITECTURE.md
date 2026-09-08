@@ -349,11 +349,22 @@ npm run dev
 node scripts/verify-drift-engine.mjs     # drives /api/mcp end to end
 ```
 
-The script asserts the MCP handshake, that all nine coordinates pass admissibility, that each
-rejection rule fires on its canonical shape while every anchor shape is admitted, that a
-planned arc respects the seam cap and moves monotonically toward its destination, and that an
-eight-phase session with mixed feedback produces no repeats and prunes a branch when the
-listener walks out.
+35 checks. The script asserts the MCP handshake and notification semantics, that all nine
+coordinates pass admissibility, that each rejection rule fires on its canonical shape while
+every anchor shape is admitted, that a planned arc respects the seam cap and bows through its
+deepest point mid-arc, that an eight-phase session with mixed feedback produces no repeats and
+prunes a branch when the listener walks out, and two regression guards for defects it caught:
+that confidence does not shrink the deepen step, and that a silent session never reaches high
+conviction.
+
+An unresolved phase completing is recorded as `stillness`, not `dwell_complete`. Crediting an
+inaudible phase as a full dwell manufactures a stream of strong positives and pins the engine
+in `deepen` for an entire session; stillness is the honest reading, and confidence after six
+silent phases lands at 0.53 rather than 0.82.
+
+The exclusion window sent to the engine is the last 24 positions rather than the whole
+session. A drift has no end, so an unbounded history would grow the payload forever and
+eventually exhaust the admissible pool, after which the engine could only repeat itself.
 
 ## 8. Source map
 

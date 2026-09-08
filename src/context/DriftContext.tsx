@@ -287,6 +287,14 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
 
   /* ─────────────────────────── phase playback ─────────────────────────── */
 
+  /**
+   * Advancement is mutually recursive with playback: sounding a phase schedules
+   * the next advance, and advancing sounds the next phase. Routing one direction
+   * through a ref keeps both callbacks stable instead of invalidating each other
+   * every render, which would restart timers mid-phase.
+   */
+  const advanceRef = useRef<(reason: ResonanceSignalKind) => Promise<void>>(async () => undefined);
+
   const soundPhase = useCallback(
     async (phase: PhaseRecord) => {
       clearPhantom();
@@ -298,12 +306,19 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
         // Silent phase — run the compressed phantom clock.
         phantomStart.current = Date.now();
         phantomTimer.current = window.setTimeout(() => {
-          void advance("dwell_complete");
+          /**
+           * `stillness`, not `dwell_complete`. A silent phase completing is not
+           * evidence that the listener stayed with the music, because there was
+           * no music — crediting it as a full dwell manufactures a stream of
+           * strong positives and pins the engine in `deepen` for the whole
+           * session. Stillness is the honest reading: nothing was observed.
+           */
+          void advanceRef.current("stillness");
         }, PHANTOM_PHASE_MS);
       }
     },
-    // `advance` is defined below and referenced lazily; see the ref indirection.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Advancement is reached through `advanceRef` so this callback can stay
+    // stable without capturing a stale `advance` from the first render.
     [clearPhantom, engine]
   );
 
@@ -311,8 +326,6 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
    * Ask the cognitive core for the next emotional position. This is the only
    * path by which a session moves forward.
    */
-  const advanceRef = useRef<(reason: ResonanceSignalKind) => Promise<void>>(async () => undefined);
-
   const advance = useCallback(
     async (reason: ResonanceSignalKind) => {
       if (advancing.current) return;
@@ -322,7 +335,15 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
       try {
         recordSignal(reason, reason === "dwell_complete" ? { progress: 1, fragility: 0 } : {});
 
-        const heard = live.current.arc.map((p) => p.trackId);
+        /**
+         * Rolling exclusion window rather than the whole session. A drift has no
+         * end, so an unbounded history would grow the payload forever and,
+         * worse, exhaust the admissible pool — after which the engine can only
+         * repeat itself. Twenty-four positions is deep enough that nothing
+         * recurs within an hour of listening and shallow enough that the map
+         * stays fully reachable.
+         */
+        const heard = live.current.arc.slice(-24).map((p) => p.trackId);
         const outcome = await getNextEmotionalDrift({
           sessionId,
           origin: live.current.origin ?? "deep_melancholy",
@@ -479,10 +500,12 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
         // resolved audio is intentionally left to the browser's own controls.
         phantomStart.current = Date.now() - target * PHANTOM_PHASE_MS;
       } else {
+        // Re-arm the compressed clock for the remainder. Completion of a silent
+        // phase is stillness rather than a dwell, for the same reason as above.
         phantomStart.current = Date.now() - target * PHANTOM_PHASE_MS;
         clearPhantom();
         phantomTimer.current = window.setTimeout(
-          () => void advanceRef.current("dwell_complete"),
+          () => void advanceRef.current("stillness"),
           Math.max(1000, PHANTOM_PHASE_MS * (1 - target))
         );
       }
