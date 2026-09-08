@@ -1,0 +1,621 @@
+/**
+ * VISUAL DESIGN SYSTEM — image-led discovery
+ *
+ * Modelled on the Cosmos reference: a warm off-white room, dense masonry of
+ * full-bleed imagery, soft 12px corners, near-black display type at tight
+ * tracking, and pill-shaped floating controls. Chrome recedes so the artwork
+ * carries the page.
+ *
+ * SCOPED under `.cosmos` because this app already contains two other design
+ * systems that contradict it — a liquid-glass surface built on blur and
+ * elevation, and a brutalist surface that bans radius and shadow outright. All
+ * three coexist without fighting over tokens.
+ *
+ * The grid is 4px here rather than 8px. An image-led layout needs finer gaps
+ * than a type-led one: a 16px gutter between sleeves reads as a contact sheet,
+ * where 8px reads as a wall.
+ */
+
+/*
+ * The document background belongs to whichever surface is mounted. The root
+ * layout paints near-black for the other two systems, which would show through
+ * on overscroll here. `:has()` lets the surface claim the document without the
+ * root layout needing to know which route is active.
+ */
+body:has(.cosmos) {
+  background-color: #f2f0ed;
+  color: #0b0a09;
+}
+
+.cosmos {
+  /* Surface */
+  --paper: #f2f0ed;
+  --paper-raised: #ffffff;
+  --paper-sunken: #e8e5e0;
+
+  /* Ink */
+  --ink: #0b0a09;
+  --ink-2: #56514b;
+  --ink-3: #8c857c;
+  --ink-inverse: #fbfaf8;
+
+  /* Line */
+  --hairline: rgba(11, 10, 9, 0.08);
+  --hairline-strong: rgba(11, 10, 9, 0.16);
+
+  /* Radius — soft, never pill except on controls */
+  --r-tile: 10px;
+  --r-card: 14px;
+  --r-sheet: 20px;
+  --r-pill: 999px;
+
+  /* Elevation. Two levels only, both barely there. */
+  --lift-1: 0 1px 2px rgba(11, 10, 9, 0.05), 0 4px 16px rgba(11, 10, 9, 0.05);
+  --lift-2: 0 2px 6px rgba(11, 10, 9, 0.07), 0 16px 44px rgba(11, 10, 9, 0.12);
+
+  /*
+   * Ambient tint. Set from the playing track's artwork, or from the searched
+   * colour. Defaults to the paper so an idle app is not tinted.
+   */
+  --tint: 242 240 237;
+  --tint-strength: 0;
+
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "liga" 1, "cv11" 1;
+  min-height: 100vh;
+  position: relative;
+}
+
+/**
+ * The room wash. A single flat layer at low opacity over the paper, so the
+ * whole page takes on the colour of what is playing without ever becoming a
+ * gradient or washing out the artwork it sits behind.
+ */
+.cosmos::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: rgb(var(--tint));
+  opacity: var(--tint-strength);
+  transition: background-color 1200ms ease, opacity 1200ms ease;
+}
+
+.cosmos > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────── typography ─────────────────────────────── */
+
+/*
+ * Display sizes use `clamp` so the headline holds its proportion against the
+ * grid from 360px to desktop without a cascade of breakpoints.
+ */
+/*
+ * Tracking is tighter than a typical UI scale. The reference face is a
+ * condensed grotesque; Inter is wider, so it needs to be pulled in harder to
+ * read as the same voice. Reviewed as "too loose" at -0.035em.
+ */
+.cx-display {
+  font-size: clamp(2.25rem, 7vw, 4.25rem);
+  line-height: 0.94;
+  letter-spacing: -0.046em;
+  font-weight: 640;
+  color: var(--ink);
+}
+
+.cx-title {
+  font-size: clamp(1.375rem, 3.2vw, 1.875rem);
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+  font-weight: 620;
+}
+
+.cx-heading {
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  letter-spacing: -0.014em;
+  font-weight: 600;
+}
+
+.cx-body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  letter-spacing: -0.006em;
+  color: var(--ink-2);
+}
+
+.cx-meta {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  letter-spacing: -0.003em;
+  color: var(--ink-3);
+}
+
+/*
+ * Lowercase, not uppercase. These labels carry the engine's descriptions of
+ * emotional shape ("heavy, cold, audibly fragile") and in review all-caps read
+ * as shouting on a surface this warm.
+ */
+.cx-label {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  font-weight: 450;
+  color: var(--ink-3);
+}
+
+.cx-mono {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+
+.cx-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ──────────────────────────────── masonry ──────────────────────────────── */
+
+/*
+ * CSS columns rather than a JS-measured layout. It reflows natively, needs no
+ * ResizeObserver, and — critically for a server-rendered grid — the first paint
+ * is already correct instead of collapsing and then settling.
+ *
+ * The tradeoff is column-major order, which is acceptable here: the grid is a
+ * browse surface with no meaningful reading order, not a ranked list.
+ */
+.cx-masonry {
+  column-count: 2;
+  column-gap: 4px;
+}
+
+@media (min-width: 640px) {
+  .cx-masonry {
+    column-count: 3;
+    column-gap: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cx-masonry {
+    column-count: 4;
+    column-gap: 8px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .cx-masonry {
+    column-count: 5;
+  }
+}
+
+.cx-masonry > * {
+  break-inside: avoid;
+  margin-bottom: 4px;
+}
+
+@media (min-width: 640px) {
+  .cx-masonry > * {
+    margin-bottom: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cx-masonry > * {
+    margin-bottom: 8px;
+  }
+}
+
+/* ───────────────────────────────── tiles ───────────────────────────────── */
+
+.cx-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--r-tile);
+  background-color: var(--paper-sunken);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cx-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Fade in on decode so a slow sleeve does not pop against its own tint. */
+  opacity: 0;
+  transition: opacity 420ms ease, transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cx-tile img[data-loaded="true"] {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .cx-tile:hover img[data-loaded="true"] {
+    transform: scale(1.035);
+  }
+}
+
+/*
+ * Caption overlay. A flat scrim rather than a gradient: it only appears on
+ * hover or focus, and only over the bottom third, so it never competes with
+ * the artwork in the resting state.
+ */
+.cx-tile-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 10px 12px 12px;
+  background-color: rgba(6, 6, 8, 0.62);
+  color: var(--ink-inverse);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 200ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cx-tile:hover .cx-tile-caption,
+.cx-tile:focus-visible .cx-tile-caption,
+.cx-tile[data-active="true"] .cx-tile-caption {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cx-tile[data-active="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Playing badge — small, always visible, so the grid shows state at a glance. */
+.cx-tile-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+  background-color: rgba(6, 6, 8, 0.66);
+  color: var(--ink-inverse);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ──────────────────────────────── controls ──────────────────────────────── */
+
+.cosmos button,
+.cosmos input,
+.cosmos select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.cosmos button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  background-color: var(--paper-raised);
+  box-shadow: var(--lift-1);
+  transition: box-shadow 200ms ease, background-color 200ms ease;
+}
+
+.cx-pill-dark {
+  background-color: var(--ink);
+  color: var(--ink-inverse);
+  box-shadow: none;
+}
+
+.cx-pill-ghost {
+  background-color: transparent;
+  box-shadow: none;
+  border: 1px solid var(--hairline-strong);
+}
+
+.cx-pill:focus-within,
+.cx-pill:hover {
+  box-shadow: var(--lift-2);
+}
+
+.cx-pill-dark:hover,
+.cx-pill-dark:focus-within {
+  box-shadow: none;
+  opacity: 0.88;
+}
+
+.cx-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background-color: var(--paper-raised);
+  box-shadow: var(--lift-1);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+  flex-shrink: 0;
+}
+
+.cx-icon-button:hover {
+  box-shadow: var(--lift-2);
+}
+
+.cx-icon-button:active {
+  transform: scale(0.94);
+}
+
+.cosmos input[type="search"],
+.cosmos input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  font-size: 0.9375rem;
+  letter-spacing: -0.006em;
+}
+
+.cosmos input::placeholder {
+  color: var(--ink-3);
+}
+
+.cosmos *:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ─────────────────────────── swatches & tabs ─────────────────────────── */
+
+.cx-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px rgba(11, 10, 9, 0.14);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+}
+
+.cx-swatch:hover {
+  transform: scale(1.14);
+}
+
+.cx-swatch[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px rgba(11, 10, 9, 0.14), 0 0 0 2px var(--ink);
+  transform: scale(1.14);
+}
+
+.cx-tab {
+  padding: 8px 0;
+  color: var(--ink-3);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  border-bottom: 2px solid transparent;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.cx-tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* ───────────────────────── rails, nav, sheet ───────────────────────── */
+
+/* Horizontal scroller with the scrollbar hidden and edge padding preserved. */
+.cx-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+}
+
+.cx-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.cx-rail > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+.cx-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: var(--r-pill);
+  background-color: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: var(--lift-2);
+}
+
+.cx-nav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.cx-nav-item[aria-current="page"] {
+  background-color: var(--ink);
+  color: var(--ink-inverse);
+}
+
+/* Now-playing sheet, docked above the nav. */
+.cx-sheet {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+  /*
+   * Sized in viewport units rather than `calc(100% - 24px)`. A percentage on a
+   * fixed element resolves against its containing block, and any ancestor with
+   * a transform, filter or backdrop-filter silently becomes that block — which
+   * collapsed the sheet to roughly 360px on a 1280px viewport. `vw` cannot be
+   * captured that way.
+   */
+  width: min(560px, calc(100vw - 24px));
+  border-radius: var(--r-sheet);
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: var(--lift-2);
+  overflow: hidden;
+}
+
+/*
+ * 3px, not 2px. At 2px against the sheet's translucent white this was reported
+ * as absent in review, which made it impossible to tell whether audio was
+ * actually advancing. A progress bar nobody can see is worse than none.
+ */
+.cx-progress {
+  height: 3px;
+  background-color: var(--hairline-strong);
+  position: relative;
+  overflow: hidden;
+}
+
+.cx-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: var(--ink);
+  transition: width 260ms linear;
+}
+
+/* Range input, restyled to the flat idiom. */
+.cosmos input[type="range"] {
+  width: 100%;
+  height: 24px;
+  background: transparent;
+  cursor: pointer;
+  display: block;
+}
+
+.cosmos input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: var(--hairline-strong);
+}
+
+.cosmos input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+}
+
+.cosmos input[type="range"]::-moz-range-track {
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: var(--hairline-strong);
+}
+
+.cosmos input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+}
+
+/*
+ * SIGNATURE PLATE
+ *
+ * Sized from the viewport height rather than its width, so a whole plate and
+ * its caption are visible at once on any screen without scrolling to read the
+ * caption. Constraining by width alone left portrait plates small on wide
+ * screens and pushed their captions underneath the floating nav.
+ *
+ * `height` is definite and `width` follows from `aspect-ratio`. On a narrow
+ * screen `max-width` clamps first and the ratio gives; `object-fit: cover` on
+ * the image absorbs that rather than distorting it.
+ */
+.cx-plate {
+  position: relative;
+  height: min(64vh, 660px);
+  width: auto;
+  max-width: min(92vw, 940px);
+  overflow: hidden;
+  border-radius: var(--r-card);
+  box-shadow: var(--lift-2);
+}
+
+@media (max-width: 640px) {
+  .cx-plate {
+    height: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Skeleton shimmer for tiles awaiting artwork. */
+@keyframes cx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.cx-skeleton {
+  animation: cx-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cosmos *,
+  .cosmos *::before,
+  .cosmos *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cx-tile:hover img {
+    transform: none;
+  }
+}

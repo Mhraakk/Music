@@ -1,0 +1,526 @@
+"use client";
+
+/**
+ * PLAYER
+ *
+ * The visual surface's playback state. Deliberately separate from
+ * `DriftContext`, which models a session as a coordinate-pair journey chosen up
+ * front. Here the entry point is a sleeve: you tap artwork, it plays, and the
+ * cognitive engine takes over from wherever that landed you.
+ *
+ * The engine is still the brain. When a track finishes, the next one comes from
+ * `get_next_emotional_drift` over MCP rather than from a queue — so browsing by
+ * eye and drifting by feeling are the same session. Volume gestures during
+ * vocal fragility windows are still the load-bearing implicit signal, and
+ * abandoning a track early still prunes.
+ *
+ * What changed is that audio is now real. Every position resolves to a
+ * 30-second Apple preview at build time, so there is no silent mode to design
+ * around and no credentials to configure.
+ */
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { LibraryTrack } from "@/lib/library";
+import type { BranchState } from "@/lib/drift/algorithm";
+import type { ResonanceReading, ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
+import type { EmotionalVector } from "@/lib/drift/ontology";
+import { getNextEmotionalDrift } from "@/lib/mcp/client";
+import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
+
+/** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
+const FADE_MS = 2200;
+
+/** A volume drag is one statement, not fifty. */
+const GESTURE_SETTLE_MS = 420;
+
+/** Below this the listener is judged to have walked out rather than finished. */
+const ABANDON_BEFORE = 0.85;
+
+export type PlayerState = {
+  current: LibraryTrack | null;
+  playing: boolean;
+  /** Normalised position in the current track. */
+  progress: number;
+  volume: number;
+  /** Vocal fragility at the current position. */
+  fragilityNow: number;
+  /** Positions played this session, oldest first. */
+  historyIds: string[];
+  reading: ResonanceReading | null;
+  branches: BranchState;
+  loading: boolean;
+  /** Set when the engine, not the listener, chose the current track. */
+  fromEngine: boolean;
+  error: string | null;
+};
+
+export type PlayerActions = {
+  /** Play a track the listener picked. Resets the drift to start from here. */
+  play: (track: LibraryTrack) => void;
+  toggle: () => void;
+  setVolume: (v: number) => void;
+  seek: (progress: number) => void;
+  stop: () => void;
+};
+
+const StateContext = createContext<PlayerState | null>(null);
+const ActionsContext = createContext<PlayerActions | null>(null);
+
+const INITIAL: PlayerState = {
+  current: null,
+  playing: false,
+  progress: 0,
+  volume: 0.8,
+  fragilityNow: 0,
+  historyIds: [],
+  reading: null,
+  branches: {},
+  loading: false,
+  fromEngine: false,
+  error: null,
+};
+
+/**
+ * Fragility windows are derived from the emotional vector in the same way the
+ * server does it, so the client can weight a gesture without a round trip.
+ * Kept in sync with `fragilityWindows` in `lib/drift/catalog.ts`.
+ */
+function windowsFor(vector: EmotionalVector): FragilityWindow[] {
+  const { fragility, narrative } = vector;
+  if (fragility < 0.34) return [];
+  const count = narrative > 0.66 ? 3 : narrative > 0.44 ? 2 : 1;
+  const width = Math.min(1, 0.1 + fragility * 0.12);
+  const windows: FragilityWindow[] = [];
+  for (let i = 0; i < count; i++) {
+    const centre = 0.18 + ((i + 1) / (count + 1)) * 0.64;
+    const intensity = Math.min(1, fragility * (0.78 + (i / Math.max(1, count - 1 || 1)) * 0.22));
+    windows.push({
+      start: Math.max(0, centre - width / 2),
+      end: Math.min(1, centre + width / 2),
+      intensity,
+    });
+  }
+  return windows;
+}
+
+export function PlayerProvider({
+  children,
+  sessionId,
+  tracks,
+}: {
+  children: ReactNode;
+  sessionId: string;
+  /**
+   * The library, so an engine-chosen track id can be resolved to a full record.
+   * Passed in rather than imported: the surface already has it server-side, and
+   * this keeps the provider free of any dependency on how it was assembled.
+   */
+  tracks: LibraryTrack[];
+}) {
+  const [state, setState] = useState<PlayerState>(INITIAL);
+
+  const byId = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks]);
+  const lookup = useCallback((id: string) => byId.get(id) ?? null, [byId]);
+
+  /**
+   * Two audio elements so a track can fade into the next while the outgoing one
+   * is still sounding. A single element would have to stop before it started.
+   */
+  const lanes = useRef<[HTMLAudioElement, HTMLAudioElement] | null>(null);
+  const activeLane = useRef<0 | 1>(0);
+  const fadeTimers = useRef<number[]>([]);
+  const gestureTimer = useRef<number | null>(null);
+  const gestureFrom = useRef<number | null>(null);
+  const advancing = useRef(false);
+
+  /** Async advancement reads these rather than the render's closed-over state. */
+  const live = useRef({
+    current: null as LibraryTrack | null,
+    progress: 0,
+    fragilityNow: 0,
+    historyIds: [] as string[],
+    signals: [] as ResonanceSignal[],
+    branches: {} as BranchState,
+    volume: 0.8,
+    windows: [] as FragilityWindow[],
+  });
+
+  const ensureLanes = useCallback((): [HTMLAudioElement, HTMLAudioElement] => {
+    if (!lanes.current) {
+      const make = () => {
+        const el = new Audio();
+        el.preload = "auto";
+        // Previews are cross-origin; anonymous mode keeps them cacheable and
+        // avoids sending credentials to Apple's CDN.
+        el.crossOrigin = "anonymous";
+        return el;
+      };
+      lanes.current = [make(), make()];
+    }
+    return lanes.current;
+  }, []);
+
+  const clearFades = useCallback(() => {
+    for (const t of fadeTimers.current) window.clearInterval(t);
+    fadeTimers.current = [];
+  }, []);
+
+  /**
+   * Equal-power fade on element volume. Web Audio would give a cleaner curve,
+   * but routing a cross-origin media element through an AudioContext needs CORS
+   * headers Apple's preview CDN does not always send, and a failed graph means
+   * no audio at all. Element volume always works.
+   */
+  const fadeLane = useCallback((el: HTMLAudioElement, to: number, ms: number) => {
+    const from = el.volume;
+    const steps = 24;
+    let i = 0;
+    const timer = window.setInterval(() => {
+      i += 1;
+      const t = i / steps;
+      const shaped = to > from ? Math.sin((t * Math.PI) / 2) : 1 - Math.cos(((1 - t) * Math.PI) / 2);
+      el.volume = Math.max(0, Math.min(1, from + (to - from) * shaped));
+      if (i >= steps) {
+        el.volume = Math.max(0, Math.min(1, to));
+        window.clearInterval(timer);
+        if (to === 0) {
+          el.pause();
+          el.removeAttribute("src");
+        }
+      }
+    }, ms / steps);
+    fadeTimers.current.push(timer);
+  }, []);
+
+  const recordSignal = useCallback((kind: ResonanceSignalKind, overrides: Partial<ResonanceSignal> = {}) => {
+    const track = live.current.current;
+    if (!track) return;
+    const signal: ResonanceSignal = {
+      kind,
+      trackId: track.id,
+      progress: live.current.progress,
+      fragility: live.current.fragilityNow,
+      magnitude: 0.5,
+      at: Date.now(),
+      ...overrides,
+    };
+    live.current.signals = [...live.current.signals, signal].slice(-12);
+  }, []);
+
+  /** Start a track on the idle lane and fade the other one out. */
+  const sound = useCallback(
+    async (track: LibraryTrack, fromEngine: boolean) => {
+      clearFades();
+      const pair = ensureLanes();
+      const incoming: 0 | 1 = activeLane.current === 0 ? 1 : 0;
+      const outgoing = activeLane.current;
+
+      live.current.current = track;
+      live.current.windows = windowsFor(track.vector);
+      live.current.progress = 0;
+      live.current.fragilityNow = 0;
+
+      setState((s) => ({
+        ...s,
+        current: track,
+        progress: 0,
+        fromEngine,
+        loading: true,
+        error: null,
+      }));
+
+      if (!track.previewUrl) {
+        // No audio for this position. Show it as current so the room still
+        // takes its colour, but do not pretend it is playing.
+        setState((s) => ({
+          ...s,
+          playing: false,
+          loading: false,
+          error: "No preview available for this position.",
+        }));
+        return;
+      }
+
+      const el = pair[incoming];
+      el.src = track.previewUrl;
+      el.currentTime = 0;
+      el.volume = 0;
+
+      try {
+        await el.play();
+      } catch {
+        setState((s) => ({
+          ...s,
+          playing: false,
+          loading: false,
+          error: "Playback needs a tap first — browsers block autoplay.",
+        }));
+        return;
+      }
+
+      fadeLane(el, live.current.volume, FADE_MS);
+      if (pair[outgoing].src) fadeLane(pair[outgoing], 0, FADE_MS);
+
+      activeLane.current = incoming;
+      setState((s) => ({ ...s, playing: true, loading: false }));
+    },
+    [clearFades, ensureLanes, fadeLane]
+  );
+
+  /** Ask the engine for the next position and play it. */
+  const advance = useCallback(
+    async (reason: ResonanceSignalKind) => {
+      if (advancing.current) return;
+      advancing.current = true;
+
+      try {
+        recordSignal(reason, reason === "dwell_complete" ? { progress: 1, fragility: 0 } : {});
+
+        const current = live.current.current;
+        if (!current) return;
+
+        setState((s) => ({ ...s, loading: true }));
+
+        // Rolling window: a session has no end, so an unbounded exclusion list
+        // would eventually exhaust the pool and force repeats.
+        const recentIds = live.current.historyIds.slice(-24);
+        const outcome = await getNextEmotionalDrift({
+          sessionId,
+          origin: current.region,
+          destination: current.region,
+          history: recentIds,
+          trajectory: recentIds
+            .map((id) => trackVectorCache.get(id))
+            .filter((v): v is EmotionalVector => Boolean(v)),
+          signals: live.current.signals,
+          branches: live.current.branches,
+        });
+
+        if (!outcome.ok) {
+          setState((s) => ({ ...s, loading: false, playing: false, error: outcome.error }));
+          return;
+        }
+
+        const { phase, branches, reading } = outcome.value;
+        const next = lookup(phase.trackId);
+
+        live.current.branches = branches;
+        setState((s) => ({ ...s, branches, reading }));
+
+        if (!next) {
+          setState((s) => ({ ...s, loading: false, playing: false, error: "Engine returned an unknown position." }));
+          return;
+        }
+
+        live.current.historyIds = [...live.current.historyIds, next.id];
+        trackVectorCache.set(next.id, next.vector);
+        setState((s) => ({ ...s, historyIds: live.current.historyIds }));
+
+        await sound(next, true);
+      } finally {
+        advancing.current = false;
+      }
+    },
+    [lookup, recordSignal, sessionId, sound]
+  );
+
+  /**
+   * Playback and advancement are mutually recursive — finishing a track
+   * triggers the next, and starting one schedules the finish. Routing one
+   * direction through a ref keeps the interval and the `ended` listener stable
+   * instead of being torn down and rebuilt on every progress tick.
+   */
+  const advanceRef = useRef(advance);
+  useEffect(() => {
+    advanceRef.current = advance;
+  }, [advance]);
+
+  /* ───────────────────────────── actions ───────────────────────────── */
+
+  const play = useCallback(
+    (track: LibraryTrack) => {
+      // Choosing something new mid-track is a statement about what was playing.
+      if (live.current.current && live.current.progress < ABANDON_BEFORE) {
+        recordSignal("abandon", { progress: live.current.progress });
+      }
+      live.current.historyIds = [...live.current.historyIds, track.id].slice(-48);
+      trackVectorCache.set(track.id, track.vector);
+      setState((s) => ({ ...s, historyIds: live.current.historyIds }));
+      void sound(track, false);
+    },
+    [recordSignal, sound]
+  );
+
+  const toggle = useCallback(() => {
+    const pair = lanes.current;
+    if (!pair || !live.current.current) return;
+    const el = pair[activeLane.current];
+    if (el.paused) {
+      void el.play().catch(() => undefined);
+      setState((s) => ({ ...s, playing: true }));
+    } else {
+      el.pause();
+      setState((s) => ({ ...s, playing: false }));
+    }
+  }, []);
+
+  const setVolume = useCallback(
+    (value: number) => {
+      const clamped = Math.max(0, Math.min(1, value));
+      const previous = live.current.volume;
+      live.current.volume = clamped;
+
+      const pair = lanes.current;
+      if (pair) pair[activeLane.current].volume = clamped;
+      setState((s) => ({ ...s, volume: clamped }));
+
+      // Collapse a drag into one signal, captured at the fragility of the
+      // moment the hand first moved rather than where it stopped.
+      if (gestureFrom.current === null) gestureFrom.current = previous;
+      if (gestureTimer.current !== null) window.clearTimeout(gestureTimer.current);
+      const fragilityAtGesture = live.current.fragilityNow;
+
+      gestureTimer.current = window.setTimeout(() => {
+        const from = gestureFrom.current;
+        gestureFrom.current = null;
+        gestureTimer.current = null;
+        if (from === null) return;
+        const delta = clamped - from;
+        if (Math.abs(delta) < 0.06) return;
+        recordSignal(delta > 0 ? "volume_raise" : "volume_lower", {
+          magnitude: Math.abs(delta),
+          fragility: fragilityAtGesture,
+        });
+      }, GESTURE_SETTLE_MS);
+    },
+    [recordSignal]
+  );
+
+  const seek = useCallback(
+    (progress: number) => {
+      const pair = lanes.current;
+      if (!pair) return;
+      const el = pair[activeLane.current];
+      if (!el.duration || !Number.isFinite(el.duration)) return;
+      const target = Math.max(0, Math.min(0.99, progress));
+      const from = live.current.progress;
+      el.currentTime = target * el.duration;
+      recordSignal(target < from ? "seek_back" : "seek_forward", {
+        progress: target,
+        fragility: fragilityFromWindows(live.current.windows, target),
+      });
+    },
+    [recordSignal]
+  );
+
+  const stop = useCallback(() => {
+    clearFades();
+    lanes.current?.forEach((el) => {
+      el.pause();
+      el.removeAttribute("src");
+    });
+    live.current.current = null;
+    setState((s) => ({ ...INITIAL, volume: s.volume, historyIds: s.historyIds }));
+  }, [clearFades]);
+
+  /* ─────────────────────── progress + advancement ─────────────────────── */
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const pair = lanes.current;
+      const track = live.current.current;
+      if (!pair || !track) return;
+
+      const el = pair[activeLane.current];
+      if (!el.duration || !Number.isFinite(el.duration)) return;
+
+      const progress = Math.max(0, Math.min(1, el.currentTime / el.duration));
+      const fragilityNow = fragilityFromWindows(live.current.windows, progress);
+      live.current.progress = progress;
+      live.current.fragilityNow = fragilityNow;
+
+      setState((s) => (s.progress === progress ? s : { ...s, progress, fragilityNow }));
+
+      // Begin the handover before the outgoing track ends, so the two overlap
+      // rather than abutting.
+      const remaining = el.duration - el.currentTime;
+      if (!el.paused && remaining <= FADE_MS / 1000 + 0.25) {
+        void advanceRef.current("dwell_complete");
+      }
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  /** A track that ends without the timer catching it must still advance. */
+  useEffect(() => {
+    const pair = ensureLanes();
+    const onEnded = () => void advanceRef.current("dwell_complete");
+    pair.forEach((el) => el.addEventListener("ended", onEnded));
+    return () => pair.forEach((el) => el.removeEventListener("ended", onEnded));
+  }, [ensureLanes]);
+
+  /** Leaving the tab mid-track is implicit feedback too. */
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden" && live.current.progress < ABANDON_BEFORE) {
+        recordSignal("abandon", { progress: live.current.progress });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [recordSignal]);
+
+  useEffect(() => {
+    return () => {
+      clearFades();
+      if (gestureTimer.current !== null) window.clearTimeout(gestureTimer.current);
+      lanes.current?.forEach((el) => {
+        el.pause();
+        el.removeAttribute("src");
+      });
+      lanes.current = null;
+    };
+  }, [clearFades]);
+
+  const actions = useMemo<PlayerActions>(
+    () => ({ play, toggle, setVolume, seek, stop }),
+    [play, toggle, setVolume, seek, stop]
+  );
+
+  return (
+    <StateContext.Provider value={state}>
+      <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
+    </StateContext.Provider>
+  );
+}
+
+/**
+ * The engine reasons about emotional vectors, but the wire only carries track
+ * ids. This maps back, so the trajectory sent on each advance is the engine's
+ * own intended path rather than a reconstruction.
+ */
+const trackVectorCache = new Map<string, EmotionalVector>();
+
+export function usePlayer(): PlayerState {
+  const state = useContext(StateContext);
+  if (!state) throw new Error("usePlayer must be used inside a PlayerProvider.");
+  return state;
+}
+
+export function usePlayerActions(): PlayerActions {
+  const actions = useContext(ActionsContext);
+  if (!actions) throw new Error("usePlayerActions must be used inside a PlayerProvider.");
+  return actions;
+}
+
+

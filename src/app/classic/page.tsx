@@ -125,9 +125,17 @@ export default function App() {
               <p className="text-[10px] text-white/32 tracking-wide">Emotional taste graph</p>
             </div>
           </div>
-          <div className="glass-2 glass-edge rounded-full px-3.5 py-1.5 flex gap-3 text-[11px]">
-            <span className="text-emerald-400/90">+{liked}</span>
-            <span className="text-red-400/85">−{hated}</span>
+          <div className="flex items-center gap-2">
+            <a
+              href="/drift"
+              className="glass-2 glass-edge rounded-full px-3.5 py-1.5 text-[11px] text-[#e8a06a] pressable"
+            >
+              Sonic Drift →
+            </a>
+            <div className="glass-2 glass-edge rounded-full px-3.5 py-1.5 flex gap-3 text-[11px]">
+              <span className="text-emerald-400/90">+{liked}</span>
+              <span className="text-red-400/85">−{hated}</span>
+            </div>
           </div>
         </header>
 

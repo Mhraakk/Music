@@ -2,17 +2,23 @@
   "name": "resonant",
   "version": "4.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "verify:drift": "node scripts/verify-drift-engine.mjs",
+    "resolve:media": "node scripts/resolve-media.mjs"
   },
   "dependencies": {
-    "next": "15.5.7",
+    "@vercel/speed-insights": "^1.2.0",
+    "next": "^15.5.25",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "zustand": "^5.0.3",
-    "@vercel/speed-insights": "^1.2.0"
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,6 +26,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.8.2"
   }
 }
