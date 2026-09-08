@@ -41,13 +41,37 @@ proposal is verified against the ontology before it is accepted.
 through the iTunes Search API, which needs no key. Apple MusicKit and SoundCloud OAuth are
 supported for high-fidelity playback and identity, but nothing is required.
 
+## Deploying
+
+Nothing is required to deploy. There are no mandatory environment variables — the engine falls
+back to deterministic local cognition and playback uses iTunes previews, so a fresh deploy is
+fully functional out of the box.
+
+Import the repository at [vercel.com/new](https://vercel.com/new). Next.js is detected
+automatically and the defaults are correct; `@vercel/speed-insights` is already wired into the
+root layout and starts reporting on its own.
+
+Optional variables, each of which upgrades a capability rather than enabling one:
+
+| Variable | Without it |
+|---|---|
+| `GEMINI_API_KEY` | Deterministic local cognition owns the drift |
+| `APPLE_MUSIC_TEAM_ID` · `APPLE_MUSIC_KEY_ID` · `APPLE_MUSIC_PRIVATE_KEY` | 30-second iTunes previews instead of full-catalog resolution |
+| `SOUNDCLOUD_CLIENT_ID` · `SOUNDCLOUD_CLIENT_SECRET` | No SoundCloud identity or base audio |
+
+`SOUNDCLOUD_REDIRECT_URI` is derived from the request origin, so it only needs setting if your
+registered callback differs from `https://<your-domain>/api/auth/soundcloud/callback`.
+
 ## Checks
 
 ```bash
 npm run typecheck
-npm run verify:drift    # 44 behavioural checks against the engine; needs npm run dev
+npm run verify:drift    # 44 behavioural checks against the engine; needs a server running
 npm run resolve:media   # refresh artwork, previews and colours
 ```
+
+`verify:drift` takes an optional base URL, so it can be pointed at a production build or a
+deployed instance: `node scripts/verify-drift-engine.mjs https://your-domain`.
 
 Architecture, design rationale, configuration and the full list of environment variables:
 [`docs/SONIC_DRIFT_ARCHITECTURE.md`](docs/SONIC_DRIFT_ARCHITECTURE.md).
