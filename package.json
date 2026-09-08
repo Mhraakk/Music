@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "verify:drift": "node scripts/verify-drift-engine.mjs"
   },
   "dependencies": {
     "next": "15.5.7",
