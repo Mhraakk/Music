@@ -183,24 +183,35 @@ export function NowPlayingSheet() {
             </div>
           )}
 
-          <div className="mt-3 flex items-center justify-between gap-3">
+          {/*
+            Stacked rather than side by side. Sharing a row, the shape
+            description and these controls collided — the description is
+            variable-length prose and the pills cannot shrink, so "Full track"
+            wrapped inside its own pill.
+          */}
+          <div className="mt-3 border-t border-[var(--hairline)] pt-3">
             <p className="cx-meta">
               {current.album ? `${current.album} · ` : ""}
               {current.shape}
             </p>
-            <div className="flex items-center gap-2">
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {current.appleUrl && (
                 <a
                   href={current.appleUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="cx-pill cx-pill-ghost h-8 px-3"
+                  className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
                 >
-                  <span className="cx-meta">Full track</span>
+                  <span className="cx-meta whitespace-nowrap">Play the full track</span>
                 </a>
               )}
-              <button type="button" onClick={stop} className="cx-pill cx-pill-ghost h-8 px-3">
-                <span className="cx-meta">Stop</span>
+              <button
+                type="button"
+                onClick={stop}
+                className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
+              >
+                <span className="cx-meta whitespace-nowrap">Stop</span>
               </button>
             </div>
           </div>

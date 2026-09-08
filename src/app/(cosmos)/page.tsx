@@ -12,7 +12,6 @@
 
 import Link from "next/link";
 import { collections, featured, library } from "@/lib/library";
-import { MEDIA_COUNTS } from "@/lib/media";
 import { CollectionRail } from "@/components/cosmos/CollectionRail";
 import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
 
@@ -20,6 +19,15 @@ export default function DiscoverPage() {
   const tracks = library();
   const shelves = collections();
   const opening = featured(tracks.length);
+
+  /**
+   * Counted over the library rather than the media file. The media map covers
+   * the whole catalog including positions the rejection rules removed, so
+   * quoting it here printed "64 sleeves" beside "63 positions" — a discrepancy
+   * with no meaning to a reader.
+   */
+  const sleeves = tracks.filter((t) => t.artworkUrl).length;
+  const playable = tracks.filter((t) => t.previewUrl).length;
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 pt-8 md:px-8 md:pt-14">
@@ -39,7 +47,7 @@ export default function DiscoverPage() {
         </p>
 
         <p className="cx-meta mt-3">
-          {MEDIA_COUNTS.artwork} sleeves · {MEDIA_COUNTS.previews} playable ·{" "}
+          {sleeves} sleeves · {playable} playable ·{" "}
           <Link href="/drift" className="underline decoration-[var(--hairline-strong)] underline-offset-2 hover:text-[var(--ink)]">
             open the emotional map
           </Link>

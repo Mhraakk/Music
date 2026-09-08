@@ -490,8 +490,14 @@ body:has(.cosmos) {
   transform: translateX(-50%);
   bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   z-index: 55;
-  width: calc(100% - 24px);
-  max-width: 560px;
+  /*
+   * Sized in viewport units rather than `calc(100% - 24px)`. A percentage on a
+   * fixed element resolves against its containing block, and any ancestor with
+   * a transform, filter or backdrop-filter silently becomes that block — which
+   * collapsed the sheet to roughly 360px on a 1280px viewport. `vw` cannot be
+   * captured that way.
+   */
+  width: min(560px, calc(100vw - 24px));
   border-radius: var(--r-sheet);
   background-color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(24px) saturate(1.5);

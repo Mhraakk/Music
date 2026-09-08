@@ -19,7 +19,7 @@
  */
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
 
 /** Matches the column counts in `cosmos.css`, so the browser fetches sensibly. */
@@ -40,6 +40,18 @@ export function TrackTile({
   priority?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  /**
+   * A cached image can already be decoded before React attaches `onLoad`, in
+   * which case the event never fires and the tile stays at opacity 0 forever —
+   * showing nothing but its own dark tint. That produced solid black rectangles
+   * scattered through the grid on any second visit, which is exactly the
+   * failure the fade was meant to prevent.
+   */
+  useEffect(() => {
+    if (imgRef.current?.complete) setLoaded(true);
+  }, []);
 
   return (
     <button
@@ -55,6 +67,7 @@ export function TrackTile({
     >
       {track.artworkUrl ? (
         <Image
+          ref={imgRef}
           src={track.artworkUrl}
           alt=""
           fill
@@ -62,6 +75,9 @@ export function TrackTile({
           priority={priority}
           data-loaded={loaded ? "true" : "false"}
           onLoad={() => setLoaded(true)}
+          // A sleeve that fails to fetch must not leave a permanently blank
+          // tile; showing it un-faded is better than showing nothing.
+          onError={() => setLoaded(true)}
           style={{ objectFit: "cover" }}
         />
       ) : (
