@@ -99,22 +99,32 @@ export function rgbToHsl({ r, g, b }: Rgb): Hsl {
 /**
  * Perceptual-ish distance between two colours, in [0,1].
  *
- * Deliberately not Euclidean RGB: for "find me covers this colour", hue is what
- * a person is actually pointing at, and two greys of different lightness feel
- * far more similar than red and green of identical lightness. Hue is compared
- * on the circle and weighted down when either colour is desaturated, because
- * the hue of a near-grey is meaningless noise.
+ * Deliberately not Euclidean RGB: for "find me sleeves this colour", hue is
+ * what a person is pointing at, and two greys of different lightness feel far
+ * closer than red and green of identical lightness.
+ *
+ * Three terms, and the middle one is the one that matters:
+ *
+ *  - HUE, compared on the circle, and discounted when either colour is too
+ *    desaturated to meaningfully have a hue.
+ *  - CHROMA, weighted heavily. Without this, monochrome artwork ranks near the
+ *    top of *every* colour search: a colour with no hue is never "wrong" about
+ *    hue, so discounting the hue term alone rewards greyscale for being
+ *    unfalsifiable. A black-and-white sleeve is genuinely far from an amber
+ *    query, and this is the term that says so.
+ *  - LIGHTNESS, weighted least, since a lighter and darker version of the same
+ *    colour are still recognisably that colour.
  */
 export function colorDistance(a: Hsl, b: Hsl): number {
   const hueGap = Math.abs(a.h - b.h);
   const hueDelta = Math.min(hueGap, 360 - hueGap) / 180;
-  const satRelevance = Math.min(a.s, b.s);
-  return Math.min(
-    1,
-    hueDelta * (0.35 + satRelevance * 0.65) * 0.62 +
-      Math.abs(a.s - b.s) * 0.16 +
-      Math.abs(a.l - b.l) * 0.22
-  );
+  const bothHaveHue = Math.min(a.s, b.s);
+
+  const hue = hueDelta * (0.18 + bothHaveHue * 0.82) * 0.58;
+  const chroma = Math.abs(a.s - b.s) * 0.66;
+  const lightness = Math.abs(a.l - b.l) * 0.3;
+
+  return Math.min(1, hue + chroma + lightness);
 }
 
 /**

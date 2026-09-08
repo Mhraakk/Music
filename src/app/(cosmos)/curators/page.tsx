@@ -26,10 +26,11 @@ export default function CuratorsPage() {
     <main className="mx-auto max-w-[1200px] px-4 pt-8 pb-40 md:px-8 md:pt-14">
       <header className="mb-10">
         <h1 className="cx-display max-w-[16ch]">Curators</h1>
-        <p className="cx-body mt-5 max-w-[54ch]">
-          The engine measures every position against these. They are not artists it is trying to
-          sell you — they are the reference points the substrate is calibrated on, and what you see
-          under each is the material that sits closest to it.
+        <p className="cx-body mt-5 max-w-[58ch]">
+          The engine measures every record against these seven. They are not artists it is trying
+          to sell you — they are the reference points it was tuned on, and what you see under each
+          is the music that sits closest to it. The line under each name is what the engine is
+          listening for there.
         </p>
       </header>
 

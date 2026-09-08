@@ -19,9 +19,15 @@ import { useEffect } from "react";
 import { usePlayer } from "@/context/PlayerContext";
 import { hexToRgb } from "@/lib/media";
 
-/** Playing tint is a suggestion; a searched colour is an instruction. */
-const PLAYING_STRENGTH = 0.16;
-const SEARCH_STRENGTH = 0.3;
+/**
+ * Playing tint is a suggestion; a searched colour is an instruction.
+ *
+ * Both were originally half these values, which turned out to be invisible: in
+ * review the room was reported as not tinting at all while a track played. A
+ * cast nobody notices is not subtlety, it is a dead feature.
+ */
+const PLAYING_STRENGTH = 0.3;
+const SEARCH_STRENGTH = 0.38;
 
 export function RoomTint({ searchColor }: { searchColor?: string | null }) {
   const { current } = usePlayer();

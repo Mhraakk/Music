@@ -97,19 +97,24 @@ body:has(.cosmos) {
  * Display sizes use `clamp` so the headline holds its proportion against the
  * grid from 360px to desktop without a cascade of breakpoints.
  */
+/*
+ * Tracking is tighter than a typical UI scale. The reference face is a
+ * condensed grotesque; Inter is wider, so it needs to be pulled in harder to
+ * read as the same voice. Reviewed as "too loose" at -0.035em.
+ */
 .cx-display {
   font-size: clamp(2.25rem, 7vw, 4.25rem);
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  font-weight: 600;
+  line-height: 0.94;
+  letter-spacing: -0.046em;
+  font-weight: 640;
   color: var(--ink);
 }
 
 .cx-title {
   font-size: clamp(1.375rem, 3.2vw, 1.875rem);
-  line-height: 1.12;
-  letter-spacing: -0.022em;
-  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+  font-weight: 620;
 }
 
 .cx-heading {
@@ -133,12 +138,16 @@ body:has(.cosmos) {
   color: var(--ink-3);
 }
 
+/*
+ * Lowercase, not uppercase. These labels carry the engine's descriptions of
+ * emotional shape ("heavy, cold, audibly fragile") and in review all-caps read
+ * as shouting on a surface this warm.
+ */
 .cx-label {
-  font-size: 0.6875rem;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  font-weight: 450;
   color: var(--ink-3);
 }
 
@@ -491,9 +500,14 @@ body:has(.cosmos) {
   overflow: hidden;
 }
 
+/*
+ * 3px, not 2px. At 2px against the sheet's translucent white this was reported
+ * as absent in review, which made it impossible to tell whether audio was
+ * actually advancing. A progress bar nobody can see is worse than none.
+ */
 .cx-progress {
-  height: 2px;
-  background-color: var(--hairline);
+  height: 3px;
+  background-color: var(--hairline-strong);
   position: relative;
   overflow: hidden;
 }
