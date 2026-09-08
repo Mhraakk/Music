@@ -1,0 +1,265 @@
+/**
+ * SONIC DRIFT — BRUTALIST EMOTIONALISM
+ *
+ * Every rule in the design brief is an absolute, so it is enforced structurally
+ * rather than trusted to reviewers: no radius, no shadow, no gradient, nothing
+ * skeuomorphic, and all spacing on an 8px grid.
+ *
+ * SCOPING. Everything is nested under `.sonic-drift`. The rest of this codebase
+ * runs a liquid-glass system built on blur, elevation and 22px corners, which is
+ * the exact opposite of this surface. Scoping lets both live in one application
+ * without either one leaking into the other.
+ *
+ * WHY `!important`. Normally a smell. Here the ban is the specification: "0px
+ * border-radius on every single element. No exceptions." A future component
+ * that arrives with `rounded-sm` or a Tailwind shadow utility must lose, and it
+ * must lose without anyone having to notice it in review. These four
+ * declarations are the mechanism that makes the constraint real.
+ */
+
+.sonic-drift {
+  /* Spacing scale. Nothing outside these values is permitted as spacing. */
+  --s-1: 8px;
+  --s-2: 16px;
+  --s-3: 24px;
+  --s-4: 32px;
+  --s-6: 48px;
+  --s-8: 64px;
+
+  /* Ink. Flat, opaque, no translucency games standing in for elevation. */
+  --ink: #f2efea;
+  --ink-2: #a8a29a;
+  --ink-3: #6e6a64;
+  --rule: #2a2724;
+  --rule-strong: #45403a;
+
+  /* Signal colours, one per drift mode. */
+  --deepen: #d8a05c;
+  --prune: #b4524a;
+  --explore: #6f8fa6;
+
+  /*
+   * THE ROOM. Set inline by the player from the sounding phase's emotional
+   * field: warmth drives hue, emotional depth drives descent toward black. The
+   * transition is deliberately slower than any track change, so the room is
+   * always still catching up with the music rather than snapping to it.
+   */
+  --field: 12 11 10;
+
+  background-color: rgb(var(--field));
+  color: var(--ink);
+  transition: background-color 2400ms linear;
+  min-height: 100vh;
+  font-family: var(--font-poppins), system-ui, sans-serif;
+  font-feature-settings: "kern" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── The four absolutes ── */
+.sonic-drift,
+.sonic-drift *,
+.sonic-drift *::before,
+.sonic-drift *::after {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  background-image: none !important;
+}
+
+/* Blur and saturation are elevation by another name. Also banned. */
+.sonic-drift *,
+.sonic-drift *::before,
+.sonic-drift *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Poppins everywhere, including form controls, which inherit nothing by default. */
+.sonic-drift button,
+.sonic-drift input,
+.sonic-drift select,
+.sonic-drift textarea {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/*
+ * TYPE SCALE
+ *
+ * Sizes are free but line boxes are not: every leading below is a multiple of
+ * 8, so a column of text lands on the same grid as the boxes around it.
+ */
+.sd-label {
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.sd-meta {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.sd-body {
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.sd-title {
+  font-size: 20px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.sd-display {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.sd-numeral {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+/* ── Rules, not cards. A hairline divides; it does not float. ── */
+.sd-rule-t {
+  border-top: 1px solid var(--rule);
+}
+.sd-rule-b {
+  border-bottom: 1px solid var(--rule);
+}
+.sd-rule-l {
+  border-left: 1px solid var(--rule);
+}
+.sd-rule-r {
+  border-right: 1px solid var(--rule);
+}
+.sd-box {
+  border: 1px solid var(--rule);
+}
+
+/*
+ * Interaction is expressed by inversion, since there is no elevation to raise
+ * and no corner to soften. A pressed control swaps ink and ground.
+ */
+.sd-press {
+  transition: background-color 120ms linear, color 120ms linear, border-color 120ms linear;
+  cursor: pointer;
+}
+.sd-press:hover {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+.sd-press[aria-pressed="true"],
+.sd-press.is-active {
+  background-color: var(--ink);
+  color: rgb(var(--field));
+  border-color: var(--ink);
+}
+.sd-press:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/*
+ * VOLUME
+ *
+ * Rebuilt from scratch because the native control is a rounded, shadowed,
+ * gradient-filled thumb on a rounded track — a four-way violation. It is also
+ * the single most important input in the application: a change here during a
+ * vocal fragility window is the load-bearing implicit feedback signal, so it is
+ * a deliberately large 32px target rather than a decorative hairline.
+ */
+.sonic-drift input[type="range"] {
+  width: 100%;
+  height: 32px;
+  background: transparent;
+  cursor: ew-resize;
+  display: block;
+}
+.sonic-drift input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--rule-strong);
+}
+.sonic-drift input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 24px;
+  margin-top: -11px;
+  background: var(--ink);
+  border: 0;
+}
+.sonic-drift input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--rule-strong);
+}
+.sonic-drift input[type="range"]::-moz-range-thumb {
+  width: 2px;
+  height: 24px;
+  background: var(--ink);
+  border: 0;
+}
+
+/* Progress and meters: a filled rectangle, nothing more. */
+.sd-bar {
+  height: 2px;
+  background-color: var(--rule);
+  position: relative;
+  overflow: hidden;
+}
+.sd-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: var(--ink);
+  transition: width 240ms linear;
+}
+
+/*
+ * The map plots coordinates absolutely, so its aspect ratio has to be fixed for
+ * the projection to mean anything. 480px keeps the grid at 8px multiples.
+ */
+.sd-map {
+  position: relative;
+  height: 480px;
+  border: 1px solid var(--rule);
+}
+
+@media (max-width: 767px) {
+  .sd-map {
+    height: 360px;
+  }
+}
+
+/* Motion is a fade of flat colour. Nothing scales, slides or springs. */
+@media (prefers-reduced-motion: reduce) {
+  .sonic-drift,
+  .sonic-drift * {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}
