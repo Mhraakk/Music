@@ -217,6 +217,12 @@
   color: inherit;
 }
 
+.cx-nav-inverse .cx-floatnav,
+.cx-nav-inverse .cx-floatnav a,
+.cx-nav-inverse .cx-floatnav button {
+  color: var(--color-paper);
+}
+
 .cx-nav-inverse .cx-pill {
   border-color: rgba(255, 255, 255, 0.3);
   color: var(--color-paper);
