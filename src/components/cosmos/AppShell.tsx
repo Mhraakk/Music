@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * York editorial header. Mini-player always. No skip.
+ * York header. Mini-player always. No skip.
  */
 
 import Link from "next/link";
@@ -34,6 +34,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="cx-shell">
+      <a href="#main-content" className="cx-skip">
+        Skip to content
+      </a>
       <div className="cx-main">
         <header className="cx-floatnav-wrap">
           <nav className="cx-floatnav" aria-label="Primary">
@@ -74,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </nav>
         </header>
-        {children}
+        <div id="main-content">{children}</div>
       </div>
 
       <div className="cx-player">

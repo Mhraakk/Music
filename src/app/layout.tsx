@@ -1,31 +1,22 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-const sans = Inter({
+const sans = Geist({
   subsets: ["latin"],
   variable: "--font-loaded-sans",
   display: "swap",
 });
 
-const display = Instrument_Serif({
+const mono = Geist_Mono({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-loaded-display",
-  display: "swap",
-});
-
-const editorial = Newsreader({
-  subsets: ["latin"],
-  weight: ["300", "400"],
-  style: ["normal", "italic"],
-  variable: "--font-loaded-editorial",
+  variable: "--font-loaded-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Resonant — Listen Now",
+  title: "Resonant - Listen Now",
   description:
     "A cognition-first music app with Apple Music clarity. No genres, no BPM, no popularity ranking. " +
     "The engine drifts from how you listen.",
@@ -33,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable} ${editorial.variable} h-full antialiased`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full bg-bone-white text-press-black">
         {children}
         <SpeedInsights />

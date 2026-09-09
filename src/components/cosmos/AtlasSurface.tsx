@@ -105,12 +105,9 @@ export function AtlasSurface() {
   return (
     <div className="cx-atlas">
       <header className="cx-atlas-hero">
-        <p className="cx-kicker">Every Noise · Atlas</p>
         <h1 className="cx-atlas-display">Every branch.</h1>
         <p className="cx-body cx-atlas-lede">
-          Six thousand genre-shaped rooms from everynoise.com, kept as navigation — never written onto the
-          catalog. Tap a branch, then an artist. Each recording opens Apple Music, Spotify, YouTube Music, and
-          SoundCloud.
+          Six thousand rooms from everynoise.com. Navigation only. Tap a branch, then an artist on Apple, Spotify, YouTube Music, and SoundCloud.
         </p>
       </header>
 
@@ -170,7 +167,7 @@ export function AtlasSurface() {
             href={`/atlas/genre/${genre.id}`}
             className="cx-atlas-node"
             style={{ left: `${genre.nx * 100}%`, top: `${genre.ny * 100}%` }}
-            title={genre.exampleTitle ? `${genre.exampleArtist} — ${genre.exampleTitle}` : genre.label}
+            title={genre.exampleTitle ? `${genre.exampleArtist}: ${genre.exampleTitle}` : genre.label}
           >
             <span className="cx-atlas-dot" style={{ background: genre.color }} />
             <span>{genre.label}</span>
@@ -186,7 +183,7 @@ export function AtlasSurface() {
               <span className="cx-atlas-list-label">{genre.label}</span>
               <span className="cx-atlas-list-eg">
                 {genre.exampleArtist && genre.exampleTitle
-                  ? `${genre.exampleArtist} — ${genre.exampleTitle}`
+                  ? `${genre.exampleArtist}: ${genre.exampleTitle}`
                   : "Open branch"}
               </span>
             </Link>

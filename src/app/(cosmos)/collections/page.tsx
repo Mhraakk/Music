@@ -4,7 +4,7 @@ import { songsLabel } from "@/lib/format";
 import { Mosaic } from "@/components/cosmos/CollectionRail";
 
 export const metadata = {
-  title: "Browse — Resonant",
+  title: "Browse - Resonant",
   description: "Stations and playlists, grouped by feeling rather than genre.",
 };
 
@@ -16,7 +16,7 @@ export default function BrowsePage() {
       <header className="cx-section-head">
         <h1 className="cx-display">Browse</h1>
         <p className="cx-body">
-          Stations by feeling. Each one is a neighbourhood on the map — not a genre, not a chart.
+          Stations by feeling. Neighbourhoods on the map, not a chart.
         </p>
       </header>
 

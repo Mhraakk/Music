@@ -189,34 +189,29 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Atlas</h2>
-              <div className="cx-section-side">
-                <p className="cx-body">
-                  Thousands of electronic branches from everynoise.com. Tap DJ Krush — or trip hop — and
-                  keep walking the features.
-                </p>
-                <Link href="/atlas" className="cx-see-all">
-                  Open Every Noise →
-                </Link>
-              </div>
+              <p className="cx-body">
+                Electronic branches from everynoise.com. Tap DJ Krush or trip hop and keep walking the features.
+              </p>
+              <Link href="/atlas" className="cx-see-all">
+                Open Every Noise
+              </Link>
             </div>
           </section>
 
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Emotional map</h2>
-              <div className="cx-section-side">
-                <p className="cx-body">
-                  Tap a room. Refresh pulls new recordings from Apple Music for that feeling — not the static shelf.
-                </p>
-                <button
-                  type="button"
-                  className="cx-pill cx-pill-ghost"
-                  onClick={() => void refreshLive()}
-                  disabled={refreshing}
-                >
-                  {refreshing ? "Harvesting…" : "Refresh live Apple Music"}
-                </button>
-              </div>
+              <p className="cx-body">
+                Tap a room. Refresh pulls new Apple Music recordings for that feeling, not the static shelf.
+              </p>
+              <button
+                type="button"
+                className="cx-pill cx-pill-ghost"
+                onClick={() => void refreshLive()}
+                disabled={refreshing}
+              >
+                {refreshing ? "Harvesting…" : "Refresh live Apple Music"}
+              </button>
             </div>
             <FeelingMap
               current={destination}
@@ -250,7 +245,7 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Top Picks</h2>
-              <p className="cx-body">The recordings the engine would put on first — image-led, no charts.</p>
+              <p className="cx-body">The recordings the engine would put on first. Image-led, no charts.</p>
             </div>
             <FeaturedPicks tracks={topPicks.slice(0, 3)} />
             {topPicks.length > 3 && (
@@ -265,12 +260,10 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Stations</h2>
-              <div className="cx-section-side">
-                <p className="cx-body">Neighbourhoods on the map. Tap one and the engine stays there.</p>
-                <Link href="/collections" className="cx-see-all">
-                  See All →
-                </Link>
-              </div>
+              <p className="cx-body">Neighbourhoods on the map. Tap one and the engine stays there.</p>
+              <Link href="/collections" className="cx-see-all">
+                See all stations
+              </Link>
             </div>
             <CollectionRail collections={stations} />
           </section>
@@ -278,7 +271,7 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">New Music Mix</h2>
-              <p className="cx-body">Fresh recordings in circulation — Apple first, then the shelf.</p>
+              <p className="cx-body">Fresh recordings in circulation. Apple first, then the shelf.</p>
             </div>
             <AlbumRow tracks={[...circulating.slice(0, 4), ...newMusic].filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i).slice(0, 16)} />
           </section>
@@ -286,12 +279,10 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Artists</h2>
-              <div className="cx-section-side">
-                <p className="cx-body">People the catalog already occupies — not a genre list.</p>
-                <Link href="/curators" className="cx-see-all">
-                  See All →
-                </Link>
-              </div>
+              <p className="cx-body">People the catalog already occupies, not a genre list.</p>
+              <Link href="/curators" className="cx-see-all">
+                See all artists
+              </Link>
             </div>
             <div className="cx-artist-rail">
               {artists.map((artist) => (
@@ -322,19 +313,34 @@ function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
   const { play } = usePlayerActions();
   if (!tracks.length) return null;
 
+  const [lead, ...rest] = tracks;
+
   return (
     <div className="cx-feature-grid">
-      {tracks.map((track, index) => (
+      <div className="cx-picks-lead">
         <TrackTile
-          key={track.id}
-          track={track}
+          track={lead}
           size="lg"
-          active={current?.id === track.id}
-          playing={current?.id === track.id && playing}
+          active={current?.id === lead.id}
+          playing={current?.id === lead.id && playing}
           onSelect={play}
-          priority={index === 0}
+          priority
         />
-      ))}
+      </div>
+      {rest.length > 0 && (
+        <div className="cx-picks-pair">
+          {rest.map((track) => (
+            <TrackTile
+              key={track.id}
+              track={track}
+              size="md"
+              active={current?.id === track.id}
+              playing={current?.id === track.id && playing}
+              onSelect={play}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

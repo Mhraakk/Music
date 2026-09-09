@@ -11,7 +11,7 @@ import { SIGNATURE_AUTHOR, signaturePlates } from "@/lib/signature";
 import { BackGlyph } from "@/components/cosmos/icons";
 
 export const metadata = {
-  title: "About — Resonant",
+  title: "About - Resonant",
   description: "Three photographs the work is signed with.",
 };
 
@@ -25,21 +25,13 @@ export default function SignaturePage() {
       </Link>
 
       <header className="cx-section-head">
-        <div>
-          <p className="cx-meta">Resonant</p>
-          <h1 className="cx-display mt-2">Signature</h1>
-        </div>
-        <div className="cx-section-side">
-          <p className="cx-body">
-            Three photographs the work is signed with. They sit on the same emotional map as the
-            music, because an engine that claims to read feeling should be able to read the things
-            its author chose to be judged by.
-          </p>
-          <p className="cx-meta">
-            The readings below are authored, not computed. There is no honest way to derive emotional
-            structure from pixels, so what you are reading is a claim, stated as one.
-          </p>
-        </div>
+        <h1 className="cx-display">Signature</h1>
+        <p className="cx-body">
+          Three photographs the work is signed with. They sit on the same emotional map as the music.
+        </p>
+        <p className="cx-meta">
+          The readings below are authored, not computed. A claim, stated as one.
+        </p>
       </header>
 
       <SignatureGallery plates={plates} />
@@ -48,7 +40,7 @@ export default function SignaturePage() {
         <p className="cx-label">About</p>
         <p className="cx-body mt-4 max-w-[54ch]">
           Resonant is a cognition-first music app: no genre field, no tempo, no popularity rank.
-          Songs, albums, artists and stations on the surface — an emotional map underneath.
+          Songs, albums, artists and stations on the surface. An emotional map underneath.
         </p>
         <p className="cx-body mt-4 max-w-[54ch]">
           Built with Next.js and a Model Context Protocol server that is shown emotional

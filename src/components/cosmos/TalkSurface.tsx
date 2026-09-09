@@ -205,7 +205,7 @@ export function TalkSurface() {
     if (deviceGemini.trim()) return "Using the Gemini key on this device.";
     if (status?.openaiConfigured) return "ChatGPT is ready on the server.";
     if (status?.configured) return "Gemini is ready on the server.";
-    return "No model key yet — I still search Apple Music first and attach official videos. Paste ChatGPT or Gemini below.";
+    return "No model key yet. I still search Apple Music first and attach official videos. Paste ChatGPT or Gemini below.";
   }, [deviceGemini, deviceOpenai, status]);
 
   return (
@@ -233,7 +233,7 @@ export function TalkSurface() {
             }}
           >
             <label className="cx-label" htmlFor="openai-key">
-              ChatGPT / OpenAI API key — stored only in this browser
+              ChatGPT / OpenAI API key, stored only in this browser
             </label>
             <input
               id="openai-key"
@@ -246,7 +246,7 @@ export function TalkSurface() {
               placeholder="sk-…"
             />
             <label className="cx-label" htmlFor="gemini-key">
-              Gemini API key — optional fallback
+              Gemini API key, optional fallback
             </label>
             <input
               id="gemini-key"
@@ -274,7 +274,7 @@ export function TalkSurface() {
         {lines.length === 0 && (
           <div className="cx-talk-empty">
             <p className="cx-body">
-              Ask however you talk. Apple Music first — same artist, kin, official videos as trailers.
+              Ask however you talk. Apple Music first: same artist, kin, official videos as trailers.
               ChatGPT if you paste a key. The Resonant shelf is optional.
             </p>
             <div className="cx-talk-starters">

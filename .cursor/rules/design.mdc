@@ -1,22 +1,32 @@
 ---
-description: York / New Form visual system for all Resonant UI
+description: York tokens + Taste Skill visual system for Resonant UI
 globs: src/**/*.{tsx,css}
 ---
 
-When building UI for this project, first run:
-  designmdme --website <domain>
+Reading this as: redesign of an existing listening product for design-conscious
+music listeners, with a premium-consumer / editorial-quiet language, leaning
+toward Geist + York highlighter as the locked brand accent.
 
-Then reference src/app/theme.css, src/app/variables.css, and src/app/tokens.json.
+Dials: DESIGN_VARIANCE 6 / MOTION_INTENSITY 4 / VISUAL_DENSITY 4.
 
-Hard rules from the York spec:
+Before changing UI, read `.agents/skills/design-taste-frontend/SKILL.md` and
+`.agents/skills/redesign-existing-projects/SKILL.md`. Then reference
+`src/app/theme.css`, `src/app/variables.css`, and `src/app/tokens.json`.
+
+Hard rules:
 - Canvas is Bone White `#fafffa`. Headlines are Press Black `#121613`.
 - Highlighter Green `#2bee4b` is the only saturated accent and the only filled CTA.
 - Primary button: 5px radius, green fill, black 11px uppercase label, green-tinted shadow.
-- Ghost buttons on dark: 10px radius, 1px bone border. Do not use 9999px on the primary action.
 - Images: 14px radius and the green duotone filter. No full-color photography.
-- UI type is Inter (TWK Lausanne substitute), 11px small-caps for nav/labels. Display is Instrument Serif (Mondwest substitute).
-- Display sizes are huge (96–155px). Body stays at 18px.
-- No second accent color. Elevation only on the green button.
+- UI type is Geist (York named TWK Lausanne). Display is the same Geist family
+  at display size, never Inter, never Instrument Serif, never Fraunces.
+- No em-dash or en-dash in visible copy. Use a period, comma, colon, or hyphen.
+- Hero: max 2 headline lines, subtext max 20 words, CTA in the first viewport,
+  no scroll cue, at most one small label in the whole hero.
+- Maximum 1 eyebrow per 3 sections. Stack section heads. Do not split
+  headline-left / explainer-right.
 - Brand stays Resonant. No skip / next control.
 - Homepage still names Listen Now, Favorite Songs, Connect Apple Music.
-- Every Noise atlas is navigation only — never write a genre field onto stored catalog records.
+- Every Noise atlas is navigation only. Never write a genre field onto stored
+  catalog records.
+- Theme stays light (York canvas). Do not invert a mid-page section.

@@ -14,8 +14,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const profile = curator(slug);
-  if (!profile) return { title: "Artist — Resonant" };
-  return { title: `${profile.name} — Resonant`, description: profile.bio };
+  if (!profile) return { title: "Artist - Resonant" };
+  return { title: `${profile.name} - Resonant`, description: profile.bio };
 }
 
 export default async function CuratorPage({ params }: { params: Promise<{ slug: string }> }) {
