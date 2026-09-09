@@ -35,6 +35,8 @@ import { geminiConfigured, geminiModel } from "./gemini";
 import { musicKitConfig } from "@/lib/providers/musickit";
 import { soundCloudConfig } from "@/lib/providers/soundcloud";
 import { decideNextDrift, planFullDrift, topographySnapshot } from "./cognition";
+import { NUCLEAR_TOOLS, nuclearCall, nuclearDescribeType, nuclearListMethods, nuclearMethodDetails } from "@/lib/nuclear/mcp";
+import { resolveNuclearStream } from "@/lib/nuclear/resolve";
 import {
   DEFAULT_PROTOCOL_VERSION,
   RPC,
@@ -309,7 +311,21 @@ export const TOOLS: readonly ToolDescriptor[] = [
       "determinism, taste probes, and a fixture generate-10. No network.",
     inputSchema: { type: "object", properties: {} },
   },
-] as const;
+  ...NUCLEAR_TOOLS,
+  {
+    name: "nuclear_search_stream",
+    title: "Search a free YouTube listen",
+    description: "Find YouTube candidates for an artist and title (Nuclear two-phase search).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        artist: { type: "string" },
+        title: { type: "string" },
+        query: { type: "string" },
+      },
+    },
+  },
+];
 
 /* ─────────────────────────────── PARAM PARSING ─────────────────────────────── */
 
@@ -566,6 +582,24 @@ async function callTool(name: string, args: Record<string, unknown>, context: Mc
       return toolGenerateTasteExpansion(args);
     case "inspect_expansion_engine":
       return toolInspectExpansionEngine();
+    case "list_methods":
+      return nuclearListMethods(asString(args.domain, "Metadata"));
+    case "method_details":
+      return nuclearMethodDetails(asString(args.method));
+    case "describe_type":
+      return nuclearDescribeType(asString(args.type, asString(args.typeName, "Track")));
+    case "call": {
+      const nested = asRecord(args.params);
+      return nuclearCall(asString(args.method), { ...args, ...nested });
+    }
+    case "nuclear_search_stream": {
+      const resolved = await resolveNuclearStream({
+        artist: asString(args.artist),
+        title: asString(args.title),
+        query: asString(args.query) || undefined,
+      });
+      return textResult(resolved.note, resolved);
+    }
     default:
       return errorResult(`Unknown tool "${name}".`);
   }
@@ -639,7 +673,8 @@ export async function handleRpc(message: unknown, context: McpContext): Promise<
           "Sonic Drift reasons about music as emotional structure. Candidates are anonymous " +
           "substrate coordinates: no genre, tempo or popularity is available to you or to the " +
           "engine. Call get_next_emotional_drift to advance a session, or generate_taste_expansion " +
-          "to admit ten new Apple Music positions near the listener's taste.",
+          "to admit ten new Apple Music positions near the listener's taste. Nuclear-shaped tools " +
+          "(list_methods, call) search Apple Music and resolve YouTube full listens. No skip.",
       });
     }
 

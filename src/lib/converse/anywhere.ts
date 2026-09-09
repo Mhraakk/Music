@@ -573,6 +573,10 @@ function orderGroups(
   return [apple, deezer, youtubeMusic, soundcloud, youtube];
 }
 
+export async function youtubeVideoHits(query: string, limit = 5): Promise<FoundHit[]> {
+  return innertubeSearch("youtube", query, limit).catch(() => [] as FoundHit[]);
+}
+
 export async function officialVideo(artist: string, title: string): Promise<string | null> {
   const query = `${artist} ${title} official video`.replace(/\s+/g, " ").trim();
   const hits = await innertubeSearch("youtube", query, 3).catch(() => [] as FoundHit[]);

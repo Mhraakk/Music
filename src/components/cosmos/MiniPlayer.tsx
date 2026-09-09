@@ -12,6 +12,7 @@ import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
 import { PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { NuclearStage } from "./NuclearStage";
 
 const MODE_LABEL: Record<string, string> = {
   deepen: "More like this",
@@ -20,15 +21,21 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle } =
+  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt } =
     usePlayer();
-  const { toggle, setVolume, seek, stop, setDestination } = usePlayerActions();
+  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const yt = current ? youtubeVideoId(current) : null;
   const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
 
-  const total = current ? (current.previewUrl ? 30 : current.duration) : 0;
+  const total = current
+    ? listenVia === "youtube" && nuclearDuration
+      ? nuclearDuration
+      : current.previewUrl && listenVia !== "youtube"
+        ? 30
+        : current.duration
+    : 0;
   const elapsed = progress * total;
 
   return (
@@ -68,10 +75,16 @@ export function MiniPlayer() {
                 <span className="tabular-nums">
                   {clock(elapsed)} / {clock(total)}
                 </span>
-                {via && (
+                {via && listenVia !== "youtube" && (
                   <>
                     <span aria-hidden>·</span>
                     <span>{via}</span>
+                  </>
+                )}
+                {listenVia === "youtube" && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>YouTube full listen</span>
                   </>
                 )}
                 {fromAsk && !via && (
@@ -136,16 +149,18 @@ export function MiniPlayer() {
         </div>
       </div>
 
-      {playing && yt && !current?.previewUrl && (
-        <iframe
-          className="cx-embed"
-          title="YouTube"
-          src={`https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0`}
-          allow="autoplay; encrypted-media"
-          allowFullScreen
+      {listenVia === "youtube" && yt && (
+        <NuclearStage
+          videoId={yt}
+          playing={playing}
+          volume={volume}
+          seekAt={nuclearSeekAt}
+          onTick={nuclearTick}
+          onEnded={nuclearEnded}
+          onFailed={nuclearFailed}
         />
       )}
-      {playing && sc && current?.openUrl && (
+      {playing && listenVia === "soundcloud" && sc && current?.openUrl && (
         <iframe
           className="cx-embed"
           title="SoundCloud"
