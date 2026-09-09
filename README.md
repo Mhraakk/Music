@@ -37,9 +37,16 @@ one of its clients. The model is shown anonymous coordinates with no artist, tit
 which makes genre reasoning structurally impossible rather than merely discouraged — and every
 proposal is verified against the ontology before it is accepted.
 
-**Real audio, no setup.** 64 of 65 positions resolve to real artwork and a 30-second preview
-through the iTunes Search API, which needs no key. Apple MusicKit and SoundCloud OAuth are
-supported for high-fidelity playback and identity, but nothing is required.
+**Living catalog.** The authored seed is only the calibration set. The expansion engine
+searches Apple Music near the artists who already occupy your taste — taste is a position
+in the substrate, never a genre — projects each hit onto the seven axes, and admits what
+survives the rejection rules. `10 new near your taste` on the discover surface asks for
+ten new positions whenever you want them.
+
+**Real audio, no setup.** Seed and harvested positions resolve to real artwork and a
+30-second preview through the iTunes Search API, which needs no key. Apple MusicKit and
+SoundCloud OAuth are supported for high-fidelity playback and identity, but nothing is
+required.
 
 ## Deploying
 
@@ -47,9 +54,25 @@ Nothing is required to deploy. There are no mandatory environment variables — 
 back to deterministic local cognition and playback uses iTunes previews, so a fresh deploy is
 fully functional out of the box.
 
-Import the repository at [vercel.com/new](https://vercel.com/new). Next.js is detected
-automatically and the defaults are correct; `@vercel/speed-insights` is already wired into the
-root layout and starts reporting on its own.
+**Connect this GitHub repo to Vercel** (import, do not clone — the repo already exists):
+
+[https://vercel.com/new/import?s=https://github.com/Mhraakk/Music](https://vercel.com/new/import?s=https://github.com/Mhraakk/Music)
+
+Vercel detects Next.js from `vercel.json`. After import, set **Production Branch** to
+`cursor/expansion-engine-e638` until that work is on `main` — `main` is still the older
+60-track catalog without the living engine.
+
+A `VERCEL_TOKEN` (Account Settings → Tokens) lets the CLI finish the rest without the
+dashboard:
+
+```bash
+npx vercel login
+npx vercel link --yes --project resonant
+npx vercel --prod --yes
+```
+
+`@vercel/speed-insights` is already wired into the root layout and starts reporting on its
+own.
 
 Optional variables, each of which upgrades a capability rather than enabling one:
 
@@ -66,8 +89,9 @@ registered callback differs from `https://<your-domain>/api/auth/soundcloud/call
 
 ```bash
 npm run typecheck
-npm run verify:drift    # 44 behavioural checks against the engine; needs a server running
-npm run resolve:media   # refresh artwork, previews and colours
+npm run verify:drift    # behavioural checks against the engine; needs a server running
+npm run harvest:catalog # pull Apple Music neighbours into the living catalog
+npm run resolve:media   # refresh artwork, previews and colours for the authored seed
 ```
 
 `verify:drift` takes an optional base URL, so it can be pointed at a production build or a

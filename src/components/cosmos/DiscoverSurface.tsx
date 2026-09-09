@@ -10,25 +10,37 @@
  * Search runs entirely in the browser against the library passed down from the
  * server. That is a deliberate tradeoff: it costs one payload of catalog
  * metadata up front (no artwork, just fields) and buys instant ranking with no
- * request per keystroke. At 64 positions it is not close to a problem; past a
- * few thousand this would move behind an endpoint.
+ * request per keystroke. The living catalog is hundreds of positions; the
+ * default wall shows the most vulnerable seventy-two plus anything just
+ * generated. Past a few thousand this would move behind an endpoint.
  */
 
 import { useMemo, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
+import { usePlayer } from "@/context/PlayerContext";
 import { colorDistance, hexToRgb, rgbToHsl } from "@/lib/media";
 import { MasonryGrid } from "./MasonryGrid";
 import { NowPlayingSheet } from "./NowPlayingSheet";
 import { RoomTint } from "./RoomTint";
 import { SearchBar, type SearchMode } from "./SearchBar";
+import { TasteExpand } from "./TasteExpand";
+
+const DEFAULT_WALL = 72;
 
 export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
+  const { extras } = usePlayer();
   const [mode, setMode] = useState<SearchMode>({ kind: "none" });
+
+  const catalog = useMemo(() => {
+    const map = new Map(tracks.map((t) => [t.id, t]));
+    for (const extra of extras) map.set(extra.id, extra);
+    return [...map.values()];
+  }, [tracks, extras]);
 
   const results = useMemo(() => {
     if (mode.kind === "color") {
       const target = rgbToHsl(hexToRgb(mode.hex));
-      return tracks
+      return catalog
         .map((track) => ({ track, d: colorDistance(target, track.searchHsl) }))
         .sort((a, b) => a.d - b.d)
         .map((x) => x.track);
@@ -36,9 +48,9 @@ export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
 
     if (mode.kind === "text") {
       const terms = mode.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-      if (terms.length === 0) return tracks;
+      if (terms.length === 0) return catalog;
 
-      return tracks
+      return catalog
         .map((track) => {
           // Weighted so an artist or title match outranks an incidental hit in
           // the engine's prose description of the emotional shape.
@@ -66,8 +78,13 @@ export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
         .map((x) => x.track);
     }
 
-    return tracks;
-  }, [mode, tracks]);
+    const fresh = catalog.filter((t) => t.origin === "expansion");
+    const rest = catalog
+      .filter((t) => t.origin !== "expansion")
+      .slice()
+      .sort((a, b) => b.avi - a.avi);
+    return [...fresh, ...rest.slice(0, DEFAULT_WALL)];
+  }, [mode, catalog]);
 
   return (
     <>
@@ -79,6 +96,9 @@ export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
           onChange={setMode}
           resultCount={mode.kind === "none" ? null : results.length}
         />
+        <div className="mt-3">
+          <TasteExpand tracks={catalog} />
+        </div>
       </div>
 
       <MasonryGrid tracks={results} />

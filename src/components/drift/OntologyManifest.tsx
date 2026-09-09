@@ -12,7 +12,7 @@
  */
 
 import { AESTHETIC_ANCHORS, AXES, REJECTION_RULES } from "@/lib/drift/ontology";
-import { DRIFT_CATALOG, admissiblePool, rejectedPool } from "@/lib/drift/catalog";
+import { catalogStats, admissiblePool, rejectedPool } from "@/lib/drift/catalog";
 
 export function OntologyManifest() {
   const admitted = admissiblePool();
@@ -29,7 +29,7 @@ export function OntologyManifest() {
           to query on.
         </p>
         <p className="sd-numeral mt-6">
-          {DRIFT_CATALOG.length} POSITIONS · {admitted.length} ADMITTED · {refused.length} REFUSED ·
+          {catalogStats().living} POSITIONS · {admitted.length} ADMITTED · {refused.length} REFUSED ·
           0 GENRE FIELDS
         </p>
       </div>

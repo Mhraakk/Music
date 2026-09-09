@@ -11,7 +11,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:drift": "node scripts/verify-drift-engine.mjs",
-    "resolve:media": "node scripts/resolve-media.mjs"
+    "resolve:media": "node scripts/resolve-media.mjs",
+    "harvest:catalog": "node scripts/harvest-catalog.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^1.2.0",

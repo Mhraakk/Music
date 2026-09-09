@@ -13,6 +13,7 @@
  */
 
 import type { DriftTrack } from "@/lib/drift/catalog";
+import { previewUrl } from "@/lib/media";
 import { musicKitConfig, resolveSong } from "./musickit";
 import { resolveTrack, soundCloudConfig } from "./soundcloud";
 
@@ -44,8 +45,21 @@ export async function resolveAudio(
   const query = track.resolution.query;
   const apple = musicKitConfig().configured;
   const cloud = soundCloudConfig().configured && Boolean(soundCloudAccessToken);
+  const cachedPreview = previewUrl(track.id);
 
-  if (!apple && !cloud) return UNRESOLVED;
+  if (!apple && !cloud) {
+    if (cachedPreview) {
+      return {
+        appleMusicId: track.resolution.appleMusicId,
+        appleMusicUrl: null,
+        soundcloudUrl: null,
+        streamUrl: cachedPreview,
+        source: "apple-musickit",
+        note: "iTunes preview from the living catalog.",
+      };
+    }
+    return UNRESOLVED;
+  }
 
   // Both providers are asked in parallel — the fallback is only useful if it is
   // already in hand when the primary comes back empty.
@@ -89,6 +103,17 @@ export async function resolveAudio(
       streamUrl: null,
       source: "unresolved",
       note: "Catalog identifiers found, but no playable stream was offered.",
+    };
+  }
+
+  if (cachedPreview) {
+    return {
+      appleMusicId: appleMusicId ?? track.resolution.appleMusicId,
+      appleMusicUrl: song?.url ?? null,
+      soundcloudUrl,
+      streamUrl: cachedPreview,
+      source: "apple-musickit",
+      note: "iTunes preview from the living catalog.",
     };
   }
 
