@@ -54,9 +54,25 @@ Nothing is required to deploy. There are no mandatory environment variables — 
 back to deterministic local cognition and playback uses iTunes previews, so a fresh deploy is
 fully functional out of the box.
 
-Import the repository at [vercel.com/new](https://vercel.com/new). Next.js is detected
-automatically and the defaults are correct; `@vercel/speed-insights` is already wired into the
-root layout and starts reporting on its own.
+**Connect this GitHub repo to Vercel** (import, do not clone — the repo already exists):
+
+[https://vercel.com/new/import?s=https://github.com/Mhraakk/Music](https://vercel.com/new/import?s=https://github.com/Mhraakk/Music)
+
+Vercel detects Next.js from `vercel.json`. After import, set **Production Branch** to
+`cursor/expansion-engine-e638` until that work is on `main` — `main` is still the older
+60-track catalog without the living engine.
+
+A `VERCEL_TOKEN` (Account Settings → Tokens) lets the CLI finish the rest without the
+dashboard:
+
+```bash
+npx vercel login
+npx vercel link --yes --project resonant
+npx vercel --prod --yes
+```
+
+`@vercel/speed-insights` is already wired into the root layout and starts reporting on its
+own.
 
 Optional variables, each of which upgrades a capability rather than enabling one:
 
