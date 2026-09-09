@@ -11,6 +11,8 @@
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "verify:drift": "node scripts/verify-drift-engine.mjs",
+    "verify:tokens": "node scripts/verify-design-tokens.mjs",
+    "verify:atlas": "node scripts/verify-atlas.mjs",
     "resolve:media": "node scripts/resolve-media.mjs",
     "harvest:catalog": "node scripts/harvest-catalog.mjs"
   },

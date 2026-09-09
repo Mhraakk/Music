@@ -7,6 +7,7 @@ import type { GeminiFunctionDeclaration } from "@/lib/mcp/gemini";
 import { looksLikeHexColor, matchRoom } from "./rooms";
 import { findMusic, sourceLabel } from "./anywhere";
 import { findRelated } from "./kin";
+import { harvestAtlas } from "@/lib/everynoise";
 import { harvestRoom } from "./live-room";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
@@ -162,6 +163,21 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     },
   },
   {
+    name: "browse_atlas",
+    description:
+      "Open the Every Noise atlas: electronic branches, an artist such as DJ Krush, or a named map room (trip hop, techno). " +
+      "Returns real recordings plus tappable neighbour artists and branches. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: { type: "STRING", description: "Free text: everynoise, electronic, a genre label, or an artist." },
+        artist: { type: "STRING", description: "Named artist to expand, e.g. DJ Krush." },
+        genre: { type: "STRING", description: "Every Noise branch slug or label, e.g. trip hop." },
+        limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+      },
+    },
+  },
+  {
     name: "find_related",
     description:
       "More songs by the same person, then related artists, from Apple Music. " +
@@ -218,7 +234,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from find_music, find_related, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, find_related, browse_atlas, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -367,6 +383,31 @@ export async function executeConverseTool(
         note: tracks.length
           ? "Real Apple Music recordings first. Name artist, title, and Apple. If videoUrl is set, mention the official video. Call play_tracks. Do not refuse."
           : "No hits yet — try the artist name in English, or a song title.",
+      };
+    }
+    case "browse_atlas": {
+      const artist = asString(args.artist);
+      const genre = asString(args.genre);
+      const query = asString(args.query);
+      const harvested = await harvestAtlas({
+        artist: artist || undefined,
+        genre: genre || undefined,
+        query: !artist && !genre ? query || "electronic" : undefined,
+        limit: asNumber(args.limit, 8),
+      });
+      const tracks = harvested.tracks;
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        title: harvested.title,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "Every Noise branches resolved to real Apple recordings. Mention Apple / Spotify / YouTube Music / SoundCloud links on each card. Call play_tracks."
+          : "Atlas is quiet — name DJ Krush, trip hop, or another branch.",
       };
     }
     case "find_related": {

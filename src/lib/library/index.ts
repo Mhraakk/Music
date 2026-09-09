@@ -70,6 +70,10 @@ export type LibraryTrack = {
   /** Official music video / trailer on YouTube, when we resolved one. */
   videoId?: string | null;
   videoUrl?: string | null;
+  /** Outbound service pages resolved for this recording. Never invented. */
+  spotifyUrl?: string | null;
+  youtubeMusicUrl?: string | null;
+  soundcloudUrl?: string | null;
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {

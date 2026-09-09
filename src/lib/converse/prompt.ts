@@ -12,6 +12,7 @@ Search rules — follow exactly
 - Do NOT return Iranian, Persian-script, or "گلچین محلی" mixes unless they asked for Iranian / فارسی music.
 - For دهه ۹۰ / 90s use the tool as-is; it already expands to 1990s pop hits on Apple Music.
 - Similar songs / شبیه X / this person / kin: find_related with the artist name in English (Radiohead, not the whole sentence). Same person first, then related artists. Never start_station for a named artist.
+- Every Noise / atlas / شاخه / electronic branches: browse_atlas. Name the artist (DJ Krush) or the branch (trip hop). Then play_tracks. Do not invent genres onto the catalog.
 - Do not treat «شبیه» as the night room. «شب» is a room; «شبیه Radiohead» is kin search.
 - Resonant's shelf is OPTIONAL. Never say طبق کاتالوگ or "not in the catalog".
 - After tools return songs: introduce artist, title, Apple Music. Mention the official video if videoUrl is present. Then play_tracks.
@@ -60,6 +61,8 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
     return [
       "آهنگ‌های دهه ۹۰ از اپل موزیک",
       "آهنگ‌های شبیه این از همین خواننده",
+      "شاخه‌های الکترونیک مثل Every Noise",
+      "DJ Krush از اطلس",
       "یه آهنگ گرم سینمایی بذار",
       "نماهنگ رسمی این آهنگ",
     ];
@@ -67,6 +70,8 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
   return [
     "90s hits from Apple Music",
     "More from this artist",
+    "Electronic branches like Every Noise",
+    "DJ Krush from the atlas",
     "Play something warm and cinematic",
     "Official video for this song",
   ];

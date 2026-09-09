@@ -1,21 +1,22 @@
 ---
-description: Monopo Saigon visual system for all Resonant UI
+description: York / New Form visual system for all Resonant UI
 globs: src/**/*.{tsx,css}
 ---
 
 When building UI for this project, first run:
   designmdme --website <domain>
 
-Then reference DESIGN-monopo-saigon.md, src/app/theme.css,
-src/app/variables.css, and src/app/tokens.json.
+Then reference src/app/theme.css, src/app/variables.css, and src/app/tokens.json.
 
-Hard rules from that spec:
-- Interface is black / white / gray only. Iridescence is hero media, never a control.
-- No distinct CTA color. Ghost pills: 75px radius, 11×33 padding, 1px border.
-- Cards, images, inputs: 0px radius. Buttons and tags: 75px. Never 1–74px.
-- No drop shadows. Flat surfaces and hairline 1px borders.
-- Roobert → Inter (300 / 400 / 600). Raleway → Montserrat, headings only.
-- Display 225px weight 400. Whisper section titles 78px weight 300.
-- Motion: cubic-bezier(0.19, 1, 0.22, 1), 0.8–1.25s.
+Hard rules from the York spec:
+- Canvas is Bone White `#fafffa`. Headlines are Press Black `#121613`.
+- Highlighter Green `#2bee4b` is the only saturated accent and the only filled CTA.
+- Primary button: 5px radius, green fill, black 11px uppercase label, green-tinted shadow.
+- Ghost buttons on dark: 10px radius, 1px bone border. Do not use 9999px on the primary action.
+- Images: 14px radius and the green duotone filter. No full-color photography.
+- UI type is Inter (TWK Lausanne substitute), 11px small-caps for nav/labels. Display is Instrument Serif (Mondwest substitute).
+- Display sizes are huge (96–155px). Body stays at 18px.
+- No second accent color. Elevation only on the green button.
 - Brand stays Resonant. No skip / next control.
 - Homepage still names Listen Now, Favorite Songs, Connect Apple Music.
+- Every Noise atlas is navigation only — never write a genre field onto stored catalog records.

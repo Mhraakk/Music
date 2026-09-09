@@ -324,7 +324,37 @@ export function MiniPlayer() {
                   rel="noreferrer noopener"
                   className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
                 >
-                  {via ? `Open on ${via}` : "Play the full track"}
+                  {via ? `Open on ${via}` : "Apple Music"}
+                </a>
+              )}
+              {current.spotifyUrl && (
+                <a
+                  href={current.spotifyUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
+                >
+                  Spotify
+                </a>
+              )}
+              {current.youtubeMusicUrl && (
+                <a
+                  href={current.youtubeMusicUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
+                >
+                  YouTube Music
+                </a>
+              )}
+              {current.soundcloudUrl && (
+                <a
+                  href={current.soundcloudUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
+                >
+                  SoundCloud
                 </a>
               )}
               {(current.videoUrl || yt) && (

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import { Inter, Instrument_Serif, Newsreader } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
@@ -7,14 +7,21 @@ const sans = Inter({
   subsets: ["latin"],
   variable: "--font-loaded-sans",
   display: "swap",
-  weight: ["300", "400", "600"],
 });
 
-const display = Montserrat({
+const display = Instrument_Serif({
   subsets: ["latin"],
+  weight: "400",
   variable: "--font-loaded-display",
   display: "swap",
-  weight: ["400"],
+});
+
+const editorial = Newsreader({
+  subsets: ["latin"],
+  weight: ["300", "400"],
+  style: ["normal", "italic"],
+  variable: "--font-loaded-editorial",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,8 +33,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable} h-full antialiased`}>
-      <body className="min-h-full bg-paper text-obsidian">
+    <html lang="en" className={`${sans.variable} ${display.variable} ${editorial.variable} h-full antialiased`}>
+      <body className="min-h-full bg-bone-white text-press-black">
         {children}
         <SpeedInsights />
       </body>
