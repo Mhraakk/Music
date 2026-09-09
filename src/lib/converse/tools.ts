@@ -1,0 +1,460 @@
+import { collection, collections, libraryTrack, queryCatalog, toLibraryTrack, type LibraryTrack } from "@/lib/library";
+import { generateTasteExpansion } from "@/lib/drift/expansion";
+import { planFullDrift } from "@/lib/mcp/cognition";
+import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
+import { TOPOGRAPHY, adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
+import type { GeminiFunctionDeclaration } from "@/lib/mcp/gemini";
+import { looksLikeHexColor, matchRoom } from "./rooms";
+import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
+
+export type ToolContext = {
+  session: ConverseSession;
+  lastSearch: LibraryTrack[];
+  lastPlaylistTitle: string | null;
+  ingest: LibraryTrack[];
+  effects: ConverseEffect[];
+};
+
+export function createToolContext(session: ConverseSession): ToolContext {
+  return {
+    session,
+    lastSearch: [],
+    lastPlaylistTitle: null,
+    ingest: [],
+    effects: [],
+  };
+}
+
+export function card(track: LibraryTrack): ConverseTrackCard {
+  const room = TOPOGRAPHY.find((r) => r.id === track.region);
+  return {
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    room: room?.label ?? track.region.replace(/_/g, " "),
+    feeling: track.shape,
+    duration: track.duration,
+  };
+}
+
+function overlayTracks(session: ConverseSession): LibraryTrack[] {
+  const rows = parseFavoriteOverlay(session.overlay);
+  return materializeFavoriteOverlay(rows).map((t) => toLibraryTrack(t, null));
+}
+
+function knownTracks(ctx: ToolContext): LibraryTrack[] {
+  const map = new Map<string, LibraryTrack>();
+  for (const track of overlayTracks(ctx.session)) map.set(track.id, track);
+  for (const track of ctx.ingest) map.set(track.id, track);
+  for (const track of ctx.lastSearch) map.set(track.id, track);
+  return [...map.values()];
+}
+
+function resolveId(ctx: ToolContext, id: string): LibraryTrack | null {
+  const local = knownTracks(ctx).find((t) => t.id === id);
+  if (local) return local;
+  return libraryTrack(id);
+}
+
+function rememberSearch(ctx: ToolContext, tracks: LibraryTrack[]) {
+  ctx.lastSearch = tracks;
+}
+
+function playable(tracks: LibraryTrack[]): LibraryTrack[] {
+  const withPreview = tracks.filter((t) => t.previewUrl);
+  return withPreview.length ? withPreview : tracks;
+}
+
+function searchHaystack(track: LibraryTrack, q: string): boolean {
+  const blob = `${track.title} ${track.artist} ${track.album ?? ""} ${track.region} ${track.shape} ${track.note}`.toLowerCase();
+  return q
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((term) => blob.includes(term));
+}
+
+export function searchTracks(ctx: ToolContext, query: string, limit = 8): LibraryTrack[] {
+  const q = query.trim();
+  if (!q) return [];
+
+  const room = matchRoom(q);
+  const color = looksLikeHexColor(q);
+  const overlayHits = overlayTracks(ctx.session).filter((t) => searchHaystack(t, q));
+
+  let engine: LibraryTrack[] = [];
+  if (room) {
+    const shelf = collection(room);
+    engine = shelf?.tracks.slice(0, 24) ?? [];
+  }
+  if (color) {
+    const page = queryCatalog({ color, limit: 24 });
+    engine = mergeTracks(engine, page.tracks);
+  }
+  const textPage = queryCatalog({ q, limit: 24 });
+  engine = mergeTracks(engine, textPage.tracks);
+
+  const exclude = new Set(ctx.session.historyIds.slice(-16));
+  const merged = mergeTracks(overlayHits, engine).filter((t) => !exclude.has(t.id));
+  const ranked = playable(merged).slice(0, Math.max(1, Math.min(12, limit)));
+  rememberSearch(ctx, ranked);
+  return ranked;
+}
+
+function mergeTracks(a: LibraryTrack[], b: LibraryTrack[]): LibraryTrack[] {
+  const map = new Map<string, LibraryTrack>();
+  for (const t of a) map.set(t.id, t);
+  for (const t of b) if (!map.has(t.id)) map.set(t.id, t);
+  return [...map.values()];
+}
+
+function pushPlay(ctx: ToolContext, tracks: LibraryTrack[], title?: string) {
+  const list = playable(tracks);
+  if (!list.length) return;
+  const [first, ...rest] = list;
+  ctx.effects.push({ type: "play", track: first });
+  if (rest.length) {
+    ctx.effects.push({ type: "queue", tracks: rest, title: title?.trim() || ctx.lastPlaylistTitle || "A set for you" });
+  }
+}
+
+function pushDestination(ctx: ToolContext, id: CoordinateId) {
+  if (ctx.effects.some((e) => e.type === "destination" && e.id === id)) return;
+  ctx.effects.push({ type: "destination", id });
+}
+
+export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
+  {
+    name: "search_catalog",
+    description:
+      "Search Resonant's living catalog by feeling, artist, title, room name, or sleeve colour hex. " +
+      "Never search by genre. Returns songs you may then play or put in a playlist.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: {
+          type: "STRING",
+          description: "Feeling, artist, title, room, or #rrggbb. Persian or English.",
+        },
+        limit: { type: "INTEGER", description: "How many songs to return, 1–12. Default 8." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "list_rooms",
+    description: "List the nine listening rooms / stations on the emotional map, with song counts.",
+    parameters: { type: "OBJECT", properties: {} },
+  },
+  {
+    name: "play_tracks",
+    description:
+      "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
+      "Ids must come from search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        ids: {
+          type: "ARRAY",
+          items: { type: "STRING" },
+          description: "Catalog ids, first id plays now.",
+        },
+        title: { type: "STRING", description: "Optional name for the set if more than one id." },
+      },
+      required: ["ids"],
+    },
+  },
+  {
+    name: "start_station",
+    description:
+      "Start a room as a radio station: lock the destination and play a song from that room. " +
+      "The engine then drifts inside that feeling. There is no skip.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        room: {
+          type: "STRING",
+          enum: TOPOGRAPHY.map((c) => c.id),
+          description: "Coordinate id of the room.",
+        },
+      },
+      required: ["room"],
+    },
+  },
+  {
+    name: "make_playlist",
+    description:
+      "Assemble a mix from the catalog (and Favorite Songs overlay) matching a feeling or query, " +
+      "and start it. Use this when they ask for a playlist, mix, or لیست.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: { type: "STRING", description: "Feeling or request in the listener's words." },
+        room: {
+          type: "STRING",
+          enum: TOPOGRAPHY.map((c) => c.id),
+          description: "Optional room to centre the mix on.",
+        },
+        title: { type: "STRING", description: "Human name for the mix." },
+        count: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "expand_taste",
+    description:
+      "Find up to ten newly admitted recordings near the listener's current taste via Apple Music, " +
+      "then start them as a mix. Taste is a position on the map, never a genre. Use when they want " +
+      "new music, more like this, or the catalog feels familiar.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        limit: { type: "INTEGER", description: "How many new songs, 1–10. Default 8." },
+        play: {
+          type: "BOOLEAN",
+          description: "If true (default), start the new mix immediately.",
+        },
+      },
+    },
+  },
+  {
+    name: "plan_journey",
+    description:
+      "Plan a listening arc between two rooms and start the first song, locking the destination. " +
+      "The engine walks the rest. Use when they want to go from one feeling to another.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        origin: { type: "STRING", enum: TOPOGRAPHY.map((c) => c.id) },
+        destination: { type: "STRING", enum: TOPOGRAPHY.map((c) => c.id) },
+      },
+      required: ["destination"],
+    },
+  },
+  {
+    name: "set_destination",
+    description: "Name where the session should drift without interrupting the current song.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        room: { type: "STRING", enum: TOPOGRAPHY.map((c) => c.id) },
+      },
+      required: ["room"],
+    },
+  },
+  {
+    name: "play_alternative",
+    description:
+      "Play a different song than the current one — another match from the last search, or a neighbour room. " +
+      "This is how you honour 'something else'. Never skip; choose a new match.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: { type: "STRING", description: "Optional: softer, heavier, warmer, quieter…" },
+      },
+    },
+  },
+];
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+}
+
+function asBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function asRoom(value: unknown): CoordinateId | null {
+  const id = asString(value);
+  return TOPOGRAPHY.some((c) => c.id === id) ? (id as CoordinateId) : matchRoom(id);
+}
+
+export async function executeConverseTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext
+): Promise<Record<string, unknown>> {
+  switch (name) {
+    case "search_catalog": {
+      const query = asString(args.query);
+      const tracks = searchTracks(ctx, query, asNumber(args.limit, 8));
+      return {
+        query,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "Play with play_tracks or fold into make_playlist. Do not invent other songs."
+          : "Nothing matched. Try a room name or a feeling (warm, fragile, night).",
+      };
+    }
+    case "list_rooms": {
+      const shelves = collections();
+      return {
+        rooms: shelves.map((s) => ({
+          id: s.id,
+          label: s.title,
+          description: s.description,
+          songs: s.count,
+        })),
+      };
+    }
+    case "play_tracks": {
+      const ids = asStringArray(args.ids).slice(0, 12);
+      const tracks = ids.map((id) => resolveId(ctx, id)).filter((t): t is LibraryTrack => Boolean(t));
+      if (!tracks.length) return { ok: false, error: "None of those ids are in the catalog." };
+      const title = asString(args.title);
+      if (title) ctx.lastPlaylistTitle = title;
+      pushPlay(ctx, tracks, title);
+      return { ok: true, playing: card(tracks[0]), queued: tracks.slice(1).map(card), title: title || null };
+    }
+    case "start_station": {
+      const room = asRoom(args.room);
+      if (!room) return { ok: false, error: "Unknown room." };
+      const shelf = collection(room);
+      if (!shelf?.tracks.length) return { ok: false, error: "That room is empty right now." };
+      rememberSearch(ctx, shelf.tracks.slice(0, 12));
+      pushDestination(ctx, room);
+      pushPlay(ctx, [shelf.tracks[0]]);
+      return {
+        ok: true,
+        room: { id: shelf.id, label: shelf.title, description: shelf.description },
+        playing: card(shelf.tracks[0]),
+        songs: shelf.count,
+      };
+    }
+    case "make_playlist": {
+      const query = asString(args.query);
+      const room = asRoom(args.room) ?? matchRoom(query);
+      const count = Math.max(4, Math.min(12, asNumber(args.count, 8)));
+      const title =
+        asString(args.title) ||
+        (room ? `${TOPOGRAPHY.find((r) => r.id === room)?.label ?? "Listening"} mix` : query.slice(0, 48) || "A mix for you");
+      ctx.lastPlaylistTitle = title;
+
+      let tracks: LibraryTrack[] = [];
+      if (room) {
+        const shelf = collection(room);
+        tracks = shelf?.tracks.slice(0, count) ?? [];
+      }
+      if (tracks.length < count) {
+        tracks = mergeTracks(tracks, searchTracks(ctx, query || room || "warm", count));
+      }
+      tracks = playable(tracks).slice(0, count);
+      rememberSearch(ctx, tracks);
+      if (!tracks.length) return { ok: false, error: "Could not assemble a mix from the catalog." };
+      pushDestination(ctx, room ?? tracks[0].region);
+      pushPlay(ctx, tracks, title);
+      return { ok: true, title, tracks: tracks.map(card) };
+    }
+    case "expand_taste": {
+      const limit = Math.max(1, Math.min(10, asNumber(args.limit, 8)));
+      const shouldPlay = asBool(args.play, true);
+      try {
+        const result = await generateTasteExpansion({
+          historyIds: ctx.session.historyIds,
+          tasteVectors: ctx.session.tasteVectors,
+          libraryVectors: ctx.session.overlay?.map((o) => o.vector),
+          libraryArtists: (ctx.session.overlay ?? []).slice(0, 8).map((o) => ({ artist: o.artist, via: "favorite" })),
+          excludeIds: ctx.session.historyIds,
+          limit,
+          analyze: false,
+        });
+        const tracks = result.tracks.map((item) => toLibraryTrack(item.track));
+        if (tracks.length) {
+          ctx.ingest.push(...tracks);
+          ctx.effects.push({ type: "ingest", tracks });
+          rememberSearch(ctx, tracks);
+          if (shouldPlay) {
+            ctx.lastPlaylistTitle = "New for you";
+            pushPlay(ctx, tracks, "New for you");
+          }
+        }
+        return {
+          ok: tracks.length > 0,
+          note: result.note,
+          considered: result.considered,
+          refused: result.refused,
+          tracks: tracks.map(card),
+        };
+      } catch (error) {
+        const fallback = searchTracks(ctx, "warm cinematic fragile", limit);
+        if (fallback.length && shouldPlay) pushPlay(ctx, fallback, "From the catalog");
+        return {
+          ok: fallback.length > 0,
+          note: "Apple expansion was unavailable; used the living catalog instead.",
+          error: error instanceof Error ? error.message : "expansion failed",
+          tracks: fallback.map(card),
+        };
+      }
+    }
+    case "plan_journey": {
+      const destination = asRoom(args.destination);
+      if (!destination) return { ok: false, error: "Unknown destination room." };
+      const origin =
+        asRoom(args.origin) ??
+        (ctx.session.currentTrackId ? libraryTrack(ctx.session.currentTrackId)?.region : null) ??
+        ctx.session.destination;
+      const planned = await planFullDrift({
+        origin,
+        destination,
+        sessionId: ctx.session.sessionId || `ask_${Date.now()}`,
+        exclude: ctx.session.historyIds,
+      });
+      const tracks = planned.phases
+        .map((p) => libraryTrack(p.trackId))
+        .filter((t): t is LibraryTrack => Boolean(t));
+      rememberSearch(ctx, tracks);
+      pushDestination(ctx, destination);
+      if (tracks.length) pushPlay(ctx, tracks.slice(0, 1));
+      return {
+        ok: true,
+        narrative: planned.arc.narrative,
+        origin,
+        destination,
+        playing: tracks[0] ? card(tracks[0]) : null,
+        legs: planned.phases.map((p) => ({
+          chapter: p.chapter,
+          room: p.region,
+          title: p.title,
+          artist: p.artist,
+        })),
+      };
+    }
+    case "set_destination": {
+      const room = asRoom(args.room);
+      if (!room) return { ok: false, error: "Unknown room." };
+      pushDestination(ctx, room);
+      const meta = TOPOGRAPHY.find((c) => c.id === room);
+      return { ok: true, room: { id: room, label: meta?.label, description: meta?.description } };
+    }
+    case "play_alternative": {
+      const current = ctx.session.currentTrackId;
+      const fromSearch = ctx.lastSearch.filter((t) => t.id !== current);
+      if (fromSearch.length) {
+        pushPlay(ctx, [fromSearch[0]]);
+        return { ok: true, playing: card(fromSearch[0]), via: "last search" };
+      }
+      const here = ctx.session.destination;
+      const neighbour = adjacentCoordinates(here, 1)[0];
+      const shelf = collection(neighbour?.id ?? here);
+      const candidate = (shelf?.tracks ?? []).find((t) => t.id !== current);
+      if (!candidate) return { ok: false, error: "No alternative is ready. Name a feeling and I will search." };
+      if (neighbour) pushDestination(ctx, neighbour.id);
+      pushPlay(ctx, [candidate]);
+      return { ok: true, playing: card(candidate), via: neighbour?.label ?? "same room" };
+    }
+    default:
+      return { ok: false, error: `Unknown tool "${name}".` };
+  }
+}

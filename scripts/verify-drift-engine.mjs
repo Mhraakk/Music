@@ -648,6 +648,69 @@ async function verifyFavoriteCirculation() {
   );
 }
 
+async function verifyConverse() {
+  section("Ask companion");
+
+  const status = await fetch(`${BASE}/api/converse`).then((r) => r.json());
+  check(typeof status.configured === "boolean", "GET /api/converse reports configured without leaking a key");
+  check(status.acceptsClientKey === true, "Ask accepts a device Gemini key");
+  check(Array.isArray(status.rooms) && status.rooms.length === 9, "Ask lists the nine rooms", `${status.rooms?.length}`);
+  const dumped = JSON.stringify(status);
+  check(!/AIza[0-9A-Za-z_-]{10,}/.test(dumped), "converse status does not contain a Google API key");
+  check(!String(status.note ?? "").toLowerCase().includes("genre"), "converse status does not lead with genre");
+
+  const talk = await fetch(`${BASE}/talk`).then((r) => r.text());
+  check(talk.includes("Ask"), "Ask page is reachable");
+  check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
+  check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
+
+  async function turn(text) {
+    const response = await fetch(`${BASE}/api/converse`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", text }],
+        session: { sessionId: "verify-ask", destination: "cinematic_warmth", historyIds: [] },
+      }),
+    });
+    const payload = await response.json();
+    return { response, payload };
+  }
+
+  const warm = await turn("Play something warm and cinematic");
+  check(warm.response.ok && warm.payload.ok, "Ask fulfils a play request without a Gemini key", `HTTP ${warm.response.status}`);
+  check(warm.payload.source === "local" || warm.payload.source === "gemini", "Ask names its source");
+  const play = (warm.payload.effects ?? []).find((e) => e.type === "play");
+  check(Boolean(play?.track?.id && play.track.title && play.track.artist), "warm request returns a real catalog track");
+  check(play && !("genre" in play.track), "played track has no genre field");
+
+  const mix = await turn("A playlist for a quiet night");
+  const mixPlay = (mix.payload.effects ?? []).find((e) => e.type === "play");
+  const mixQueue = (mix.payload.effects ?? []).find((e) => e.type === "queue");
+  check(mix.payload.ok && Boolean(mixPlay), "playlist request starts a song");
+  check(
+    Boolean(mixQueue?.tracks?.length) || Boolean(mixPlay),
+    "playlist request can queue the rest of the set",
+    `${mixQueue?.tracks?.length ?? 0} queued`
+  );
+
+  const station = await turn("Start the deep melancholy station");
+  const dest = (station.payload.effects ?? []).find((e) => e.type === "destination");
+  check(dest?.id === "deep_melancholy", "station request locks Deep Melancholy", dest?.id ?? "none");
+
+  const persian = await turn("یه آهنگ گرم سینمایی بذار");
+  const faPlay = (persian.payload.effects ?? []).find((e) => e.type === "play");
+  check(persian.payload.ok && Boolean(faPlay?.track?.id), "Persian play request fulfils from the catalog");
+  check(/[\u0600-\u06FF]/.test(persian.payload.reply || ""), "Persian request gets a Persian reply");
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Ask"), "Listen Now chrome includes Ask");
+  check(home.includes("Listen Now"), "home is still Listen Now");
+  check(home.includes("Favorite Songs"), "home still names Favorite Songs");
+  check(home.includes("Connect Apple Music"), "home still exposes Connect Apple Music");
+  check(home.length < 900_000, "homepage stayed under 900KB after Ask", `${Math.round(home.length / 1024)} KB`);
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -660,6 +723,7 @@ try {
   await verifyExpansion();
   await verifyProductSurface();
   await verifyFavoriteCirculation();
+  await verifyConverse();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

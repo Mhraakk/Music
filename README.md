@@ -78,7 +78,7 @@ Optional variables, each of which upgrades a capability rather than enabling one
 
 | Variable | Without it |
 |---|---|
-| `GEMINI_API_KEY` | Deterministic local cognition owns the drift |
+| `GEMINI_API_KEY` | Drift uses local cognition; Ask still plays from the catalog. Paste a key in **Ask** to talk to Gemini on-device. |
 | `APPLE_MUSIC_TEAM_ID` · `APPLE_MUSIC_KEY_ID` · `APPLE_MUSIC_PRIVATE_KEY` | 30-second iTunes previews; Favorite Songs stay disconnected until a MusicKit key is set |
 | `SOUNDCLOUD_CLIENT_ID` · `SOUNDCLOUD_CLIENT_SECRET` | No SoundCloud identity or base audio |
 

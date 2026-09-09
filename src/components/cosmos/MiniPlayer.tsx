@@ -19,7 +19,7 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine } =
+  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle } =
     usePlayer();
   const { toggle, setVolume, seek, stop, setDestination } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
@@ -60,10 +60,24 @@ export function MiniPlayer() {
                 <span className="tabular-nums">
                   {clock(elapsed)} / {clock(total)}
                 </span>
-                {fromEngine && (
+                {fromAsk && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{queueTitle ? queueTitle : "You asked for this"}</span>
+                  </>
+                )}
+                {!fromAsk && fromEngine && (
                   <>
                     <span aria-hidden>·</span>
                     <span>Picked for you</span>
+                  </>
+                )}
+                {queue.length > 0 && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>
+                      {queue.length} more{queueTitle ? ` in ${queueTitle}` : ""}
+                    </span>
                   </>
                 )}
               </span>

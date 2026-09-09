@@ -356,7 +356,8 @@ Everything is optional. With no environment at all the engine runs deterministic
 cognition over the de-genred catalog and every phase drifts silently.
 
 ```bash
-# Cognitive core — without it, local cognition owns the drift
+# Cognitive core — without it, local cognition owns the drift.
+# Ask still fulfils songs/playlists from the catalog; paste a key in the app for Gemini conversation.
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash        # optional
 
@@ -412,7 +413,9 @@ eventually exhaust the admissible pool, after which the engine could only repeat
 | `src/lib/drift/algorithm.ts` | Arc planning, selection scoring, redirection, next phase |
 | `src/lib/mcp/server.ts` | Tool registry, JSON-RPC dispatch, engine status |
 | `src/lib/mcp/cognition.ts` | Propose → verify → fall back, anonymisation |
-| `src/lib/mcp/gemini.ts` | Structured-output client, never load-bearing |
+| `src/lib/mcp/gemini.ts` | Structured-output + function-calling client, never load-bearing |
+| `src/lib/converse/` | Ask companion: tools, Gemini loop, local catalog fallback |
+| `src/app/api/converse/` | POST turn + GET status; optional `x-gemini-key`, never stored |
 | `src/lib/providers/` | MusicKit ES256, SoundCloud PKCE, resolution, session |
 | `src/lib/audio/driftEngine.ts` | Two-lane equal-power crossfade, analyser, degradation |
 | `src/context/DriftContext.tsx` | The arc as emotional vectors, signal ledger, branch memory |
