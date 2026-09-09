@@ -6,8 +6,8 @@ globs: src/**/*.{tsx,css}
 When building UI for this project, first run:
   designmdme --website <domain>
 
-Then reference DESIGN-telepathic-instruments.md and src/app/theme.css
-for colors, typography, spacing, and component patterns.
+Then reference DESIGN-telepathic-instruments.md, src/app/theme.css,
+and src/app/variables.css for colors, typography, spacing, and component patterns.
 
 Hard rules from that spec:
 - Canvas `#e5e7eb`, cards `#ffffff`, text `#000000` / `#a3a3a3`

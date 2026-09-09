@@ -1,11 +1,12 @@
 @import "tailwindcss";
 @import "./theme.css";
+@import "./variables.css";
 
 /*
- * theme.css is the uploaded Telepathic @theme slice. Its --spacing-8..96 and
- * --radius-full keys collide with Tailwind's default scale (p-8, h-8, w-56)
- * and with rounded-full circles. Restore those utilities here. The 8px design
- * grid lives on .cosmos as --s-* / --section-gap.
+ * theme.css + variables.css are the uploaded Telepathic token files.
+ * --spacing-8..96 and --radius-full collide with Tailwind's default scale
+ * (p-8, h-8, w-56) and with rounded-full circles. Restore those utilities.
+ * The 8px design grid stays on --spacing-unit and the named layout tokens.
  */
 @theme {
   --spacing-8: calc(var(--spacing) * 8);
@@ -31,9 +32,10 @@ html {
 html,
 body {
   min-height: 100%;
-  background: var(--color-linen-gray);
+  background: var(--surface-page-canvas);
   color: var(--color-carbon-black);
   font-family: var(--font-suisse-intl);
+  font-weight: var(--font-weight-regular);
   font-feature-settings: "tnum";
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
@@ -52,7 +54,7 @@ body {
 
 .display {
   font-size: var(--text-display);
-  font-weight: 400;
+  font-weight: var(--font-weight-regular);
   letter-spacing: var(--tracking-display);
   line-height: var(--leading-display);
 }
