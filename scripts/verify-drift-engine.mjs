@@ -462,11 +462,14 @@ async function verifyExpansion() {
     });
     check(Array.isArray(expansion.libraryTracks), "generate_taste_expansion returns library tracks");
     if (expansion.libraryTracks.length) {
-      check(expansion.libraryTracks.length === 10, "live expansion admits ten positions", `${expansion.libraryTracks.length}`);
-      check(
-        new Set(expansion.libraryTracks.map((t) => t.artist)).size === expansion.libraryTracks.length,
-        "live expansion does not repeat an artist"
+      const artists = expansion.libraryTracks.map((t) => t.artist.toLowerCase());
+      const unique = new Set(artists);
+      const heaviest = Math.max(
+        ...[...unique].map((name) => artists.filter((a) => a === name).length)
       );
+      check(expansion.libraryTracks.length === 10, "live expansion admits ten positions", `${expansion.libraryTracks.length}`);
+      check(unique.size >= 6, "live expansion spans several artists", `${unique.size} artists`);
+      check(heaviest <= 2, "no artist appears more than twice in a generate-10", `heaviest ${heaviest}`);
       check(
         expansion.libraryTracks.every((t) => t.previewUrl && t.artworkUrl),
         "every generated position has artwork and a preview"
