@@ -42,10 +42,11 @@ in the substrate, never a genre — projects each hit onto the seven axes, and a
 survives the rejection rules. `10 new near your taste` on the discover surface asks for
 ten new positions whenever you want them.
 
-**Real audio, no setup.** Seed and harvested positions resolve to real artwork and a
-30-second preview through the iTunes Search API, which needs no key. Apple MusicKit and
-SoundCloud OAuth are supported for high-fidelity playback and identity, but nothing is
-required.
+**Favorite Songs.** Connect Apple Music on Discover and the private playlist
+`pl.u-jEUdxzrWgb` is admitted through the same ontology as harvest — then it
+circulates as catalog (a rotating window, never a 10k dump) and as taste
+(the library centroid plus your most-loved artists as search probes).
+Needs a MusicKit key; without it the rest of the app still runs on iTunes previews.
 
 ## Deploying
 
@@ -58,7 +59,7 @@ fully functional out of the box.
 [https://vercel.com/new/import?s=https://github.com/Mhraakk/Music](https://vercel.com/new/import?s=https://github.com/Mhraakk/Music)
 
 Vercel detects Next.js from `vercel.json`. After import, set **Production Branch** to
-`cursor/cognition-complete-e638` until that work is on `main` — `main` is still the older
+`cursor/apple-favorites-circulation-e638` until that work is on `main` — `main` is still the older
 60-track catalog without the living engine.
 
 A `VERCEL_TOKEN` (Account Settings → Tokens) lets the CLI finish the rest without the
@@ -78,7 +79,7 @@ Optional variables, each of which upgrades a capability rather than enabling one
 | Variable | Without it |
 |---|---|
 | `GEMINI_API_KEY` | Deterministic local cognition owns the drift |
-| `APPLE_MUSIC_TEAM_ID` · `APPLE_MUSIC_KEY_ID` · `APPLE_MUSIC_PRIVATE_KEY` | 30-second iTunes previews instead of full-catalog resolution |
+| `APPLE_MUSIC_TEAM_ID` · `APPLE_MUSIC_KEY_ID` · `APPLE_MUSIC_PRIVATE_KEY` | 30-second iTunes previews; Favorite Songs stay disconnected until a MusicKit key is set |
 | `SOUNDCLOUD_CLIENT_ID` · `SOUNDCLOUD_CLIENT_SECRET` | No SoundCloud identity or base audio |
 
 `SOUNDCLOUD_REDIRECT_URI` is derived from the request origin, so it only needs setting if your

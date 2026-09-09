@@ -308,6 +308,7 @@ export function catalogStats() {
     seed: DRIFT_CATALOG.length,
     harvested: extras.filter((t) => t.id.startsWith("h-")).length,
     expanded: extras.filter((t) => t.id.startsWith("x-")).length,
+    favorites: extras.filter((t) => t.id.startsWith("f-")).length,
     living: DRIFT_CATALOG.length + extras.length,
     admitted: admissiblePool().length,
     refused: rejectedPool().length,

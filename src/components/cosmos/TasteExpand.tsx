@@ -12,9 +12,11 @@
 import { useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { generateTasteExpansion } from "@/lib/mcp/client";
+import { useLibrary } from "@/context/LibraryContext";
 
 export function TasteExpand() {
   const { historyIds, extras, current, sessionId, tasteVectors } = usePlayer();
+  const { tasteVectors: libraryVectors, probeArtists, excludeIds } = useLibrary();
   const { ingest, play } = usePlayerActions();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -30,7 +32,9 @@ export function TasteExpand() {
       sessionId,
       history: historyIds.slice(-12),
       tasteVectors,
-      exclude: extras.map((t) => t.id),
+      libraryVectors,
+      libraryArtists: probeArtists,
+      exclude: [...extras.map((t) => t.id), ...excludeIds],
       limit: 10,
     });
 

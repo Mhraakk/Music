@@ -17,6 +17,10 @@ import {
 import { expandFromCandidates } from "./generate";
 import { profileTaste } from "./taste";
 import type { AudioFeatures, ExternalCandidate } from "./types";
+import { circulateFavorites } from "@/lib/apple/circulation";
+import { ingestFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
+import { driftTrack } from "@/lib/drift/catalog";
+import type { LibraryTrack } from "@/lib/library";
 
 function features(partial: Partial<AudioFeatures>): AudioFeatures {
   return {
@@ -129,6 +133,44 @@ export function inspectExpansionEngine(): {
   const baseline = profileTaste({ pool: DRIFT_CATALOG });
   check(baseline.source === "baseline", "empty history falls back to the engine baseline");
 
+  const libraryTaste = profileTaste({
+    libraryVectors: [taste.centroid],
+    libraryArtists: [{ artist: "Portishead", via: "f-1" }],
+    pool: DRIFT_CATALOG,
+  });
+  check(libraryTaste.source === "library", "Favorite Songs sample produces a library taste profile");
+  check(
+    libraryTaste.probeArtists[0]?.artist === "Portishead",
+    "library artists lead the Apple probes",
+    libraryTaste.probeArtists.map((p) => p.artist).join(", ")
+  );
+
+  const favs = Array.from({ length: 80 }, (_, i) =>
+    fakeFavorite(`f-${880000 + i}`, `Artist ${i % 11}`, i)
+  );
+  const windowA = circulateFavorites(favs, 56, 0);
+  const windowB = circulateFavorites(favs, 56, 15 * 60 * 1000);
+  check(windowA.length === 56, "circulation window is capped", `${windowA.length}`);
+  check(
+    windowA[0].id !== windowB[0].id,
+    "circulation rotates across the 15-minute slice",
+    `${windowA[0].id} → ${windowB[0].id}`
+  );
+
+  const overlay = parseFavoriteOverlay([
+    {
+      id: "f-inspect-overlay",
+      title: "Overlay Fixture",
+      artist: "Overlay Artist",
+      duration: 240,
+      vector: baselinePrior(),
+    },
+    { id: "x-not-a-favorite", title: "Nope", artist: "X", duration: 200, vector: baselinePrior() },
+  ]);
+  check(overlay.length === 1 && overlay[0].id === "f-inspect-overlay", "overlay parser keeps only favorite ids");
+  ingestFavoriteOverlay(overlay);
+  check(Boolean(driftTrack("f-inspect-overlay")), "overlay positions enter the living catalog");
+
   const via = "l-11";
   const fixtures: ExternalCandidate[] = [];
   const artists = [
@@ -198,4 +240,30 @@ export function inspectExpansionEngine(): {
 
 function AXIS_EQUAL(a: ReturnType<typeof wander>, b: ReturnType<typeof wander>): boolean {
   return (Object.keys(a) as (keyof typeof a)[]).every((k) => Math.abs(a[k] - b[k]) < 1e-9);
+}
+
+function fakeFavorite(id: string, artist: string, i: number): LibraryTrack {
+  return {
+    id,
+    title: `Loved ${i}`,
+    artist,
+    album: null,
+    duration: 240,
+    artworkUrl: "https://example.com/art.jpg",
+    thumbUrl: null,
+    previewUrl: "https://example.com/p.m4a",
+    appleUrl: null,
+    tint: "#141210",
+    searchColor: "#141210",
+    searchHsl: { h: 20, s: 0.2, l: 0.12 },
+    isDark: true,
+    region: "deep_melancholy",
+    vector: baselinePrior(),
+    avi: 0.5,
+    cinematic: 0.5,
+    shape: "fixture",
+    note: "fixture",
+    aspect: 1,
+    origin: "favorite",
+  };
 }
