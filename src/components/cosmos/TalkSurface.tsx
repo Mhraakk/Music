@@ -319,6 +319,9 @@ export function TalkSurface() {
                           {track.artist}
                           {sourceLabel(track.foundVia) ? ` · ${sourceLabel(track.foundVia)}` : ""}
                         </span>
+                        {track.note && (
+                          <span className="cx-truncate block text-[11px] text-[var(--ink-3)]">{track.note}</span>
+                        )}
                       </span>
                       <PlayIcon size={12} />
                     </button>

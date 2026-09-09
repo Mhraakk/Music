@@ -66,10 +66,12 @@ export async function findRelated(input: {
   if (!artist) return [];
   const cap = Math.max(6, Math.min(12, input.limit ?? 8));
 
-  const own = await findMusic(artist, cap, { appleOnly: true, attachVideo: true });
+  const own = await findMusic(artist, cap, { appleOnly: true, attachVideo: true, artistFocus: true });
   const kinNames = await relatedArtistNames(artist);
   const kinGroups = await Promise.all(
-    kinNames.slice(0, 3).map((name) => findMusic(name, 4, { appleOnly: true, attachVideo: false }))
+    kinNames.slice(0, 3).map((name) =>
+      findMusic(name, 4, { appleOnly: true, attachVideo: false, artistFocus: true })
+    )
   );
 
   const ownFirst = own.map((t) => ({

@@ -215,6 +215,7 @@ export function DiscoverSurface({
               <div className="cx-section-head">
                 <h2 className="cx-title">Just arrived</h2>
               </div>
+              {arrived[0]?.note && <p className="cx-meta mb-3">{arrived[0].note}</p>}
               <AlbumRow tracks={arrived} />
             </section>
           )}

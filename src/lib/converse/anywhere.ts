@@ -14,6 +14,7 @@ import {
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
 import { fallbackColor, hexToRgb, overlayMedia, rgbToHsl } from "@/lib/media";
 import type { LibraryTrack } from "@/lib/library";
+import { latinCore, namedArtistQuery } from "./intent";
 import { matchRoom } from "./rooms";
 import { ROOM_LIVE_PROBES } from "./probes";
 
@@ -82,15 +83,6 @@ export function wantsSoundcloud(query: string): boolean {
   return /soundcloud|ساوندک?لاد/i.test(query);
 }
 
-function latinCore(raw: string): string {
-  return raw
-    .replace(/[\u0600-\u06FF]+/g, " ")
-    .replace(/youtube music|youtube|youtu\.be|soundcloud|deezer|itunes|apple music/gi, " ")
-    .replace(/[^\w\s'&.-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function searchQueries(raw: string): string[] {
   const q = raw.trim();
   if (!q) return [];
@@ -111,17 +103,36 @@ function searchQueries(raw: string): string[] {
     extra.push("2000s pop hits", "2000s hits");
   }
 
-  const room = matchRoom(q);
+  const named = namedArtistQuery(q);
+  const room = named ? null : matchRoom(q);
   if (room && extra.length === 0) {
     extra.push(...(ROOM_LIVE_PROBES[room as CoordinateId] ?? []).slice(0, 2));
   }
 
-  const latin = latinCore(q);
   if (wantsIranian(q)) {
-    return [...new Set([q, ...extra, latin].filter(Boolean))].slice(0, 3);
+    return [...new Set([q, ...extra, named, latinCore(q)].filter((s): s is string => Boolean(s)))].slice(0, 3);
   }
-  const out = [...extra, latin].map((s) => s.trim()).filter(Boolean);
-  return [...new Set(out)].slice(0, 3);
+  const out = [...extra, named].filter((s): s is string => Boolean(s)).map((s) => s.trim());
+  return [...new Set(out.filter(Boolean))].slice(0, 3);
+}
+
+function looksLikeArtistName(query: string): boolean {
+  const q = query.trim();
+  if (!q || q.split(/\s+/).length > 5) return false;
+  return !/\d0s|\d{4}|hits|official|video|trailer|playlist|mix/i.test(q);
+}
+
+function preferArtistHits(hits: FoundHit[], artist: string): FoundHit[] {
+  const needle = artist.trim().toLowerCase();
+  if (needle.length < 3) return hits;
+  const matched: FoundHit[] = [];
+  const rest: FoundHit[] = [];
+  for (const hit of hits) {
+    const name = hit.artist.toLowerCase();
+    if (name.includes(needle) || needle.includes(name)) matched.push(hit);
+    else rest.push(hit);
+  }
+  return matched.length ? [...matched, ...rest] : hits;
 }
 
 function hasPersianScript(value: string): boolean {
@@ -216,31 +227,70 @@ async function searchDeezer(query: string, limit: number): Promise<FoundHit[]> {
   return hits;
 }
 
-async function searchApple(query: string, limit: number): Promise<FoundHit[]> {
+function appleHitFromRow(row: Record<string, unknown>): FoundHit | null {
+  const title = typeof row.trackName === "string" ? row.trackName : "";
+  const artist = typeof row.artistName === "string" ? row.artistName : "";
+  const id = row.trackId != null ? String(row.trackId) : "";
+  if (!title || !artist || !id) return null;
+  const art =
+    typeof row.artworkUrl100 === "string"
+      ? row.artworkUrl100.replace(/\/\d+x\d+[a-z]*\.jpg$/i, "/600x600bb.jpg")
+      : null;
+  return {
+    source: "apple",
+    title,
+    artist,
+    album: typeof row.collectionName === "string" ? row.collectionName : null,
+    duration: typeof row.trackTimeMillis === "number" ? Math.round(row.trackTimeMillis / 1000) : 30,
+    previewUrl: typeof row.previewUrl === "string" ? row.previewUrl : null,
+    artworkUrl: art,
+    openUrl: typeof row.trackViewUrl === "string" ? row.trackViewUrl : `https://music.apple.com/us/song/${id}`,
+    externalId: id,
+  };
+}
+
+async function searchApple(query: string, limit: number, artistTerm = false): Promise<FoundHit[]> {
+  const attr = artistTerm ? "&attribute=artistTerm" : "";
   const payload = (await fetchJson(
-    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=${Math.min(25, limit * 2)}`
+    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=${Math.min(25, limit * 2)}${attr}`
   )) as { results?: Record<string, unknown>[] } | null;
   const hits: FoundHit[] = [];
   for (const row of payload?.results ?? []) {
-    const title = typeof row.trackName === "string" ? row.trackName : "";
-    const artist = typeof row.artistName === "string" ? row.artistName : "";
-    const id = row.trackId != null ? String(row.trackId) : "";
-    if (!title || !artist || !id) continue;
-    const art = typeof row.artworkUrl100 === "string" ? row.artworkUrl100.replace(/\/\d+x\d+[a-z]*\.jpg$/i, "/600x600bb.jpg") : null;
-    hits.push({
-      source: "apple",
-      title,
-      artist,
-      album: typeof row.collectionName === "string" ? row.collectionName : null,
-      duration: typeof row.trackTimeMillis === "number" ? Math.round(row.trackTimeMillis / 1000) : 30,
-      previewUrl: typeof row.previewUrl === "string" ? row.previewUrl : null,
-      artworkUrl: art,
-      openUrl: typeof row.trackViewUrl === "string" ? row.trackViewUrl : `https://music.apple.com/us/song/${id}`,
-      externalId: id,
-    });
+    const hit = appleHitFromRow(row);
+    if (!hit) continue;
+    hits.push(hit);
     if (hits.length >= limit) break;
   }
   return hits;
+}
+
+async function appleSongsByArtist(artist: string, limit: number): Promise<FoundHit[]> {
+  const people = (await fetchJson(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&entity=musicArtist&limit=5`
+  )) as { results?: Record<string, unknown>[] } | null;
+  const rows = people?.results ?? [];
+  const needle = artist.toLowerCase();
+  const match =
+    rows.find((row) => String(row.artistName ?? "").toLowerCase() === needle) ??
+    rows.find((row) => String(row.artistName ?? "").toLowerCase().includes(needle)) ??
+    rows[0];
+  const artistId = match?.artistId != null ? String(match.artistId) : "";
+  if (artistId) {
+    const lookup = (await fetchJson(
+      `https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=song&limit=${Math.min(20, limit + 1)}`
+    )) as { results?: Record<string, unknown>[] } | null;
+    const songs: FoundHit[] = [];
+    for (const row of lookup?.results ?? []) {
+      if (row.wrapperType === "artist") continue;
+      const hit = appleHitFromRow(row);
+      if (!hit) continue;
+      songs.push(hit);
+      if (songs.length >= limit) break;
+    }
+    if (songs.length) return songs;
+  }
+  const focused = await searchApple(artist, limit, true);
+  return focused.length ? focused : searchApple(artist, limit);
 }
 
 function collectVideoIds(node: unknown, into: string[], cap = 24) {
@@ -540,6 +590,7 @@ export type FindMusicOptions = {
   appleOnly?: boolean;
   room?: CoordinateId;
   attachVideo?: boolean;
+  artistFocus?: boolean;
 };
 
 export async function findMusic(query: string, limit = 10, options: FindMusicOptions = {}): Promise<LibraryTrack[]> {
@@ -553,11 +604,16 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
   const youtubeNamed = wantsYoutube(original);
   const soundcloudNamed = wantsSoundcloud(original);
   const skipWeb = options.appleOnly === true;
+  const artistFocus = options.artistFocus === true || looksLikeArtistName(namedQuery);
 
   const [apple, deezer, youtube, youtubeMusic, soundcloud] = await Promise.all([
-    Promise.all(catalogQueries.map((q) => searchApple(q, cap).catch(() => [] as FoundHit[]))).then((groups) =>
-      groups.flat()
-    ),
+    Promise.all(
+      catalogQueries.map((q) =>
+        (artistFocus && looksLikeArtistName(q) ? appleSongsByArtist(q, cap) : searchApple(q, cap)).catch(
+          () => [] as FoundHit[]
+        )
+      )
+    ).then((groups) => groups.flat()),
     skipWeb
       ? Promise.resolve([] as FoundHit[])
       : Promise.all(catalogQueries.map((q) => searchDeezer(q, cap).catch(() => [] as FoundHit[]))).then((groups) =>
@@ -581,7 +637,9 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
   };
 
   const mixed = interleave(
-    orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) => g.filter(keep)),
+    orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) =>
+      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "")
+    ),
     cap
   );
 

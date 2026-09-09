@@ -12,7 +12,15 @@ import { CONVERSE_SYSTEM, localSuggestions, sessionBlock } from "./prompt";
 import { CONVERSE_TOOLS, createToolContext, executeConverseTool, type ToolContext } from "./tools";
 import { collection } from "@/lib/library";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
-import { detectLanguage, interpretLocal, isGreeting, wantsPlayback, type ListenerLanguage } from "./intent";
+import {
+  detectLanguage,
+  extractKinArtist,
+  interpretLocal,
+  isGreeting,
+  namedArtistQuery,
+  wantsPlayback,
+  type ListenerLanguage,
+} from "./intent";
 import { sourceLabel } from "./anywhere";
 import type { ConverseMessage, ConverseResult, ConverseSession, ConverseSource } from "./types";
 
@@ -40,6 +48,25 @@ function hasPlayEffect(ctx: ToolContext): boolean {
   return ctx.effects.some((e) => e.type === "play" || e.type === "queue");
 }
 
+function dropPlayback(ctx: ToolContext) {
+  ctx.effects = ctx.effects.filter((effect) => effect.type === "ingest");
+}
+
+async function preferNamedKin(ctx: ToolContext, userText: string): Promise<boolean> {
+  const kin = extractKinArtist(userText);
+  if (!kin || kin === "THIS") return false;
+  const play = ctx.effects.find((effect) => effect.type === "play");
+  const escaped = kin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const named = new RegExp(escaped, "i");
+  if (play && named.test(`${play.track.artist} ${play.track.title}`)) return false;
+  dropPlayback(ctx);
+  await executeConverseTool("find_related", { artist: kin, limit: 8 }, ctx);
+  if (ctx.lastSearch[0] && !hasPlayEffect(ctx)) {
+    await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+  }
+  return hasPlayEffect(ctx);
+}
+
 async function ensurePlayback(ctx: ToolContext, userText: string) {
   if (!wantsPlayback(userText) || hasPlayEffect(ctx)) return;
   if (ctx.lastSearch[0]) {
@@ -55,7 +82,17 @@ async function ensurePlayback(ctx: ToolContext, userText: string) {
     await executeConverseTool("play_alternative", {}, ctx);
     if (hasPlayEffect(ctx)) return;
   }
-  await executeConverseTool("find_music", { query: userText, limit: 8 }, ctx);
+  if (intent.kind === "related") {
+    const artist = intent.artist || ctx.session.currentArtist || namedArtistQuery(userText) || "";
+    if (artist) {
+      await executeConverseTool("find_related", { artist, limit: 8 }, ctx);
+      if (ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+    }
+    if (hasPlayEffect(ctx)) return;
+  }
+  await executeConverseTool("find_music", { query: namedArtistQuery(userText) || userText, limit: 8 }, ctx);
   if (ctx.lastSearch[0]) {
     await executeConverseTool(
       "play_tracks",
@@ -128,6 +165,30 @@ export async function fulfillLocally(
         ctx
       );
       break;
+    case "related": {
+      const artist = intent.artist || session.currentArtist || "";
+      if (artist) {
+        await executeConverseTool(
+          "find_related",
+          {
+            artist,
+            title: session.currentTitle || undefined,
+            limit: 8,
+          },
+          ctx
+        );
+      }
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+      if (!hasPlayEffect(ctx) && artist) {
+        await executeConverseTool("find_music", { query: artist, limit: 8 }, ctx);
+        if (ctx.lastSearch[0]) {
+          await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+        }
+      }
+      break;
+    }
     case "expand":
       await executeConverseTool(
         "find_related",
@@ -150,16 +211,18 @@ export async function fulfillLocally(
       if (
         intent.room &&
         intent.kind === "play" &&
+        !namedArtistQuery(intent.query) &&
         !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(intent.query)
       ) {
         await executeConverseTool("start_station", { room: intent.room }, ctx);
       }
       if (!hasPlayEffect(ctx)) {
-        await executeConverseTool("find_music", { query: intent.query, limit: 8 }, ctx);
+        const query = namedArtistQuery(intent.query) || intent.query;
+        await executeConverseTool("find_music", { query, limit: 8 }, ctx);
         if (ctx.lastSearch.length) {
           await executeConverseTool(
             "play_tracks",
-            { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: intent.query.slice(0, 48) },
+            { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: query.slice(0, 48) },
             ctx
           );
         }
@@ -300,7 +363,9 @@ export async function converse(input: {
     }
   }
 
+  const corrected = await preferNamedKin(ctx, userText);
   await ensurePlayback(ctx, userText);
+  if (corrected) lastText = "";
 
   if (lastText.trim()) {
     return {

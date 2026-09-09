@@ -740,9 +740,15 @@ async function verifyConverse() {
   const rTracks = [rPlay?.track, ...(rQueue?.tracks ?? [])].filter(Boolean);
   check(related.payload.ok && Boolean(rPlay?.track?.id), "related request returns real songs", rPlay?.track ? `${rPlay.track.artist} — ${rPlay.track.title}` : "none");
   check(
-    rTracks.some((t) => /radiohead/i.test(`${t.artist} ${t.title}`)) || rTracks.some((t) => t.foundVia === "apple"),
-    "related hits include the named artist or Apple kin",
+    rTracks.some((t) => /radiohead/i.test(`${t.artist}`)),
+    "related hits include the named artist",
     rTracks.map((t) => `${t.artist}`).slice(0, 4).join(", ")
+  );
+  const relatedDest = (related.payload.effects ?? []).find((e) => e.type === "destination");
+  check(
+    !relatedDest,
+    "related Radiohead does not start a map station",
+    relatedDest?.id ?? "none"
   );
 
   const fresh = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=17&limit=8`).then((r) => r.json());
