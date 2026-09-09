@@ -28,7 +28,7 @@ import { TOPOGRAPHY, adjacentCoordinates, auditTopography } from "@/lib/drift/to
 import { catalogStats, driftTrack } from "@/lib/drift/catalog";
 import { generateTasteExpansion, inspectExpansionEngine } from "@/lib/drift/expansion";
 import { toLibraryTrack } from "@/lib/library";
-import { ingestFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
+import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
 import type { BranchState } from "@/lib/drift/algorithm";
 import type { ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
 import { geminiConfigured, geminiModel } from "./gemini";
@@ -400,7 +400,7 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
         .map((id) => driftTrack(id)?.vector)
         .filter((v): v is EmotionalVector => Boolean(v));
 
-  ingestFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay));
+  const overlay = materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay));
 
   try {
     const decision = await decideNextDrift({
@@ -412,6 +412,7 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
       signals: parseSignals(args.signals),
       branches: parseBranches(args.branches),
       soundCloudAccessToken: context.soundCloudAccessToken ?? null,
+      overlay,
     });
 
     const summary = [

@@ -216,6 +216,13 @@ export function scoreCandidate(track: DriftTrack, ctx: SelectionContext): Scored
   };
 
   /**
+   * Loved recordings are the listener's own backbone, not a popularity term.
+   * When the circulating Favorite Songs window is in the pool, a nearby loved
+   * position wins a close call against the calibration catalog.
+   */
+  if (track.id.startsWith("f-")) breakdown.loved = 1.15;
+
+  /**
    * RADIAL FIT
    *
    * Proximity alone is not enough. A track with high baseline resonance can win
@@ -528,6 +535,8 @@ export type NextPhaseInput = {
   branches?: BranchState;
   exclude?: string[];
   seed?: string;
+  /** Per-request Favorite Songs window. Never written into the shared catalog. */
+  overlay?: readonly DriftTrack[];
 };
 
 export type NextPhaseResult = {
@@ -544,7 +553,7 @@ export type NextPhaseResult = {
 export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
   const branches: BranchState = { ...(input.branches ?? {}) };
   const destination = coordinateOrDefault(input.destination, "cinematic_warmth");
-  const pool = admissiblePool();
+  const pool = admissiblePool(input.overlay);
   if (pool.length === 0) return null;
 
   const here = input.trajectory.length

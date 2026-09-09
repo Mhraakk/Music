@@ -18,8 +18,7 @@ import { expandFromCandidates } from "./generate";
 import { profileTaste } from "./taste";
 import type { AudioFeatures, ExternalCandidate } from "./types";
 import { circulateFavorites } from "@/lib/apple/circulation";
-import { ingestFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
-import { driftTrack } from "@/lib/drift/catalog";
+import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
 import type { LibraryTrack } from "@/lib/library";
 
 function features(partial: Partial<AudioFeatures>): AudioFeatures {
@@ -148,9 +147,9 @@ export function inspectExpansionEngine(): {
   const favs = Array.from({ length: 80 }, (_, i) =>
     fakeFavorite(`f-${880000 + i}`, `Artist ${i % 11}`, i)
   );
-  const windowA = circulateFavorites(favs, 56, 0);
-  const windowB = circulateFavorites(favs, 56, 15 * 60 * 1000);
-  check(windowA.length === 56, "circulation window is capped", `${windowA.length}`);
+  const windowA = circulateFavorites(favs, 72, 0);
+  const windowB = circulateFavorites(favs, 72, 15 * 60 * 1000);
+  check(windowA.length === 72, "circulation window is capped", `${windowA.length}`);
   check(
     windowA[0].id !== windowB[0].id,
     "circulation rotates across the 15-minute slice",
@@ -168,8 +167,11 @@ export function inspectExpansionEngine(): {
     { id: "x-not-a-favorite", title: "Nope", artist: "X", duration: 200, vector: baselinePrior() },
   ]);
   check(overlay.length === 1 && overlay[0].id === "f-inspect-overlay", "overlay parser keeps only favorite ids");
-  ingestFavoriteOverlay(overlay);
-  check(Boolean(driftTrack("f-inspect-overlay")), "overlay positions enter the living catalog");
+  const materialised = materializeFavoriteOverlay(overlay);
+  check(
+    materialised.length === 1 && materialised[0].id === "f-inspect-overlay" && materialised[0].resonance > 0,
+    "overlay materialises as a per-request pool, not a shared catalog write"
+  );
 
   const via = "l-11";
   const fixtures: ExternalCandidate[] = [];

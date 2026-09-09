@@ -16,7 +16,7 @@ const WINDOW_MS = 15 * 60 * 1000;
 
 export function circulateFavorites(
   favorites: readonly LibraryTrack[],
-  take = 56,
+  take = 72,
   now = Date.now()
 ): LibraryTrack[] {
   const playable = favorites.filter((t) => t.artworkUrl);

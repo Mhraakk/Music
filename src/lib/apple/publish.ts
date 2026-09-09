@@ -18,7 +18,7 @@ export function publishedCirculating(): LibraryTrack[] {
 }
 
 export function compactOverlay(tracks: LibraryTrack[] = circulating): FavoriteOverlay[] {
-  return tracks.slice(0, 56).map((track) => ({
+  return tracks.slice(0, 72).map((track) => ({
     id: track.id,
     title: track.title,
     artist: track.artist,

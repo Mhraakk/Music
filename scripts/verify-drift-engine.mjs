@@ -626,18 +626,14 @@ async function verifyFavoriteCirculation() {
     (payload.tracks ?? []).map((t) => t.id).join(", ")
   );
   check(
-    (payload.tracks ?? []).every((t) => t.origin === "favorite" && !("genre" in t)),
-    "favorite library tracks carry origin and no genre field"
+    (payload.tracks ?? []).every((t) => t.origin === "favorite" && t.vector && !("genre" in t)),
+    "favorite library tracks carry origin, a vector, and no genre field"
   );
   check(payload.refused >= 1, "karaoke / unprojectable loved tracks are still refused", `${payload.refused} refused`);
-
-  const id = payload.tracks?.[0]?.id;
-  if (id) {
-    const byId = await fetch(`${BASE}/api/catalog?ids=${encodeURIComponent(id)}`).then((r) => r.json());
-    check(byId.tracks?.[0]?.id === id, "catalog resolves an ingested favorite id", id);
-  } else {
-    check(false, "catalog resolves an ingested favorite id", "no admitted track");
-  }
+  check(
+    Boolean(payload.tracks?.[0]?.artworkUrl || payload.tracks?.[0]?.previewUrl),
+    "admitted favorites keep media on the record returned to the client"
+  );
 
   const listed = await rpc("tools/list", {});
   const drift = listed.tools.find((t) => t.name === "get_next_emotional_drift");

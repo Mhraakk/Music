@@ -1,14 +1,13 @@
 /**
  * Compact Favorite Songs overlay for a single drift decision.
  *
- * Serverless extras do not keep the listener's tens of thousands of loved
- * recordings. The browser sends the circulating window with each next-phase
- * request so the engine can occupy those positions this step, then the client
- * resolves artwork and preview from IndexedDB.
+ * Serverless extras must not keep a listener's loved recordings — that would
+ * leak one person's library into the next request on a warm instance. The
+ * browser sends the circulating window with each next-phase call; these
+ * positions exist only for that decision.
  */
 
-import { ingestTracks, materializeTrack, type DriftTrack } from "@/lib/drift/catalog";
-import { refreshLibrary } from "@/lib/library";
+import { materializeTrack, type DriftTrack } from "@/lib/drift/catalog";
 import { AXIS_KEYS, vec, type EmotionalVector } from "@/lib/drift/ontology";
 
 export type FavoriteOverlay = {
@@ -39,7 +38,7 @@ function asVector(raw: unknown): EmotionalVector | null {
 export function parseFavoriteOverlay(raw: unknown): FavoriteOverlay[] {
   if (!Array.isArray(raw)) return [];
   const out: FavoriteOverlay[] = [];
-  for (const row of raw.slice(0, 64)) {
+  for (const row of raw.slice(0, 80)) {
     if (!row || typeof row !== "object") continue;
     const r = row as Record<string, unknown>;
     const id = typeof r.id === "string" ? r.id : "";
@@ -60,21 +59,19 @@ export function parseFavoriteOverlay(raw: unknown): FavoriteOverlay[] {
   return out;
 }
 
-export function ingestFavoriteOverlay(rows: FavoriteOverlay[]): number {
-  if (!rows.length) return 0;
-  const tracks: DriftTrack[] = rows.map((row) =>
-    materializeTrack({
-      id: row.id,
-      title: row.title,
-      artist: row.artist,
-      duration: row.duration,
-      vector: row.vector,
-      chartGravity: 0.12,
-      note: row.note ?? "From Favorite Songs",
-      appleMusicId: row.appleMusicId ?? null,
-    })
-  );
-  const added = ingestTracks(tracks.filter((t) => t.resonance > 0));
-  if (added) refreshLibrary();
-  return added;
+export function materializeFavoriteOverlay(rows: FavoriteOverlay[]): DriftTrack[] {
+  return rows
+    .map((row) =>
+      materializeTrack({
+        id: row.id,
+        title: row.title,
+        artist: row.artist,
+        duration: row.duration,
+        vector: row.vector,
+        chartGravity: 0.12,
+        note: row.note ?? "From Favorite Songs",
+        appleMusicId: row.appleMusicId ?? null,
+      })
+    )
+    .filter((t) => t.resonance > 0);
 }

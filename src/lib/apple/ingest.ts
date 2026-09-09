@@ -1,13 +1,14 @@
 /**
- * Admit a page of Favorite Songs into the living catalog.
+ * Admit a page of Favorite Songs for the listener's device.
  *
- * Apple is retrieval. The ontology still owns the door: each recording is
- * projected, rejected if it fails the rules, and only then allowed to circulate.
+ * Apple is retrieval. The ontology still owns the door. Admitted positions are
+ * returned to the client (IndexedDB) and are never written into the shared
+ * living catalog — a warm serverless instance must not leak one person's
+ * library into the next.
  */
 
-import { ingestTracks, livingCatalog, materializeTrack } from "@/lib/drift/catalog";
-import { overlayMedia } from "@/lib/media";
-import { refreshLibrary, toLibraryTrack, type LibraryTrack } from "@/lib/library";
+import { livingCatalog, materializeTrack } from "@/lib/drift/catalog";
+import { toLibraryTrack, type LibraryTrack } from "@/lib/library";
 import { admitCandidate, alreadyKnown } from "@/lib/drift/expansion/admit";
 import { lookupAppleSong } from "@/lib/drift/expansion/itunes";
 import type { ExternalCandidate } from "@/lib/drift/expansion/types";
@@ -93,14 +94,10 @@ export async function ingestFavoriteCandidates(
       refused += 1;
       continue;
     }
-    ingestTracks([admission.track]);
-    overlayMedia(admission.track.id, admission.media);
     pool.push(admission.track);
     known.push({ id: admission.track.id, title: admission.track.title, artist: admission.track.artist });
-    tracks.push(toLibraryTrack(admission.track));
+    tracks.push(toLibraryTrack(admission.track, admission.media));
   }
-
-  if (tracks.length) refreshLibrary();
 
   return {
     tracks,

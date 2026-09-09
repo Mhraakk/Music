@@ -97,8 +97,8 @@ function engineLibrary(): LibraryTrack[] {
   return library().filter((t) => t.origin !== "favorite");
 }
 
-export function toLibraryTrack(track: DriftTrack): LibraryTrack {
-  const media: TrackMedia | null = trackMedia(track.id);
+export function toLibraryTrack(track: DriftTrack, mediaOverride?: TrackMedia | null): LibraryTrack {
+  const media: TrackMedia | null = mediaOverride === undefined ? trackMedia(track.id) : mediaOverride;
   const tint = media?.averageColor ?? fallbackColor(track.vector);
   const searchColor = media?.searchColor ?? tint;
 
@@ -131,7 +131,7 @@ let cache: LibraryTrack[] | null = null;
 
 /** Every admissible position, media-joined. Rejected material never appears. */
 export function library(): LibraryTrack[] {
-  if (!cache) cache = admissiblePool().map(toLibraryTrack);
+  if (!cache) cache = admissiblePool().map((track) => toLibraryTrack(track));
   return cache;
 }
 
