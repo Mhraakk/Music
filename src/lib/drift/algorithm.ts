@@ -301,6 +301,8 @@ export type PlanInput = {
   branches?: BranchState;
   mode?: ResonanceMode;
   length?: number;
+  /** Per-request Favorite Songs window. Never written into the shared catalog. */
+  overlay?: readonly DriftTrack[];
 };
 
 export function planDrift(input: PlanInput): DriftArc {
@@ -315,7 +317,7 @@ export function planDrift(input: PlanInput): DriftArc {
     : arcLength(originCoord.vector, destCoord.vector);
 
   const targets = driftTargets(originCoord.vector, destCoord.vector, count, mode);
-  const pool = admissiblePool();
+  const pool = admissiblePool(input.overlay);
   const used = new Set(input.exclude ?? []);
   const usedArtists = new Set<string>();
 

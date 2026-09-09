@@ -111,6 +111,15 @@ export function planEmotionalDrift(args: {
   origin: string;
   destination: string;
   exclude?: string[];
+  libraryOverlay?: {
+    id: string;
+    title: string;
+    artist: string;
+    duration: number;
+    vector: EmotionalVector;
+    note?: string;
+    appleMusicId?: string | null;
+  }[];
 }): Promise<McpCallOutcome<PlannedArcPayload>> {
   return callTool<PlannedArcPayload>("plan_emotional_drift", args);
 }

@@ -637,9 +637,14 @@ async function verifyFavoriteCirculation() {
 
   const listed = await rpc("tools/list", {});
   const drift = listed.tools.find((t) => t.name === "get_next_emotional_drift");
+  const plan = listed.tools.find((t) => t.name === "plan_emotional_drift");
   check(
     Boolean(drift?.inputSchema?.properties?.libraryOverlay),
     "get_next_emotional_drift accepts a Favorite Songs overlay"
+  );
+  check(
+    Boolean(plan?.inputSchema?.properties?.libraryOverlay),
+    "plan_emotional_drift accepts a Favorite Songs overlay"
   );
 }
 

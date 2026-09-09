@@ -182,6 +182,12 @@ export const TOOLS: readonly ToolDescriptor[] = [
         origin: { type: "string", enum: COORDINATE_IDS },
         destination: { type: "string", enum: COORDINATE_IDS },
         exclude: { type: "array", items: { type: "string" }, description: "Track ids to skip." },
+        libraryOverlay: {
+          type: "array",
+          description:
+            "Circulating Favorite Songs from the listener's device, so the planned arc can occupy loved recordings without writing them into the shared catalog.",
+          items: { type: "object" },
+        },
       },
       required: ["origin", "destination"],
     },
@@ -437,6 +443,7 @@ async function toolPlanEmotionalDrift(args: Record<string, unknown>, context: Mc
     sessionId: asString(args.sessionId, `session_${Date.now()}`),
     exclude: asStringArray(args.exclude),
     soundCloudAccessToken: context.soundCloudAccessToken ?? null,
+    overlay: materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay)),
   });
 
   const summary = [
