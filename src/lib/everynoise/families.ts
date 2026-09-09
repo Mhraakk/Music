@@ -2,18 +2,41 @@ import type { AtlasFamily } from "./types";
 
 const ELECTRONIC = [
   "electro",
-  "electron",
+  "electronica",
+  "electronic",
+  "electropop",
+  "indietronica",
+  "folktronica",
+  "livetronica",
+  "jazztronica",
   "synth",
+  "synthwave",
+  "synthpop",
   "techno",
   "tech house",
-  "house",
+  "deep house",
+  "organic house",
+  "afro house",
+  "progressive house",
+  "minimal house",
+  "funky house",
+  "outsider house",
+  "ghetto house",
+  "acid house",
+  "tropical house",
+  "future house",
+  "bass house",
   "trance",
+  "psytrance",
   "dnb",
   "drum and bass",
   "drum & bass",
   "jungle",
+  "neurofunk",
+  "liquid funk",
   "idm",
   "intelligent dance",
+  "braindance",
   "ambient",
   "downtempo",
   "trip hop",
@@ -21,8 +44,12 @@ const ELECTRONIC = [
   "turntabl",
   "breakbeat",
   "breakcore",
-  "garage",
+  "uk garage",
+  "speed garage",
+  "future garage",
   "dubstep",
+  "brostep",
+  "riddim",
   "bass music",
   "future bass",
   "uk bass",
@@ -31,149 +58,107 @@ const ELECTRONIC = [
   "moombahton",
   "hardstyle",
   "hardcore techno",
+  "happy hardcore",
   "rave",
-  "acid house",
   "acid techno",
   "minimal techno",
-  "minimal house",
-  "progressive house",
-  "progressive trance",
-  "deep house",
-  "organic house",
-  "afro house",
   "melodic techno",
-  "industrial",
+  "hard techno",
+  "industrial techno",
+  "industrial dance",
   "ebm",
   "glitch",
+  "glitch hop",
   "vaporwave",
-  "synthwave",
   "chillout",
   "chillwave",
   "psybient",
   "psychill",
   "goa",
-  "psytrance",
   "edm",
-  "dance",
-  "club",
-  "disco",
+  "complextro",
   "leftfield",
   "wonky",
-  "grime",
   "ukg",
   "2-step",
-  "speed garage",
-  "neurofunk",
-  "liquid funk",
-  "drill and bass",
-  "braindance",
-  "microhouse",
-  "outsider house",
-  "ghetto house",
-  "jersey club",
-  "ballroom",
-  "vogue",
-  "hard techno",
-  "schranz",
-  "gabber",
-  "happy hardcore",
-  "nightcore",
-  "donk",
-  "bassline",
   "uk funky",
-  "funky house",
-  "italo",
+  "italo disco",
+  "nu-disco",
   "hi-nrg",
-  "freestyle",
-  "city pop",
-  "citypop",
-  "new age",
-  "downtempo fusion",
-  "instrumental hip hop",
-  "abstract hip hop",
-  "experimental hip hop",
-  "wonky",
-  "glitch hop",
-  "livetronica",
-  "folktronica",
-  "indietronica",
-  "electropop",
-  "synthpop",
-  "darkwave",
-  "ebm",
-  "electroclash",
+  "microhouse",
+  "jersey club",
   "big beat",
   "bigbeat",
   "nujazz",
   "nu jazz",
   "acid jazz",
   "broken beat",
-  "future garage",
-  "wave",
+  "darkwave",
+  "electroclash",
+  "drill and bass",
   "phonk",
-  "trap edm",
-  "brostep",
-  "riddim",
-  "complextro",
-  " moomba",
 ];
 
 const AMBIENT = [
   "ambient",
-  "drone",
-  "new age",
-  "soundscape",
-  "psybient",
-  "psychill",
-  "lowercase",
-  "isolationism",
   "dark ambient",
   "space ambient",
   "compositional ambient",
-  "atmospheric",
+  "future ambient",
+  "ambient techno",
+  "ambient house",
+  "psybient",
+  "psychill",
   "chillout",
   "downtempo",
+  "isolationism",
+  "drone ambient",
 ];
 
 const CLUB = [
-  "house",
+  "tech house",
+  "deep house",
+  "funky house",
+  "afro house",
+  "progressive house",
+  "bass house",
   "techno",
   "trance",
-  "garage",
-  "club",
+  "uk garage",
+  "speed garage",
+  "jersey club",
   "rave",
   "hardstyle",
-  "hardcore",
+  "hard techno",
   "dubstep",
   "bassline",
   "ukg",
-  "jersey",
-  "ballroom",
-  "disco",
   "edm",
+  "italo disco",
+  "nu-disco",
 ];
 
-function hay(label: string): string {
-  return ` ${label.toLowerCase()} `;
-}
-
 function matches(label: string, needles: string[]): boolean {
-  const h = hay(label);
-  return needles.some((n) => h.includes(n) || label.toLowerCase().includes(n.trim()));
+  const raw = label.toLowerCase();
+  return needles.some((needle) => {
+    const n = needle.trim().toLowerCase();
+    if (!n) return false;
+    if (n.includes(" ")) return raw.includes(n);
+    return new RegExp(`(?:^|[^a-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^a-z0-9])`).test(raw);
+  });
 }
 
 export function classifyFamily(label: string): AtlasFamily | "other" {
-  if (matches(label, AMBIENT) && matches(label, ELECTRONIC)) return "ambient";
-  if (matches(label, CLUB) && matches(label, ELECTRONIC)) return "club";
-  if (matches(label, ELECTRONIC)) return "electronic";
-  if (matches(label, AMBIENT)) return "ambient";
+  if (matches(label, AMBIENT) && !matches(label, CLUB)) return "ambient";
   if (matches(label, CLUB)) return "club";
+  if (matches(label, ELECTRONIC)) return "electronic";
   return "other";
 }
 
 export function inFamily(label: string, family: AtlasFamily): boolean {
   if (family === "all") return true;
-  const classified = classifyFamily(label);
-  if (family === "electronic") return classified === "electronic" || classified === "ambient" || classified === "club";
-  return classified === family;
+  if (family === "electronic") return matches(label, ELECTRONIC);
+  if (family === "ambient") return matches(label, AMBIENT);
+  if (family === "club") return matches(label, CLUB);
+  return classifyFamily(label) === family;
 }
