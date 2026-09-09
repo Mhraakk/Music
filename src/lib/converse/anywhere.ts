@@ -457,6 +457,25 @@ function interleave(groups: FoundHit[][], limit: number): FoundHit[] {
   return out;
 }
 
+function orderGroups(query: string, apple: FoundHit[], deezer: FoundHit[], youtubeMusic: FoundHit[], soundcloud: FoundHit[], youtube: FoundHit[]): FoundHit[][] {
+  const q = query.toLowerCase();
+  const named: FoundHit[][] = [];
+  if (/youtube music|یوتیوب موزیک/.test(q)) named.push(youtubeMusic);
+  else if (/youtube|youtu\.be|یوتیوب/.test(q)) named.push(youtube, youtubeMusic);
+  if (/soundcloud|ساوندک?لاد/.test(q)) named.push(soundcloud);
+  if (/deezer|دیزر/.test(q)) named.push(deezer);
+  if (/apple|itunes|اپل/.test(q)) named.push(apple);
+  const rest = [apple, deezer, youtubeMusic, soundcloud, youtube];
+  const seen = new Set<FoundHit[]>();
+  const out: FoundHit[][] = [];
+  for (const group of [...named, ...rest]) {
+    if (seen.has(group)) continue;
+    seen.add(group);
+    out.push(group);
+  }
+  return out;
+}
+
 export async function findMusic(query: string, limit = 10): Promise<LibraryTrack[]> {
   const cap = Math.max(4, Math.min(12, limit));
   const queries = searchQueries(query);
@@ -474,8 +493,10 @@ export async function findMusic(query: string, limit = 10): Promise<LibraryTrack
     withBudget(searchSoundCloud(namedQuery, cap).catch(() => [] as FoundHit[]), 5000, [] as FoundHit[]),
   ]);
 
+  const apple = appleGroups.flat();
+  const deezer = deezerGroups.flat();
   const mixed = interleave(
-    [...appleGroups, ...deezerGroups, youtubeMusic, soundcloud, youtube].map((g) => g.filter((h) => !junkHit(h))),
+    orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) => g.filter((h) => !junkHit(h))),
     cap
   );
   return mixed.map(toLibraryTrack);
