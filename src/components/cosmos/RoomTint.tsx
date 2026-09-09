@@ -26,8 +26,8 @@ import { hexToRgb } from "@/lib/media";
  * review the room was reported as not tinting at all while a track played. A
  * cast nobody notices is not subtlety, it is a dead feature.
  */
-const PLAYING_STRENGTH = 0.3;
-const SEARCH_STRENGTH = 0.38;
+const PLAYING_STRENGTH = 0.07;
+const SEARCH_STRENGTH = 0.12;
 
 export function RoomTint({ searchColor }: { searchColor?: string | null }) {
   const { current } = usePlayer();

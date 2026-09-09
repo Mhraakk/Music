@@ -1,14 +1,5 @@
 "use client";
 
-/**
- * GENERATE TEN
- *
- * The living catalog's listener-facing move. Taste is a position, not a genre:
- * the button sends the session history to the expansion engine, which searches
- * Apple Music near the artists already occupying that neighbourhood and admits
- * ten new positions.
- */
-
 import { useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { generateTasteExpansion } from "@/lib/mcp/client";
@@ -60,10 +51,10 @@ export function TasteExpand() {
         onClick={() => void generate()}
         disabled={busy}
       >
-        {busy ? "Finding ten…" : "10 new near your taste"}
+        {busy ? "Finding more…" : "Get more for you"}
       </button>
       {note && <p className="cx-meta max-w-[42ch]">{note}</p>}
-      {error && <p className="cx-meta max-w-[42ch] text-[#8c1b22]">{error}</p>}
+      {error && <p className="cx-meta max-w-[42ch]" style={{ color: "#8c1b22" }}>{error}</p>}
     </div>
   );
 }

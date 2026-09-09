@@ -1,81 +1,49 @@
-/**
- * CURATORS — SERVER COMPONENT
- *
- * The engine's aesthetic anchors, presented as profiles.
- *
- * These are calibration positions in the substrate, not accounts and not
- * editorial picks. Each one lists the catalog positions for which it is the
- * nearest anchor, so the shelves are derived rather than curated by hand —
- * there are no invented follower counts here and no copy the engine could not
- * justify from its own numbers.
- */
-
 import Image from "next/image";
 import Link from "next/link";
 import { curators } from "@/lib/library";
+import { songsLabel } from "@/lib/format";
 
 export const metadata = {
-  title: "Curators — Resonant",
-  description: "The reference positions the emotional substrate is calibrated against.",
+  title: "Artists — Resonant",
+  description: "Artists Resonant is calibrated to — and the songs that sit closest to each.",
 };
 
-/** St Germain calibrates exactly one position, so "1 positions" was on screen. */
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-export default function CuratorsPage() {
+export default function ArtistsPage() {
   const profiles = curators();
 
   return (
-    <main className="mx-auto max-w-[1200px] px-4 pt-8 pb-40 md:px-8 md:pt-14">
-      <header className="mb-10">
-        <h1 className="cx-display max-w-[16ch]">Curators</h1>
-        <p className="cx-body mt-5 max-w-[58ch]">
-          The engine measures every record against these seven. They are not artists it is trying
-          to sell you — they are the reference points it was tuned on, and what you see under each
-          is the music that sits closest to it. The line under each name is what the engine is
-          listening for there.
-        </p>
+    <main className="cx-page">
+      <header className="cx-page-head">
+        <div>
+          <h1 className="cx-display">Artists</h1>
+          <p className="cx-body mt-2 max-w-[52ch]">
+            Seven reference artists. What you see under each name is the music that sits closest to
+            them — not a follower count, not a pitch.
+          </p>
+        </div>
       </header>
 
-      <div className="flex flex-col divide-y divide-[var(--hairline)]">
+      <div>
         {profiles.map((profile) => (
-          <Link
-            key={profile.slug}
-            href={`/curator/${profile.slug}`}
-            className="group flex items-center gap-4 py-5"
-          >
-            {/*
-              No photographs of these artists exist in the catalog and inventing
-              avatars would be a fabrication, so the identity mark is a mosaic of
-              the sleeves nearest to that anchor.
-            */}
-            <div
-              className="grid h-16 w-16 shrink-0 grid-cols-2 grid-rows-2 gap-[1px] overflow-hidden rounded-full"
-              style={{ backgroundColor: profile.tint }}
-            >
+          <Link key={profile.slug} href={`/curator/${profile.slug}`} className="cx-artist-row">
+            <span className="cx-avatar" style={{ backgroundColor: profile.tint }}>
               {profile.covers.map((track) => (
-                <div key={track.id} className="relative" style={{ backgroundColor: track.tint }}>
+                <span key={track.id} className="relative block" style={{ backgroundColor: track.tint }}>
                   {track.artworkUrl && (
-                    <Image src={track.artworkUrl} alt="" fill sizes="32px" style={{ objectFit: "cover" }} />
+                    <Image src={track.artworkUrl} alt="" fill sizes="36px" style={{ objectFit: "cover" }} />
                   )}
-                </div>
+                </span>
               ))}
               {Array.from({ length: Math.max(0, 4 - profile.covers.length) }).map((_, i) => (
-                <div key={`pad-${i}`} style={{ backgroundColor: profile.tint }} />
+                <span key={`pad-${i}`} style={{ backgroundColor: profile.tint }} />
               ))}
-            </div>
+            </span>
 
-            <div className="min-w-0 flex-1">
-              <h2 className="cx-heading">{profile.name}</h2>
-              <p className="cx-body cx-truncate">{profile.bio}</p>
-              <p className="cx-meta mt-1">
-                {plural(profile.tracks.length, "position")} · {plural(profile.regions.length, "region")}
-              </p>
-            </div>
-
-            <span className="cx-meta shrink-0 transition-transform group-hover:translate-x-1">→</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold leading-tight">{profile.name}</span>
+              <span className="cx-body mt-1 block cx-truncate">{profile.bio}</span>
+              <span className="cx-meta mt-1 block">{songsLabel(profile.tracks.length)} · Artist</span>
+            </span>
           </Link>
         ))}
       </div>
