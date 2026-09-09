@@ -482,19 +482,22 @@ export async function findMusic(query: string, limit = 10): Promise<LibraryTrack
   if (!queries.length) return [];
   const original = query.trim();
   const catalogQueries = queries.slice(0, 2);
-  const webQuery = original || queries[0];
   const namedQuery = queries[0];
 
-  const [deezerGroups, appleGroups, youtube, youtubeMusic, soundcloud] = await Promise.all([
+  const [deezerGroups, appleGroups, youtubeNamed, youtubeMusic, youtubeOriginal, soundcloud] = await Promise.all([
     Promise.all(catalogQueries.map((q) => searchDeezer(q, cap).catch(() => [] as FoundHit[]))),
     Promise.all(catalogQueries.map((q) => searchApple(q, cap).catch(() => [] as FoundHit[]))),
-    innertubeSearch("youtube", webQuery, cap).catch(() => [] as FoundHit[]),
+    innertubeSearch("youtube", namedQuery, cap).catch(() => [] as FoundHit[]),
     innertubeSearch("youtube_music", namedQuery, cap).catch(() => [] as FoundHit[]),
+    original !== namedQuery
+      ? innertubeSearch("youtube", original, cap).catch(() => [] as FoundHit[])
+      : Promise.resolve([] as FoundHit[]),
     withBudget(searchSoundCloud(namedQuery, cap).catch(() => [] as FoundHit[]), 5000, [] as FoundHit[]),
   ]);
 
   const apple = appleGroups.flat();
   const deezer = deezerGroups.flat();
+  const youtube = [...youtubeNamed, ...youtubeOriginal];
   const mixed = interleave(
     orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) => g.filter((h) => !junkHit(h))),
     cap

@@ -116,8 +116,7 @@ function mergeTracks(a: LibraryTrack[], b: LibraryTrack[]): LibraryTrack[] {
 
 function pushPlay(ctx: ToolContext, tracks: LibraryTrack[], title?: string) {
   const list = tracks.filter((t) => t.previewUrl || t.openUrl || t.id.startsWith("w-"));
-  const ordered = playable(list).concat(list.filter((t) => !playable([t]).length));
-  const unique = ordered.filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i);
+  const unique = list.filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i);
   if (!unique.length) return;
   const guests = unique.filter((t) => t.id.startsWith("w-"));
   if (guests.length) {
@@ -399,9 +398,7 @@ export async function executeConverseTool(
       if (tracks.length < 4) {
         tracks = mergeTracks(tracks, searchTracks(ctx, query || room || "warm", count));
       }
-      const playableFirst = playable(tracks);
-      const rest = tracks.filter((t) => !playableFirst.some((p) => p.id === t.id));
-      tracks = [...playableFirst, ...rest].slice(0, count);
+      tracks = tracks.slice(0, count);
       rememberSearch(ctx, tracks);
       if (!tracks.length) return { ok: false, error: "Search returned nothing. Try another wording." };
       if (room) pushDestination(ctx, room);
