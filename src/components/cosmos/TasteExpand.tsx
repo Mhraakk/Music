@@ -54,7 +54,7 @@ export function TasteExpand() {
         {busy ? "Finding more…" : "Get more for you"}
       </button>
       {note && <p className="cx-meta max-w-[42ch]">{note}</p>}
-      {error && <p className="cx-meta max-w-[42ch]" style={{ color: "#8c1b22" }}>{error}</p>}
+      {error && <p className="cx-meta max-w-[42ch]" style={{ color: "#ff8a90" }}>{error}</p>}
     </div>
   );
 }

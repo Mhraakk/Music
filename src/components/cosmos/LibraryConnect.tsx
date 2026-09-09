@@ -53,7 +53,7 @@ export function LibraryConnect() {
         </p>
       )}
       {error && (
-        <p className="cx-meta mt-2" style={{ color: "#8c1b22" }}>
+        <p className="cx-meta mt-2" style={{ color: "#ff8a90" }}>
           {error}
         </p>
       )}

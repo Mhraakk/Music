@@ -1,32 +1,33 @@
 /**
- * RESONANT — Apple Music–clarity surface
+ * RESONANT — nocturnal listening room
  *
- * White canvas, system type, red only on primary actions, square sleeves with
- * captions underneath, a 244px frosted sidebar, and a full-width mini-player.
- * Cognition stays the engine; the labels are songs, albums, artists, playlists.
+ * Same product grammar as Apple Music (shelves, sidebar, mini-player) on a
+ * cinematic dark field instead of a marketing-white canvas. Warm near-black,
+ * smoked glass, a faint crimson/violet atmosphere, and a sleeve tint that
+ * actually colours the room while a track plays.
  */
 
 body:has(.cosmos) {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: #070605;
+  color: #f3eee6;
 }
 
 .cosmos {
-  --paper: #ffffff;
-  --paper-raised: #f7f7f7;
-  --paper-sunken: #ededed;
-  --ink: #000000;
-  --ink-2: #575757;
-  --ink-3: #595959;
-  --ink-inverse: #ffffff;
-  --accent: #d60017;
+  --paper: #090807;
+  --paper-raised: #1c1916;
+  --paper-sunken: #141210;
+  --ink: #f3eee6;
+  --ink-2: #b4aaa0;
+  --ink-3: #8a8178;
+  --ink-inverse: #0c0b0a;
+  --accent: #ff3b4a;
   --accent-fg: #ffffff;
-  --hairline: rgba(0, 0, 0, 0.08);
-  --hairline-strong: rgba(0, 0, 0, 0.12);
-  --sidebar: rgba(245, 245, 247, 0.72);
-  --sidebar-border: rgba(0, 0, 0, 0.05);
-  --lift: rgba(0, 0, 0, 0.1) 0 10px 40px;
-  --focus: 0 0 0 4px rgba(0, 125, 250, 0.6);
+  --hairline: rgba(243, 238, 230, 0.08);
+  --hairline-strong: rgba(243, 238, 230, 0.16);
+  --sidebar: rgba(18, 15, 14, 0.62);
+  --sidebar-border: rgba(243, 238, 230, 0.08);
+  --lift: 0 18px 48px rgba(0, 0, 0, 0.48);
+  --focus: 0 0 0 4px rgba(255, 59, 74, 0.45);
   --r-none: 0px;
   --r-tile: 10px;
   --r-card: 10px;
@@ -35,10 +36,12 @@ body:has(.cosmos) {
   --sidebar-width: 244px;
   --player-height: 76px;
   --tabbar-height: 56px;
-  --tint: 255 255 255;
+  --tint: 18 12 10;
   --tint-strength: 0;
 
-  background-color: var(--paper);
+  color-scheme: dark;
+  background-color: #070605;
+  background-image: none;
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -55,7 +58,21 @@ body:has(.cosmos) {
   pointer-events: none;
   background-color: rgb(var(--tint));
   opacity: var(--tint-strength);
+  mix-blend-mode: soft-light;
   transition: background-color 1200ms ease, opacity 1200ms ease;
+}
+
+.cosmos::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 58% at 48% -12%, rgba(214, 42, 58, 0.52), transparent 56%),
+    radial-gradient(ellipse 70% 48% at 92% 18%, rgba(86, 42, 128, 0.34), transparent 54%),
+    radial-gradient(ellipse 55% 40% at 20% 70%, rgba(48, 22, 18, 0.4), transparent 62%),
+    linear-gradient(165deg, #1d1416 0%, #110d0c 46%, #080706 100%);
 }
 
 .cosmos > * {
@@ -111,9 +128,9 @@ body:has(.cosmos) {
   justify-content: space-around;
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  background: rgba(12, 10, 9, 0.82);
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
   border-top: 1px solid var(--hairline);
 }
 
@@ -152,7 +169,9 @@ body:has(.cosmos) {
     border-radius: var(--r-nav);
     background: var(--sidebar);
     border: 1px solid var(--sidebar-border);
-    box-shadow: var(--lift);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--lift);
+    backdrop-filter: blur(40px) saturate(1.4);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
     overflow: hidden;
   }
 
@@ -216,7 +235,7 @@ body:has(.cosmos) {
   height: 36px;
   padding: 0 10px;
   border-radius: 8px;
-  color: rgba(0, 0, 0, 0.72);
+  color: var(--ink-2);
   font-size: 13px;
   font-weight: 400;
   line-height: 16px;
@@ -224,14 +243,14 @@ body:has(.cosmos) {
 }
 
 .cx-side-link:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(243, 238, 230, 0.06);
   text-decoration: none;
 }
 
 .cx-side-link[aria-current="page"] {
   color: var(--ink);
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(243, 238, 230, 0.08);
 }
 
 .cx-side-link[aria-current="page"] svg {
@@ -412,6 +431,7 @@ body:has(.cosmos) {
   overflow: hidden;
   border-radius: var(--r-tile);
   background: var(--paper-sunken);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
 
 .cx-album[data-size="lg"] .cx-album-art {
@@ -448,11 +468,11 @@ body:has(.cosmos) {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #fff;
-  color: #000;
+  background: #f3eee6;
+  color: #0c0b0a;
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 160ms ease, transform 200ms ease;
@@ -501,8 +521,8 @@ body:has(.cosmos) {
   gap: 4px;
   padding: 3px 8px;
   border-radius: var(--r-pill);
-  background: rgba(0, 0, 0, 0.72);
-  color: #fff;
+  background: rgba(12, 10, 9, 0.78);
+  color: #f3eee6;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0;
@@ -533,6 +553,7 @@ body:has(.cosmos) {
   overflow: hidden;
   border-radius: var(--r-tile);
   background: var(--paper-sunken);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
 }
 
 .cx-mosaic > * {
@@ -660,7 +681,7 @@ body:has(.cosmos) {
 }
 
 .cx-song:hover td {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(243, 238, 230, 0.05);
 }
 
 .cx-song[data-active="true"] td {
@@ -806,16 +827,16 @@ body:has(.cosmos) {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--ink);
   flex-shrink: 0;
 }
 
 .cx-icon-button:hover {
-  background: rgba(0, 0, 0, 0.07);
+  background: rgba(243, 238, 230, 0.08);
 }
 
 .cx-icon-button:active {
-  background: rgba(0, 0, 0, 0.09);
+  background: rgba(243, 238, 230, 0.12);
 }
 
 .cx-icon-button[data-solid="true"] {
@@ -826,7 +847,7 @@ body:has(.cosmos) {
 }
 
 .cx-icon-button[data-solid="true"]:hover {
-  background: #222;
+  background: #fff;
 }
 
 .cosmos input[type="search"],
@@ -863,12 +884,12 @@ body:has(.cosmos) {
   width: 22px;
   height: 22px;
   border-radius: var(--r-pill);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(243, 238, 230, 0.22);
   flex-shrink: 0;
 }
 
 .cx-swatch[aria-pressed="true"] {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14), 0 0 0 2px var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(243, 238, 230, 0.22), 0 0 0 2px var(--ink);
 }
 
 .cx-rail {
@@ -893,11 +914,11 @@ body:has(.cosmos) {
 /* ───────────────────────────── mini player ───────────────────────────── */
 
 .cx-mini {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  background: rgba(12, 10, 9, 0.78);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
   border-top: 1px solid var(--hairline);
-  box-shadow: var(--lift);
+  box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.35);
 }
 
 .cx-mini-bar {
@@ -978,7 +999,9 @@ body:has(.cosmos) {
   border: 1px solid var(--hairline);
   border-radius: 12px;
   padding: 16px 18px;
-  background: var(--paper);
+  background: rgba(28, 25, 22, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .cx-plate {

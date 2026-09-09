@@ -223,7 +223,7 @@ export function MiniPlayer() {
           </div>
 
           {error && (
-            <p className="cx-meta mt-2" style={{ color: "#b4524a" }}>
+            <p className="cx-meta mt-2" style={{ color: "#ff8a90" }}>
               {error}
             </p>
           )}

@@ -90,7 +90,7 @@ export function LibrarySongs() {
       )}
 
       {error && (
-        <p className="cx-meta mb-4" style={{ color: "#8c1b22" }}>
+        <p className="cx-meta mb-4" style={{ color: "#ff8a90" }}>
           {error}
         </p>
       )}
