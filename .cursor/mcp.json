@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "nuclear": {
+      "url": "http://127.0.0.1:8800/mcp"
+    }
+  }
+}

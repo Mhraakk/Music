@@ -81,6 +81,12 @@ export type PlayerState = {
   queueTitle: string | null;
   /** True when the current track was started by Ask rather than a sleeve tap. */
   fromAsk: boolean;
+  /** How the current recording is sounding — YouTube full listen is Nuclear-style. */
+  listenVia: "preview" | "youtube" | "soundcloud" | null;
+  /** Duration in seconds when listening via YouTube. */
+  nuclearDuration: number | null;
+  /** Seek request for the YouTube player, 0–1. */
+  nuclearSeekAt: number | null;
 };
 
 export type PlayerActions = {
@@ -96,6 +102,11 @@ export type PlayerActions = {
   ingest: (tracks: LibraryTrack[]) => void;
   /** Name a destination on the emotional map. The engine drifts toward it. */
   setDestination: (id: CoordinateId) => void;
+  /** YouTube full-listen progress (Nuclear-style embed). */
+  nuclearTick: (progress: number, durationSec: number) => void;
+  nuclearEnded: () => void;
+  /** YouTube embed blocked — fall back to the Apple preview if we have one. */
+  nuclearFailed: () => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -122,6 +133,9 @@ const INITIAL: PlayerState = {
   queue: [],
   queueTitle: null,
   fromAsk: false,
+  listenVia: null,
+  nuclearDuration: null,
+  nuclearSeekAt: null,
 };
 
 /**
@@ -256,7 +270,12 @@ export function PlayerProvider({
     sessionId: sessionId ?? "",
     queue: [] as LibraryTrack[],
     queueTitle: null as string | null,
+    listenVia: null as PlayerState["listenVia"],
+    fromEngine: false,
+    fromAsk: false,
   });
+  const playGen = useRef(0);
+  const skipYoutubeFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -336,9 +355,10 @@ export function PlayerProvider({
     live.current.signals = [...live.current.signals, signal].slice(-12);
   }, []);
 
-  /** Start a track on the idle lane and fade the other one out. */
+  /** Start a track. Prefer a Nuclear-style full YouTube listen when we can. */
   const sound = useCallback(
     async (track: LibraryTrack, fromEngine: boolean, fromAsk = false) => {
+      const gen = ++playGen.current;
       clearFades();
       const pair = ensureLanes();
       const incoming: 0 | 1 = activeLane.current === 0 ? 1 : 0;
@@ -349,6 +369,11 @@ export function PlayerProvider({
       live.current.windows = windowsFor(track.vector);
       live.current.progress = 0;
       live.current.fragilityNow = 0;
+      live.current.listenVia = null;
+      live.current.fromEngine = fromEngine;
+      live.current.fromAsk = fromAsk;
+      if (skipYoutubeFor.current && skipYoutubeFor.current !== track.id) skipYoutubeFor.current = null;
+      const skipYoutube = skipYoutubeFor.current === track.id;
 
       setState((s) => ({
         ...s,
@@ -358,45 +383,109 @@ export function PlayerProvider({
         fromAsk,
         loading: true,
         error: null,
+        listenVia: null,
+        nuclearDuration: null,
+        nuclearSeekAt: null,
       }));
 
-      if (!track.previewUrl) {
-        const embeddable = Boolean(youtubeVideoId(track) || isSoundcloudTrack(track));
+      let hydrated = track;
+      if (!skipYoutube && !youtubeVideoId(track)) {
+        try {
+          const response = await fetch(
+            `/api/stream/nuclear?artist=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}`
+          );
+          const payload = (await response.json()) as { stream?: { videoId?: string; watchUrl?: string } };
+          if (gen !== playGen.current) return;
+          if (payload.stream?.videoId) {
+            hydrated = {
+              ...track,
+              videoId: payload.stream.videoId,
+              videoUrl: payload.stream.watchUrl ?? `https://www.youtube.com/watch?v=${payload.stream.videoId}`,
+            };
+          }
+        } catch {
+          /* Apple preview still plays */
+        }
+      }
+      if (gen !== playGen.current) return;
+
+      const yt = skipYoutube ? null : youtubeVideoId(hydrated);
+      if (yt) {
+        pair.forEach((el) => {
+          el.pause();
+          el.removeAttribute("src");
+        });
+        live.current.current = hydrated;
+        live.current.listenVia = "youtube";
+        setState((s) => ({
+          ...s,
+          current: hydrated,
+          playing: true,
+          loading: false,
+          error: null,
+          listenVia: "youtube",
+        }));
+        return;
+      }
+
+      if (isSoundcloudTrack(hydrated) && !hydrated.previewUrl) {
+        pair.forEach((el) => {
+          el.pause();
+          el.removeAttribute("src");
+        });
+        live.current.listenVia = "soundcloud";
+        setState((s) => ({
+          ...s,
+          current: hydrated,
+          playing: true,
+          loading: false,
+          error: null,
+          listenVia: "soundcloud",
+        }));
+        return;
+      }
+
+      if (!hydrated.previewUrl) {
         pair.forEach((el) => {
           el.pause();
           el.removeAttribute("src");
         });
         setState((s) => ({
           ...s,
-          playing: embeddable,
+          playing: false,
           loading: false,
-          error: embeddable ? null : "No preview — open it on YouTube, SoundCloud or Deezer from the card.",
+          error: "No preview — open it on YouTube, SoundCloud or Deezer from the card.",
+          listenVia: null,
         }));
         return;
       }
 
+      live.current.listenVia = "preview";
       const el = pair[incoming];
-      el.src = track.previewUrl;
+      el.src = hydrated.previewUrl;
       el.currentTime = 0;
       el.volume = 0;
 
       try {
         await el.play();
       } catch {
+        if (gen !== playGen.current) return;
         setState((s) => ({
           ...s,
           playing: false,
           loading: false,
           error: "Playback needs a tap first — browsers block autoplay.",
+          listenVia: "preview",
         }));
         return;
       }
 
+      if (gen !== playGen.current) return;
       fadeLane(el, live.current.volume, FADE_MS);
       if (pair[outgoing].src) fadeLane(pair[outgoing], 0, FADE_MS);
 
       activeLane.current = incoming;
-      setState((s) => ({ ...s, playing: true, loading: false }));
+      setState((s) => ({ ...s, current: hydrated, playing: true, loading: false, listenVia: "preview" }));
     },
     [clearFades, ensureLanes, fadeLane]
   );
@@ -566,6 +655,10 @@ export function PlayerProvider({
   }, []);
 
   const toggle = useCallback(() => {
+    if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") {
+      setState((s) => ({ ...s, playing: !s.playing }));
+      return;
+    }
     const pair = lanes.current;
     if (!pair || !live.current.current) return;
     const el = pair[activeLane.current];
@@ -612,12 +705,21 @@ export function PlayerProvider({
 
   const seek = useCallback(
     (progress: number) => {
+      const target = Math.max(0, Math.min(0.99, progress));
+      const from = live.current.progress;
+      if (live.current.listenVia === "youtube") {
+        live.current.progress = target;
+        setState((s) => ({ ...s, progress: target, nuclearSeekAt: target }));
+        recordSignal(target < from ? "seek_back" : "seek_forward", {
+          progress: target,
+          fragility: fragilityFromWindows(live.current.windows, target),
+        });
+        return;
+      }
       const pair = lanes.current;
       if (!pair) return;
       const el = pair[activeLane.current];
       if (!el.duration || !Number.isFinite(el.duration)) return;
-      const target = Math.max(0, Math.min(0.99, progress));
-      const from = live.current.progress;
       el.currentTime = target * el.duration;
       recordSignal(target < from ? "seek_back" : "seek_forward", {
         progress: target,
@@ -627,13 +729,43 @@ export function PlayerProvider({
     [recordSignal]
   );
 
+  const nuclearTick = useCallback((progress: number, durationSec: number) => {
+    if (live.current.listenVia !== "youtube") return;
+    const fragilityNow = fragilityFromWindows(live.current.windows, progress);
+    live.current.progress = progress;
+    live.current.fragilityNow = fragilityNow;
+    setState((s) => ({
+      ...s,
+      progress,
+      fragilityNow,
+      nuclearDuration: durationSec,
+      nuclearSeekAt: null,
+    }));
+  }, []);
+
+  const nuclearEnded = useCallback(() => {
+    if (handover.current) return;
+    handover.current = true;
+    void advanceRef.current("dwell_complete");
+  }, []);
+
+  const nuclearFailed = useCallback(() => {
+    const track = live.current.current;
+    if (!track) return;
+    if (skipYoutubeFor.current === track.id) return;
+    skipYoutubeFor.current = track.id;
+    void sound(track, live.current.fromEngine, live.current.fromAsk);
+  }, [sound]);
+
   const stop = useCallback(() => {
+    playGen.current += 1;
     clearFades();
     lanes.current?.forEach((el) => {
       el.pause();
       el.removeAttribute("src");
     });
     live.current.current = null;
+    live.current.listenVia = null;
     setState((s) => ({
       ...INITIAL,
       volume: s.volume,
@@ -650,6 +782,7 @@ export function PlayerProvider({
       const pair = lanes.current;
       const track = live.current.current;
       if (!pair || !track) return;
+      if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") return;
 
       const el = pair[activeLane.current];
       if (!el.duration || !Number.isFinite(el.duration)) return;
@@ -720,8 +853,8 @@ export function PlayerProvider({
   }, [ingest]);
 
   const actions = useMemo<PlayerActions>(
-    () => ({ play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination }),
-    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination]
+    () => ({ play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed }),
+    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed]
   );
 
   return (

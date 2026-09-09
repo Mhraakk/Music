@@ -778,6 +778,56 @@ async function verifyConverse() {
   check(home.length < 900_000, "homepage stayed under 900KB after Ask", `${Math.round(home.length / 1024)} KB`);
 }
 
+async function verifyNuclear() {
+  section("Nuclear free listen");
+
+  const listed = await rpc("tools/list", {});
+  const names = listed.tools.map((t) => t.name);
+  check(names.includes("list_methods"), "MCP exposes Nuclear list_methods");
+  check(names.includes("call"), "MCP exposes Nuclear call");
+  check(names.includes("nuclear_search_stream"), "MCP exposes nuclear_search_stream");
+
+  const methods = await callTool("list_methods", { domain: "Streaming" });
+  check(
+    JSON.stringify(methods).includes("searchForTrack"),
+    "Streaming domain lists searchForTrack"
+  );
+
+  const resolved = await fetch(`${BASE}/api/stream/nuclear?artist=Radiohead&title=Creep`).then((r) => r.json());
+  check(resolved.ok === true && Boolean(resolved.stream?.videoId), "Nuclear resolve returns a YouTube video", resolved.stream?.videoId ?? resolved.note);
+  check(resolved.stream?.protocol === "youtube-embed", "stream protocol is youtube-embed", resolved.stream?.protocol);
+  check(/^https:\/\/www\.youtube/.test(resolved.stream?.watchUrl ?? ""), "watch URL is YouTube");
+
+  const mcp = await fetch(`${BASE}/mcp`).then((r) => r.json());
+  check(typeof mcp.local === "string" && mcp.local.includes("8800"), "MCP discovery names the Nuclear localhost port");
+
+  const nuclearInit = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18", clientInfo: { name: "verify-drift-engine", version: "1.0.0" } },
+    }),
+  }).then((r) => r.json());
+  check(nuclearInit.result?.serverInfo?.name === "resonant-nuclear", "POST /mcp initialize is Nuclear-shaped");
+  const nuclearTools = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
+  }).then((r) => r.json());
+  const nuclearNames = (nuclearTools.result?.tools ?? []).map((t) => t.name);
+  check(nuclearNames.includes("list_methods") && nuclearNames.includes("call"), "POST /mcp tools/list exposes Nuclear tools");
+  check(nuclearNames.length === 4, "Nuclear MCP surface is the four discovery tools", String(nuclearNames.length));
+
+  const called = await callTool("call", { method: "Streaming.searchForTrack", params: { artist: "Radiohead", title: "Creep" } });
+  check(Boolean(called?.stream?.videoId || called?.ok), "call Streaming.searchForTrack returns a stream");
+
+  const skip = await rpc("tools/call", { name: "call", arguments: { method: "Queue.goToNext" } });
+  check(skip.isError === true, "Queue.goToNext is refused — Resonant has no skip");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -791,6 +841,7 @@ try {
   await verifyProductSurface();
   await verifyFavoriteCirculation();
   await verifyConverse();
+  await verifyNuclear();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);
