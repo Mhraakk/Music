@@ -99,12 +99,24 @@ function fromHit(hit: LrclibHit | null, artist: string, title: string): LyricsRe
   };
 }
 
+function cleanQuery(raw: string): string {
+  return raw
+    .replace(/\b(lyrics?|lyric|lrc)\b/gi, " ")
+    .replace(/متن(\s+این)?(\s+آهنگ)?/g, " ")
+    .replace(/لیریک|کلمات آهنگ|كلمات آهنگ/g, " ")
+    .replace(/این آهنگ|همین آهنگ/g, " ")
+    .replace(/\b(please|show|me|the|for|this|that|song|track|words|of)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function fetchLyrics(input: { artist?: string; title?: string; query?: string }): Promise<LyricsResult> {
   const artist = (input.artist ?? "").trim();
   const title = (input.title ?? "").trim();
   const query = (input.query ?? "").trim();
-  const who = artist || query;
-  const song = title || query;
+  const cleaned = cleanQuery(query);
+  const who = artist || cleaned || query;
+  const song = title || cleaned || query;
   if (!who && !song) {
     return { ok: false, artist: "", title: "", source: null, synced: false, lines: [], note: "Name an artist and title." };
   }
@@ -117,7 +129,8 @@ export async function fetchLyrics(input: { artist?: string; title?: string; quer
     if (parsed) return parsed;
   }
 
-  const q = [artist, title].filter(Boolean).join(" ") || query;
+  const named = [artist, title].filter(Boolean).join(" ");
+  const q = artist && title ? named : cleaned || named || query;
   const found = (await lrclib(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`)) as LrclibHit[] | null;
   const first = Array.isArray(found) ? found.find((row) => row.syncedLyrics || row.plainLyrics) : null;
   const parsed = fromHit(first ?? null, artist, title);

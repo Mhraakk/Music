@@ -81,6 +81,10 @@ const VERB_STOP = new Set([
   "make",
   "set",
   "list",
+  "lyrics",
+  "lyric",
+  "lrc",
+  "words",
   "quiet",
   "night",
   "i",
@@ -152,6 +156,20 @@ const GREETING = /^(سلام|درود|هی+|hello|hi+|hey)[\s!?.]*$/i;
 
 export function wantsLyrics(text: string): boolean {
   return /\b(lyrics?|lyric|lrc)\b/i.test(text) || /متن(\s+این)?(\s+آهنگ)?|لیریک|کلمات آهنگ|كلمات آهنگ/.test(text);
+}
+
+/** Named recording inside a lyrics ask, or null to use whatever is playing. */
+export function lyricsSubject(text: string): string | null {
+  const stripped = text
+    .replace(/\b(lyrics?|lyric|lrc)\b/gi, " ")
+    .replace(/متن(\s+این)?(\s+آهنگ)?/g, " ")
+    .replace(/لیریک|کلمات آهنگ|كلمات آهنگ/g, " ")
+    .replace(/این آهنگ|همین آهنگ/g, " ")
+    .replace(/\b(please|show|me|the|for|this|that|song|track|words|of)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!stripped) return null;
+  return namedArtistQuery(stripped) || latinCore(stripped) || stripped;
 }
 
 export function wantsPlayback(text: string): boolean {

@@ -13,11 +13,13 @@ export function LyricsStage({
   synced: boolean;
 }) {
   const active = useRef<HTMLLIElement | null>(null);
-  let current = 0;
+  let current = -1;
   if (synced) {
     for (let i = 0; i < lines.length; i += 1) {
       if (lines[i].timeMs <= elapsedMs) current = i;
     }
+  } else if (lines.length) {
+    current = Math.min(lines.length - 1, Math.max(0, Math.floor(elapsedMs / 4000)));
   }
 
   useEffect(() => {

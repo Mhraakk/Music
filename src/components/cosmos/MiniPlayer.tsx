@@ -29,6 +29,7 @@ export function MiniPlayer() {
   const [expanded, setExpanded] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
+  const [lyricsStatus, setLyricsStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const yt = current ? youtubeVideoId(current) : null;
   const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
@@ -45,18 +46,31 @@ export function MiniPlayer() {
   useEffect(() => {
     if (!current) {
       setLyricLines([]);
+      setLyricsStatus("idle");
       return;
     }
     let cancelled = false;
     setLyricLines([]);
+    setLyricsStatus("loading");
     void fetch(`/api/lyrics?artist=${encodeURIComponent(current.artist)}&title=${encodeURIComponent(current.title)}`)
       .then((r) => r.json())
       .then((payload: { ok?: boolean; synced?: boolean; lines?: LyricLine[] }) => {
-        if (cancelled || !payload.ok || !Array.isArray(payload.lines)) return;
+        if (cancelled) return;
+        if (!payload.ok || !Array.isArray(payload.lines) || payload.lines.length === 0) {
+          setLyricLines([]);
+          setLyricsStatus("empty");
+          return;
+        }
         setLyricLines(payload.lines);
         setLyricsSynced(payload.synced === true);
+        setLyricsStatus("ready");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) {
+          setLyricLines([]);
+          setLyricsStatus("error");
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -245,10 +259,15 @@ export function MiniPlayer() {
               : "Turn the volume up when a voice is at its most exposed — that’s the signal we listen for."}
           </p>
 
-          {lyricLines.length > 0 && (
+          {lyricsStatus !== "idle" && (
             <div className="mt-4 border-t border-[var(--hairline)] pt-3">
               <p className="cx-meta mb-1">Lyrics</p>
-              <LyricsStage lines={lyricLines} elapsedMs={elapsed * 1000} synced={lyricsSynced} />
+              {lyricsStatus === "ready" && (
+                <LyricsStage lines={lyricLines} elapsedMs={elapsed * 1000} synced={lyricsSynced} />
+              )}
+              {lyricsStatus === "loading" && <p className="cx-meta">Looking up published lyrics…</p>}
+              {lyricsStatus === "empty" && <p className="cx-meta">No published lyrics for this recording yet.</p>}
+              {lyricsStatus === "error" && <p className="cx-meta">Lyrics could not be reached just now.</p>}
             </div>
           )}
 

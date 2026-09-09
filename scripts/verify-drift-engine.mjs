@@ -665,6 +665,7 @@ async function verifyConverse() {
   check(talk.includes("Ask"), "Ask page is reachable");
   check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
   check(/ChatGPT|OpenAI/.test(talk), "Ask page explains the ChatGPT key field");
+  check(/lyrics|متن/i.test(talk), "Ask page mentions lyrics");
   check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
 
   async function turn(text) {
@@ -862,6 +863,18 @@ async function verifyCyreneLyrics() {
   check(asked.ok === true, "Ask answers a lyrics request");
   check(!asked.effects?.some((e) => e.type === "play"), "lyrics request does not start a new play");
   check(/when you were here before|you're just like a dream|whatever makes you happy/i.test(asked.reply ?? ""), "Ask quotes published Creep lyrics, not invented ones");
+
+  const named = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "lyrics for Radiohead Creep" }],
+      session: { sessionId: "verify-lyrics-named", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(named.ok === true, "Ask answers a named lyrics request without a current track");
+  check(!named.effects?.some((e) => e.type === "play"), "named lyrics request does not start a new play");
+  check(/when you were here before|i'm a creep|whatever makes you happy/i.test(named.reply ?? ""), "named lyrics request quotes Creep");
 }
 
 try {

@@ -17,6 +17,7 @@ import {
   extractKinArtist,
   interpretLocal,
   isGreeting,
+  lyricsSubject,
   namedArtistQuery,
   wantsLyrics,
   wantsPlayback,
@@ -247,13 +248,13 @@ export async function fulfillLocally(
       break;
     }
     case "lyrics": {
-      const named = namedArtistQuery(userText);
+      const named = lyricsSubject(userText);
       await executeConverseTool(
         "fetch_lyrics",
         {
-          artist: session.currentArtist || named || "",
-          title: session.currentTitle || "",
-          query: intent.query,
+          artist: named ? "" : session.currentArtist || "",
+          title: named ? "" : session.currentTitle || "",
+          query: named || intent.query,
         },
         ctx
       );
@@ -395,12 +396,13 @@ export async function converse(input: {
 
   const corrected = await preferNamedKin(ctx, userText);
   if (wantsLyrics(userText)) {
+    const named = lyricsSubject(userText);
     await executeConverseTool(
       "fetch_lyrics",
       {
-        artist: ctx.session.currentArtist || namedArtistQuery(userText) || "",
-        title: ctx.session.currentTitle || "",
-        query: userText,
+        artist: named ? "" : ctx.session.currentArtist || "",
+        title: named ? "" : ctx.session.currentTitle || "",
+        query: named || userText,
       },
       ctx
     );
