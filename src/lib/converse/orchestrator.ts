@@ -1,19 +1,28 @@
 /**
  * ASK ORCHESTRATOR
  *
- * Gemini function-calling loop. find_music searches Deezer, YouTube, YouTube
- * Music, SoundCloud and Apple. The Resonant catalog is optional. If no key is
- * present, the same tools still run so the listener is never stranded.
+ * ChatGPT (OpenAI) preferred when a key is present, then Gemini, then local
+ * Apple-first search. Tools search Apple Music first. YouTube is for official
+ * videos/trailers, not the default catalog.
  */
 
 import { geminiGenerate, geminiModel, resolveGeminiApiKey, type GeminiContent } from "@/lib/mcp/gemini";
+import { openaiGenerate, openaiModel, resolveOpenAiApiKey, type OpenAiMessage } from "@/lib/mcp/openai";
 import { CONVERSE_SYSTEM, localSuggestions, sessionBlock } from "./prompt";
 import { CONVERSE_TOOLS, createToolContext, executeConverseTool, type ToolContext } from "./tools";
 import { collection } from "@/lib/library";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
-import { detectLanguage, interpretLocal, isGreeting, wantsPlayback, type ListenerLanguage } from "./intent";
+import {
+  detectLanguage,
+  extractKinArtist,
+  interpretLocal,
+  isGreeting,
+  namedArtistQuery,
+  wantsPlayback,
+  type ListenerLanguage,
+} from "./intent";
 import { sourceLabel } from "./anywhere";
-import type { ConverseMessage, ConverseResult, ConverseSession } from "./types";
+import type { ConverseMessage, ConverseResult, ConverseSession, ConverseSource } from "./types";
 
 const MAX_ROUNDS = 5;
 
@@ -39,6 +48,25 @@ function hasPlayEffect(ctx: ToolContext): boolean {
   return ctx.effects.some((e) => e.type === "play" || e.type === "queue");
 }
 
+function dropPlayback(ctx: ToolContext) {
+  ctx.effects = ctx.effects.filter((effect) => effect.type === "ingest");
+}
+
+async function preferNamedKin(ctx: ToolContext, userText: string): Promise<boolean> {
+  const kin = extractKinArtist(userText);
+  if (!kin || kin === "THIS") return false;
+  const play = ctx.effects.find((effect) => effect.type === "play");
+  const escaped = kin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const named = new RegExp(escaped, "i");
+  if (play && named.test(`${play.track.artist} ${play.track.title}`)) return false;
+  dropPlayback(ctx);
+  await executeConverseTool("find_related", { artist: kin, limit: 8 }, ctx);
+  if (ctx.lastSearch[0] && !hasPlayEffect(ctx)) {
+    await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+  }
+  return hasPlayEffect(ctx);
+}
+
 async function ensurePlayback(ctx: ToolContext, userText: string) {
   if (!wantsPlayback(userText) || hasPlayEffect(ctx)) return;
   if (ctx.lastSearch[0]) {
@@ -54,7 +82,17 @@ async function ensurePlayback(ctx: ToolContext, userText: string) {
     await executeConverseTool("play_alternative", {}, ctx);
     if (hasPlayEffect(ctx)) return;
   }
-  await executeConverseTool("find_music", { query: userText, limit: 8 }, ctx);
+  if (intent.kind === "related") {
+    const artist = intent.artist || ctx.session.currentArtist || namedArtistQuery(userText) || "";
+    if (artist) {
+      await executeConverseTool("find_related", { artist, limit: 8 }, ctx);
+      if (ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+    }
+    if (hasPlayEffect(ctx)) return;
+  }
+  await executeConverseTool("find_music", { query: namedArtistQuery(userText) || userText, limit: 8 }, ctx);
   if (ctx.lastSearch[0]) {
     await executeConverseTool(
       "play_tracks",
@@ -85,10 +123,10 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
   }
 
   if (isGreeting(userText) && lang === "fa") {
-    return "سلام. هر آهنگی بخواهی از یوتیوب، یوتیوب موزیک، ساوندکلاد یا دیزر پیدا می‌کنم — دهه ۹۰، یک اسم، هر چی. بگو تا بیاورم.";
+    return "سلام. بگو یک خواننده، یک آهنگ، یا دهه ۹۰ — اول از اپل موزیک می‌آورم. نماهنگ رسمی را هم اگر باشد نشان می‌دهم.";
   }
   if (isGreeting(userText)) {
-    return "Hi. Ask for any song — a decade, an artist, YouTube, SoundCloud, Deezer. I'll go get it.";
+    return "Hi. Name an artist, a song, or a decade — Apple Music first. Official videos come along as trailers.";
   }
 
   if (dest && lang === "fa") {
@@ -99,9 +137,9 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
   }
 
   if (lang === "fa") {
-    return `هنوز چیزی برای «${userText.slice(0, 80)}» پیدا نکردم. اسم آهنگ، خواننده، دهه یا منبع را بگو — یوتیوب، ساوندکلاد، دیزر.`;
+    return `هنوز چیزی برای «${userText.slice(0, 80)}» پیدا نکردم. اسم خواننده یا آهنگ را بگو — اول اپل موزیک.`;
   }
-  return `I haven't found a match for “${userText.slice(0, 80)}” yet. Name a song, artist, decade, or a source — YouTube, SoundCloud, Deezer.`;
+  return `I haven't found a match for “${userText.slice(0, 80)}” yet. Name an artist or song — Apple Music first.`;
 }
 
 export async function fulfillLocally(
@@ -127,8 +165,43 @@ export async function fulfillLocally(
         ctx
       );
       break;
+    case "related": {
+      const artist = intent.artist || session.currentArtist || "";
+      if (artist) {
+        await executeConverseTool(
+          "find_related",
+          {
+            artist,
+            title: session.currentTitle || undefined,
+            limit: 8,
+          },
+          ctx
+        );
+      }
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+      if (!hasPlayEffect(ctx) && artist) {
+        await executeConverseTool("find_music", { query: artist, limit: 8 }, ctx);
+        if (ctx.lastSearch[0]) {
+          await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+        }
+      }
+      break;
+    }
     case "expand":
-      await executeConverseTool("expand_taste", { play: true }, ctx);
+      await executeConverseTool(
+        "find_related",
+        {
+          artist: session.currentArtist || userText,
+          title: session.currentTitle || undefined,
+          limit: 8,
+        },
+        ctx
+      );
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
       break;
     case "alternative":
       await executeConverseTool("play_alternative", {}, ctx);
@@ -138,16 +211,18 @@ export async function fulfillLocally(
       if (
         intent.room &&
         intent.kind === "play" &&
+        !namedArtistQuery(intent.query) &&
         !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(intent.query)
       ) {
         await executeConverseTool("start_station", { room: intent.room }, ctx);
       }
       if (!hasPlayEffect(ctx)) {
-        await executeConverseTool("find_music", { query: intent.query, limit: 8 }, ctx);
+        const query = namedArtistQuery(intent.query) || intent.query;
+        await executeConverseTool("find_music", { query, limit: 8 }, ctx);
         if (ctx.lastSearch.length) {
           await executeConverseTool(
             "play_tracks",
-            { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: intent.query.slice(0, 48) },
+            { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: query.slice(0, 48) },
             ctx
           );
         }
@@ -174,7 +249,7 @@ export async function fulfillLocally(
     model: null,
     effects: ctx.effects,
     suggestions: localSuggestions(lang),
-    note: isGreeting(userText) ? undefined : "Gemini is not in this turn — open search still ran.",
+    note: isGreeting(userText) ? undefined : "No model key this turn — Apple Music search still ran.",
   };
 }
 
@@ -182,6 +257,7 @@ export async function converse(input: {
   messages: ConverseMessage[];
   session: ConverseSession;
   apiKey?: string | null;
+  openaiKey?: string | null;
 }): Promise<ConverseResult> {
   const messages = input.messages.filter((m) => m.text.trim()).slice(-12);
   const userText = lastUserText(messages);
@@ -190,71 +266,111 @@ export async function converse(input: {
     return {
       ok: true,
       source: "local",
-      reply: "Ask for a song, a decade, an artist, or a mix — from anywhere.",
+      reply: "Ask for a song, a decade, an artist — Apple Music first.",
       model: null,
       effects: [],
       suggestions: localSuggestions(lang),
     };
   }
 
-  const key = resolveGeminiApiKey(input.apiKey);
-  if (!key) {
+  const openaiKey = resolveOpenAiApiKey(input.openaiKey);
+  const geminiKey = resolveGeminiApiKey(input.apiKey);
+  const provider: ConverseSource | "none" = openaiKey ? "openai" : geminiKey ? "gemini" : "none";
+  if (provider === "none") {
     return fulfillLocally(messages, input.session);
   }
 
   const ctx = createToolContext(input.session);
-  const contents = contentsFrom(messages);
   const system = `${CONVERSE_SYSTEM}\n\n${sessionBlock(input.session)}`;
   let lastText = "";
-  let modelName: string | null = geminiModel();
+  let modelName: string | null = provider === "openai" ? openaiModel() : geminiModel();
   let lastError: string | null = null;
 
-  for (let round = 0; round < MAX_ROUNDS; round += 1) {
-    const lastRound = round === MAX_ROUNDS - 1;
-    const outcome = await geminiGenerate({
-      system,
-      contents,
-      tools: CONVERSE_TOOLS,
-      toolMode: lastRound ? "NONE" : "AUTO",
-      temperature: 0.65,
-      timeoutMs: 18000,
-      apiKey: key,
-    });
+  if (provider === "openai") {
+    const history: OpenAiMessage[] = messages.slice(-12).map((message) => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: message.text,
+    }));
 
-    if (!outcome.ok) {
-      lastError = outcome.reason;
-      break;
-    }
-
-    modelName = outcome.model;
-    lastText = outcome.text;
-
-    if (!outcome.functionCalls.length) {
-      break;
-    }
-
-    contents.push({ role: "model", parts: outcome.parts });
-
-    const responseParts = [];
-    for (const call of outcome.functionCalls.slice(0, 4)) {
-      const result = await executeConverseTool(call.name, call.args, ctx);
-      responseParts.push({
-        functionResponse: {
-          name: call.name,
-          response: result,
-          ...(call.id ? { id: call.id } : {}),
-        },
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      const lastRound = round === MAX_ROUNDS - 1;
+      const outcome = await openaiGenerate({
+        system,
+        messages: history,
+        tools: lastRound ? undefined : CONVERSE_TOOLS,
+        toolChoice: lastRound ? "none" : "auto",
+        temperature: 0.4,
+        timeoutMs: 22000,
+        apiKey: openaiKey,
       });
+
+      if (!outcome.ok) {
+        lastError = outcome.reason;
+        break;
+      }
+
+      modelName = outcome.model;
+      lastText = outcome.text;
+
+      if (!outcome.functionCalls.length) break;
+
+      history.push(outcome.assistantMessage);
+      for (const call of outcome.functionCalls.slice(0, 4)) {
+        const result = await executeConverseTool(call.name, call.args, ctx);
+        history.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: JSON.stringify(result),
+        });
+      }
     }
-    contents.push({ role: "user", parts: responseParts });
+  } else {
+    const contents = contentsFrom(messages);
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      const lastRound = round === MAX_ROUNDS - 1;
+      const outcome = await geminiGenerate({
+        system,
+        contents,
+        tools: CONVERSE_TOOLS,
+        toolMode: lastRound ? "NONE" : "AUTO",
+        temperature: 0.45,
+        timeoutMs: 18000,
+        apiKey: geminiKey,
+      });
+
+      if (!outcome.ok) {
+        lastError = outcome.reason;
+        break;
+      }
+
+      modelName = outcome.model;
+      lastText = outcome.text;
+      if (!outcome.functionCalls.length) break;
+
+      contents.push({ role: "model", parts: outcome.parts });
+      const responseParts = [];
+      for (const call of outcome.functionCalls.slice(0, 4)) {
+        const result = await executeConverseTool(call.name, call.args, ctx);
+        responseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: result,
+            ...(call.id ? { id: call.id } : {}),
+          },
+        });
+      }
+      contents.push({ role: "user", parts: responseParts });
+    }
   }
 
+  const corrected = await preferNamedKin(ctx, userText);
   await ensurePlayback(ctx, userText);
+  if (corrected) lastText = "";
 
   if (lastText.trim()) {
     return {
       ok: true,
-      source: "gemini",
+      source: provider,
       reply: lastText.trim(),
       model: modelName,
       effects: ctx.effects,
@@ -266,19 +382,19 @@ export async function converse(input: {
     const lang = detectLanguage(userText);
     return {
       ok: true,
-      source: lastError ? "local" : "gemini",
+      source: lastError ? "local" : provider,
       reply: replyForLocal(lang, ctx, userText),
       model: modelName,
       effects: ctx.effects,
       suggestions: localSuggestions(lang),
-      note: lastError ? `Gemini stopped early (${lastError}).` : undefined,
+      note: lastError ? `Model stopped early (${lastError}).` : undefined,
     };
   }
 
   const local = await fulfillLocally(messages, input.session);
   return {
     ...local,
-    note: lastError ? `Gemini unavailable (${lastError}). Open search continued.` : local.note,
+    note: lastError ? `Model unavailable (${lastError}). Apple Music search continued.` : local.note,
   };
 }
 

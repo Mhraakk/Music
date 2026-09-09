@@ -1,10 +1,8 @@
 /**
  * OPEN MUSIC SEARCH
  *
- * Ask is not locked to Resonant's shelf. Deezer, YouTube, YouTube Music,
- * SoundCloud and iTunes are queried in parallel from the listener's own words
- * — decades, genres, artists, Persian or English. Hits become session tracks
- * the player can preview or open; they are never written into the shared catalog.
+ * Apple Music first. YouTube is for official videos/trailers, or when the
+ * listener named YouTube. Iranian-script hits are skipped unless asked.
  */
 
 import {
@@ -13,9 +11,13 @@ import {
   cinematicSpace,
   describeVector,
 } from "@/lib/drift/ontology";
-import { TOPOGRAPHY } from "@/lib/drift/topography";
+import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
+import { artistAgrees } from "@/lib/drift/expansion/project";
 import { fallbackColor, hexToRgb, overlayMedia, rgbToHsl } from "@/lib/media";
 import type { LibraryTrack } from "@/lib/library";
+import { latinCore, namedArtistQuery } from "./intent";
+import { matchRoom } from "./rooms";
+import { ROOM_LIVE_PROBES } from "./probes";
 
 export type MusicSource = "deezer" | "youtube" | "youtube_music" | "soundcloud" | "apple";
 
@@ -29,6 +31,7 @@ export type FoundHit = {
   artworkUrl: string | null;
   openUrl: string;
   externalId: string;
+  videoId?: string | null;
 };
 
 const TIMEOUT_MS = 4500;
@@ -55,7 +58,8 @@ export function sourceLabel(source: string | undefined): string | null {
   return SOURCE_LABEL[source as MusicSource] ?? source;
 }
 
-export function youtubeVideoId(track: Pick<LibraryTrack, "id" | "openUrl">): string | null {
+export function youtubeVideoId(track: Pick<LibraryTrack, "id" | "openUrl" | "videoId">): string | null {
+  if (track.videoId && /^[A-Za-z0-9_-]{11}$/.test(track.videoId)) return track.videoId;
   if (track.id.startsWith("w-yt-") || track.id.startsWith("w-ym-")) {
     return track.id.replace(/^w-y[tm]-/, "") || null;
   }
@@ -66,6 +70,18 @@ export function youtubeVideoId(track: Pick<LibraryTrack, "id" | "openUrl">): str
 
 export function isSoundcloudTrack(track: Pick<LibraryTrack, "id" | "openUrl" | "foundVia">): boolean {
   return track.foundVia === "soundcloud" || track.id.startsWith("w-sc-") || /soundcloud\.com/i.test(track.openUrl ?? "");
+}
+
+export function wantsIranian(query: string): boolean {
+  return /ایرانی|ايرانى|گلچین ایرانی|persian music|farsi|فارسی/i.test(query);
+}
+
+export function wantsYoutube(query: string): boolean {
+  return /youtube|youtu\.be|یوتیوب/i.test(query);
+}
+
+export function wantsSoundcloud(query: string): boolean {
+  return /soundcloud|ساوندک?لاد/i.test(query);
 }
 
 function searchQueries(raw: string): string[] {
@@ -87,15 +103,57 @@ function searchQueries(raw: string): string[] {
   if (/دهه\s*۲۰۰۰|دهه\s*2000|دهه هشتاد شمسی|دهه\s*۸۰ شمسی/i.test(q) || /\b2000s\b|\by2k\b/.test(q)) {
     extra.push("2000s pop hits", "2000s hits");
   }
-  if (/یوتیوب موزیک|youtube music/i.test(q)) extra.push(q.replace(/یوتیوب موزیک|youtube music/gi, "").trim() || q);
-  if (/ساوندکلاد|ساوند کلاد|soundcloud/i.test(q)) extra.push(q.replace(/ساوندک?لاد|soundcloud/gi, "").trim() || q);
-  const out = [...extra, q].map((s) => s.trim()).filter(Boolean);
-  return [...new Set(out)].slice(0, 3);
+
+  const named = namedArtistQuery(q);
+  const room = named ? null : matchRoom(q);
+  if (room && extra.length === 0) {
+    extra.push(...(ROOM_LIVE_PROBES[room as CoordinateId] ?? []).slice(0, 2));
+  }
+
+  if (wantsIranian(q)) {
+    return [...new Set([q, ...extra, named, latinCore(q)].filter((s): s is string => Boolean(s)))].slice(0, 3);
+  }
+  const out = [...extra, named].filter((s): s is string => Boolean(s)).map((s) => s.trim());
+  return [...new Set(out.filter(Boolean))].slice(0, 3);
+}
+
+function looksLikeArtistName(query: string): boolean {
+  const q = query.trim();
+  const words = q.split(/\s+/).filter(Boolean);
+  if (!q || words.length > 3) return false;
+  return !/\d0s|\d{4}|hits|official|video|trailer|playlist|mix/i.test(q);
+}
+
+function recordingIsBy(probe: string, artist: string): boolean {
+  if (artistAgrees(probe, artist)) return true;
+  const a = probe.trim().toLowerCase();
+  const b = artist.trim().toLowerCase();
+  if (!a || !b) return false;
+  return b === a || b.startsWith(`${a} &`) || b.startsWith(`${a} feat`) || b.startsWith(`${a},`);
+}
+
+function preferArtistHits(hits: FoundHit[], artist: string, exclusive = false): FoundHit[] {
+  const needle = artist.trim();
+  if (needle.length < 2) return hits;
+  const matched: FoundHit[] = [];
+  const rest: FoundHit[] = [];
+  for (const hit of hits) {
+    if (recordingIsBy(needle, hit.artist)) matched.push(hit);
+    else rest.push(hit);
+  }
+  if (exclusive) return matched;
+  return matched.length ? [...matched, ...rest] : hits;
+}
+
+function hasPersianScript(value: string): boolean {
+  return /[\u0600-\u06FF]/.test(value);
 }
 
 function junkHit(hit: FoundHit): boolean {
   const blob = `${hit.title} ${hit.artist}`.toLowerCase();
-  return /karaoke|santa style|nightcore|8d audio|slowed\s*&\s*reverb|lullaby version/i.test(blob);
+  return /karaoke|santa style|nightcore|8d audio|slowed\s*&\s*reverb|lullaby version|tribute|party tyme|smoking u\b/i.test(
+    blob
+  );
 }
 
 function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -179,31 +237,67 @@ async function searchDeezer(query: string, limit: number): Promise<FoundHit[]> {
   return hits;
 }
 
-async function searchApple(query: string, limit: number): Promise<FoundHit[]> {
+function appleHitFromRow(row: Record<string, unknown>): FoundHit | null {
+  const title = typeof row.trackName === "string" ? row.trackName : "";
+  const artist = typeof row.artistName === "string" ? row.artistName : "";
+  const id = row.trackId != null ? String(row.trackId) : "";
+  if (!title || !artist || !id) return null;
+  const art =
+    typeof row.artworkUrl100 === "string"
+      ? row.artworkUrl100.replace(/\/\d+x\d+[a-z]*\.jpg$/i, "/600x600bb.jpg")
+      : null;
+  return {
+    source: "apple",
+    title,
+    artist,
+    album: typeof row.collectionName === "string" ? row.collectionName : null,
+    duration: typeof row.trackTimeMillis === "number" ? Math.round(row.trackTimeMillis / 1000) : 30,
+    previewUrl: typeof row.previewUrl === "string" ? row.previewUrl : null,
+    artworkUrl: art,
+    openUrl: typeof row.trackViewUrl === "string" ? row.trackViewUrl : `https://music.apple.com/us/song/${id}`,
+    externalId: id,
+  };
+}
+
+async function searchApple(query: string, limit: number, artistTerm = false): Promise<FoundHit[]> {
+  const attr = artistTerm ? "&attribute=artistTerm" : "";
   const payload = (await fetchJson(
-    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=${Math.min(25, limit * 2)}`
+    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=${Math.min(25, limit * 2)}${attr}`
   )) as { results?: Record<string, unknown>[] } | null;
   const hits: FoundHit[] = [];
   for (const row of payload?.results ?? []) {
-    const title = typeof row.trackName === "string" ? row.trackName : "";
-    const artist = typeof row.artistName === "string" ? row.artistName : "";
-    const id = row.trackId != null ? String(row.trackId) : "";
-    if (!title || !artist || !id) continue;
-    const art = typeof row.artworkUrl100 === "string" ? row.artworkUrl100.replace(/\/\d+x\d+[a-z]*\.jpg$/i, "/600x600bb.jpg") : null;
-    hits.push({
-      source: "apple",
-      title,
-      artist,
-      album: typeof row.collectionName === "string" ? row.collectionName : null,
-      duration: typeof row.trackTimeMillis === "number" ? Math.round(row.trackTimeMillis / 1000) : 30,
-      previewUrl: typeof row.previewUrl === "string" ? row.previewUrl : null,
-      artworkUrl: art,
-      openUrl: typeof row.trackViewUrl === "string" ? row.trackViewUrl : `https://music.apple.com/us/song/${id}`,
-      externalId: id,
-    });
+    const hit = appleHitFromRow(row);
+    if (!hit) continue;
+    hits.push(hit);
     if (hits.length >= limit) break;
   }
   return hits;
+}
+
+async function appleSongsByArtist(artist: string, limit: number): Promise<FoundHit[]> {
+  const people = (await fetchJson(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&entity=musicArtist&limit=8`
+  )) as { results?: Record<string, unknown>[] } | null;
+  const rows = people?.results ?? [];
+  const match = rows.find((row) => recordingIsBy(artist, String(row.artistName ?? "")));
+  const artistId = match?.artistId != null ? String(match.artistId) : "";
+  if (artistId) {
+    const lookup = (await fetchJson(
+      `https://itunes.apple.com/lookup?id=${encodeURIComponent(artistId)}&entity=song&limit=${Math.min(20, limit + 1)}`
+    )) as { results?: Record<string, unknown>[] } | null;
+    const songs: FoundHit[] = [];
+    for (const row of lookup?.results ?? []) {
+      if (row.wrapperType === "artist") continue;
+      const hit = appleHitFromRow(row);
+      if (!hit || !recordingIsBy(artist, hit.artist)) continue;
+      songs.push(hit);
+      if (songs.length >= limit) break;
+    }
+    if (songs.length) return songs;
+  }
+  const focused = (await searchApple(artist, limit * 2, true)).filter((hit) => recordingIsBy(artist, hit.artist));
+  if (focused.length) return focused.slice(0, limit);
+  return (await searchApple(artist, limit * 2)).filter((hit) => recordingIsBy(artist, hit.artist)).slice(0, limit);
 }
 
 function collectVideoIds(node: unknown, into: string[], cap = 24) {
@@ -431,6 +525,8 @@ function toLibraryTrack(hit: FoundHit): LibraryTrack {
     origin: "expansion",
     foundVia: hit.source,
     openUrl: hit.openUrl,
+    videoId: hit.videoId ?? null,
+    videoUrl: hit.videoId ? `https://www.youtube.com/watch?v=${hit.videoId}` : null,
   };
 }
 
@@ -457,50 +553,123 @@ function interleave(groups: FoundHit[][], limit: number): FoundHit[] {
   return out;
 }
 
-function orderGroups(query: string, apple: FoundHit[], deezer: FoundHit[], youtubeMusic: FoundHit[], soundcloud: FoundHit[], youtube: FoundHit[]): FoundHit[][] {
-  const q = query.toLowerCase();
-  const named: FoundHit[][] = [];
-  if (/youtube music|یوتیوب موزیک/.test(q)) named.push(youtubeMusic);
-  else if (/youtube|youtu\.be|یوتیوب/.test(q)) named.push(youtube, youtubeMusic);
-  if (/soundcloud|ساوندک?لاد/.test(q)) named.push(soundcloud);
-  if (/deezer|دیزر/.test(q)) named.push(deezer);
-  if (/apple|itunes|اپل/.test(q)) named.push(apple);
-  const rest = [apple, deezer, youtubeMusic, soundcloud, youtube];
-  const seen = new Set<FoundHit[]>();
-  const out: FoundHit[][] = [];
-  for (const group of [...named, ...rest]) {
-    if (seen.has(group)) continue;
-    seen.add(group);
-    out.push(group);
+function orderGroups(
+  query: string,
+  apple: FoundHit[],
+  deezer: FoundHit[],
+  youtubeMusic: FoundHit[],
+  soundcloud: FoundHit[],
+  youtube: FoundHit[]
+): FoundHit[][] {
+  if (wantsYoutube(query) && !/apple|itunes|اپل/i.test(query)) {
+    return [youtube, youtubeMusic, apple, deezer, soundcloud];
   }
-  return out;
+  if (wantsSoundcloud(query)) {
+    return [soundcloud, apple, deezer, youtubeMusic, youtube];
+  }
+  if (/deezer|دیزر/i.test(query)) {
+    return [deezer, apple, youtubeMusic, youtube, soundcloud];
+  }
+  return [apple, deezer, youtubeMusic, soundcloud, youtube];
 }
 
-export async function findMusic(query: string, limit = 10): Promise<LibraryTrack[]> {
+export async function officialVideo(artist: string, title: string): Promise<string | null> {
+  const query = `${artist} ${title} official video`.replace(/\s+/g, " ").trim();
+  const hits = await innertubeSearch("youtube", query, 3).catch(() => [] as FoundHit[]);
+  const official = hits.find((h) => /official|vevo|topic/i.test(`${h.title} ${h.artist}`));
+  return official?.externalId ?? hits[0]?.externalId ?? null;
+}
+
+async function attachTrailers(tracks: LibraryTrack[], cap = 4): Promise<LibraryTrack[]> {
+  const targets = tracks.filter((t) => t.foundVia === "apple" && !t.videoId).slice(0, cap);
+  await Promise.all(
+    targets.map(async (track) => {
+      const id = await withBudget(officialVideo(track.artist, track.title), 4000, null);
+      if (!id) return;
+      track.videoId = id;
+      track.videoUrl = `https://www.youtube.com/watch?v=${id}`;
+    })
+  );
+  return tracks;
+}
+
+export type FindMusicOptions = {
+  appleOnly?: boolean;
+  room?: CoordinateId;
+  attachVideo?: boolean;
+  artistFocus?: boolean;
+};
+
+export async function findMusic(query: string, limit = 10, options: FindMusicOptions = {}): Promise<LibraryTrack[]> {
   const cap = Math.max(4, Math.min(12, limit));
-  const queries = searchQueries(query);
+  const queries =
+    options.artistFocus && query.trim() ? [query.trim()] : searchQueries(query);
   if (!queries.length) return [];
   const original = query.trim();
   const catalogQueries = queries.slice(0, 2);
   const namedQuery = queries[0];
+  const iranianOk = wantsIranian(original);
+  const youtubeNamed = wantsYoutube(original);
+  const soundcloudNamed = wantsSoundcloud(original);
+  const skipWeb = options.appleOnly === true;
+  const artistFocus = options.artistFocus === true || looksLikeArtistName(namedQuery);
 
-  const [deezerGroups, appleGroups, youtubeNamed, youtubeMusic, youtubeOriginal, soundcloud] = await Promise.all([
-    Promise.all(catalogQueries.map((q) => searchDeezer(q, cap).catch(() => [] as FoundHit[]))),
-    Promise.all(catalogQueries.map((q) => searchApple(q, cap).catch(() => [] as FoundHit[]))),
-    innertubeSearch("youtube", namedQuery, cap).catch(() => [] as FoundHit[]),
-    innertubeSearch("youtube_music", namedQuery, cap).catch(() => [] as FoundHit[]),
-    original !== namedQuery
-      ? innertubeSearch("youtube", original, cap).catch(() => [] as FoundHit[])
+  const [apple, deezer, youtube, youtubeMusic, soundcloud] = await Promise.all([
+    Promise.all(
+      catalogQueries.map((q) =>
+        (artistFocus && looksLikeArtistName(q) ? appleSongsByArtist(q, cap) : searchApple(q, cap)).catch(
+          () => [] as FoundHit[]
+        )
+      )
+    ).then((groups) => groups.flat()),
+    skipWeb
+      ? Promise.resolve([] as FoundHit[])
+      : Promise.all(catalogQueries.map((q) => searchDeezer(q, cap).catch(() => [] as FoundHit[]))).then((groups) =>
+          groups.flat()
+        ),
+    youtubeNamed && !skipWeb
+      ? innertubeSearch("youtube", namedQuery, cap).catch(() => [] as FoundHit[])
       : Promise.resolve([] as FoundHit[]),
-    withBudget(searchSoundCloud(namedQuery, cap).catch(() => [] as FoundHit[]), 5000, [] as FoundHit[]),
+    youtubeNamed && !skipWeb
+      ? innertubeSearch("youtube_music", namedQuery, cap).catch(() => [] as FoundHit[])
+      : Promise.resolve([] as FoundHit[]),
+    soundcloudNamed && !skipWeb
+      ? withBudget(searchSoundCloud(namedQuery, cap).catch(() => [] as FoundHit[]), 5000, [] as FoundHit[])
+      : Promise.resolve([] as FoundHit[]),
   ]);
 
-  const apple = appleGroups.flat();
-  const deezer = deezerGroups.flat();
-  const youtube = [...youtubeNamed, ...youtubeOriginal];
+  const keep = (hit: FoundHit) => {
+    if (junkHit(hit)) return false;
+    if (!iranianOk && (hasPersianScript(hit.title) || hasPersianScript(hit.artist))) return false;
+    return true;
+  };
+
   const mixed = interleave(
-    orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) => g.filter((h) => !junkHit(h))),
+    orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) =>
+      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", artistFocus)
+    ),
     cap
   );
-  return mixed.map(toLibraryTrack);
+
+  const withPreview = mixed.filter((h) => h.previewUrl);
+  const ordered = youtubeNamed || soundcloudNamed
+    ? mixed
+    : withPreview.length
+      ? [...withPreview, ...mixed.filter((h) => !h.previewUrl)]
+      : mixed;
+
+  const unique: FoundHit[] = [];
+  const seen = new Set<string>();
+  for (const hit of ordered) {
+    const key = keyOf(hit);
+    if (seen.has(key) || seen.has(hit.externalId)) continue;
+    seen.add(key);
+    seen.add(hit.externalId);
+    unique.push(hit);
+    if (unique.length >= cap) break;
+  }
+
+  const tracks = unique.map(toLibraryTrack);
+  if (options.attachVideo === false) return tracks;
+  return attachTrailers(tracks, 3);
 }

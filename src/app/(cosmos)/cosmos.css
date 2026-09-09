@@ -1196,6 +1196,28 @@ body:has(.cosmos) {
   flex: 1;
 }
 
+.cx-feeling-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cosmos button.cx-feeling-chip {
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(18, 15, 14, 0.65);
+  color: var(--ink-2);
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.cosmos button.cx-feeling-chip[data-active="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
 .cx-embed {
   display: block;
   width: 100%;

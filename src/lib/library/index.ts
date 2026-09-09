@@ -67,6 +67,9 @@ export type LibraryTrack = {
   foundVia?: "deezer" | "youtube" | "youtube_music" | "soundcloud" | "apple";
   /** Outbound page on that service. */
   openUrl?: string | null;
+  /** Official music video / trailer on YouTube, when we resolved one. */
+  videoId?: string | null;
+  videoUrl?: string | null;
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
