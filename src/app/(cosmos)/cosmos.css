@@ -360,15 +360,32 @@ body:has(.cosmos) {
 }
 
 .cx-hero-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.cx-hero-row::-webkit-scrollbar {
+  display: none;
+}
+
+.cx-hero-row > * {
+  flex: 0 0 72vw;
+  min-width: 0;
 }
 
 @media (min-width: 700px) {
   .cx-hero-row {
+    display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 24px;
+    overflow: visible;
+  }
+
+  .cx-hero-row > * {
+    flex: none;
   }
 }
 
@@ -730,7 +747,9 @@ body:has(.cosmos) {
   cursor: default;
 }
 
-.cx-pill {
+/* Element+class beats `.cosmos button { background: none; color: inherit }`. */
+.cosmos button.cx-pill,
+.cosmos a.cx-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -745,27 +764,39 @@ body:has(.cosmos) {
   transition: transform 120ms ease, opacity 120ms ease, background-color 160ms ease;
 }
 
-.cx-pill-primary {
+.cosmos button.cx-pill-primary,
+.cosmos a.cx-pill-primary {
   background: var(--accent);
   color: var(--accent-fg);
 }
 
-.cx-pill-primary:hover:not(:disabled) {
+.cosmos button.cx-pill-primary:hover:not(:disabled),
+.cosmos a.cx-pill-primary:hover {
   filter: brightness(1.08);
 }
 
-.cx-pill-dark {
+.cosmos button.cx-pill-dark,
+.cosmos a.cx-pill-dark {
   background: var(--ink);
   color: var(--ink-inverse);
 }
 
-.cx-pill-ghost {
+.cosmos button.cx-pill-ghost,
+.cosmos a.cx-pill-ghost {
   background: transparent;
   border: 1px solid var(--hairline-strong);
 }
 
-.cx-pill:active:not(:disabled) {
+.cosmos button.cx-pill:active:not(:disabled),
+.cosmos a.cx-pill:active {
   transform: scale(0.96);
+}
+
+.cosmos button.cx-icon-button[data-solid="true"] {
+  width: 40px;
+  height: 40px;
+  background: var(--ink);
+  color: var(--ink-inverse);
 }
 
 .cx-icon-button {
