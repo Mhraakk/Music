@@ -239,7 +239,7 @@ export function DiscoverSurface({
             </div>
             <FeaturedPicks tracks={topPicks.slice(0, 3)} />
             {topPicks.length > 3 && (
-              <div className="mt-6">
+              <div className="mt-12">
                 <AlbumRow tracks={topPicks.slice(3)} />
               </div>
             )}
@@ -305,31 +305,21 @@ export function DiscoverSurface({
 function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
   const { current, playing } = usePlayer();
   const { play } = usePlayerActions();
-  const [lead, ...rest] = tracks;
-  if (!lead) return null;
+  if (!tracks.length) return null;
 
   return (
     <div className="cx-feature-grid">
-      <TrackTile
-        track={lead}
-        size="lg"
-        active={current?.id === lead.id}
-        playing={current?.id === lead.id && playing}
-        onSelect={play}
-        priority
-      />
-      <div className="cx-feature-stack">
-        {rest.map((track) => (
-          <TrackTile
-            key={track.id}
-            track={track}
-            size="lg"
-            active={current?.id === track.id}
-            playing={current?.id === track.id && playing}
-            onSelect={play}
-          />
-        ))}
-      </div>
+      {tracks.map((track, index) => (
+        <TrackTile
+          key={track.id}
+          track={track}
+          size="lg"
+          active={current?.id === track.id}
+          playing={current?.id === track.id && playing}
+          onSelect={play}
+          priority={index === 0}
+        />
+      ))}
     </div>
   );
 }
