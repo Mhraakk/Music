@@ -15,12 +15,10 @@ export function SessionMind() {
     <section className="cx-section">
       <div className="cx-section-head">
         <h2 className="cx-title">Made for You</h2>
-        <div className="cx-section-side">
-          <p className="cx-body">The engine keeps drifting from how you listen. There is no skip.</p>
-          <Link href="/radio" className="cx-see-all">
-            Open Radio →
-          </Link>
-        </div>
+        <p className="cx-body">The engine keeps drifting from how you listen. There is no skip.</p>
+        <Link href="/radio" className="cx-see-all">
+          Open Radio
+        </Link>
       </div>
 
       <div className="cx-callout">
@@ -38,7 +36,7 @@ export function SessionMind() {
               ? cognition.source === "gemini-mcp"
                 ? "Chosen for you · verified"
                 : cognition.note
-              : "No genres, no charts, no next button — just the next right song."}
+              : "No genres, no charts, no next button. Just the next right song."}
           {reading ? ` · ${reading.mode === "deepen" ? "leaning in" : reading.mode === "prune" ? "moving on" : "exploring"}` : ""}
           {historyIds.length ? ` · ${historyIds.length} played` : ""}
         </p>

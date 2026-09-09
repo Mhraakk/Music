@@ -29,7 +29,7 @@ export function FeelingMap({
       </div>
       <p className="cx-meta mt-3 max-w-[62ch]">
         <span className="font-semibold text-[var(--ink-1)]">{active.label}.</span> {active.description} Refresh
-        harvests live Apple Music for this room — a new seed each time.
+        harvests live Apple Music for this room, a new seed each time.
       </p>
     </div>
   );

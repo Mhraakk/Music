@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AtlasArtistView } from "@/components/cosmos/AtlasArtistView";
 
 export const metadata: Metadata = {
-  title: "Artist — Resonant Atlas",
+  title: "Artist - Resonant Atlas",
 };
 
 export default async function AtlasArtistPage({

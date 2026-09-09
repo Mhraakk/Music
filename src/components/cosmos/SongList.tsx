@@ -64,7 +64,7 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
                 {showAlbum && (
                   <td className="hidden md:table-cell">
                     <span className="cx-truncate block max-w-[32ch] text-[var(--ink-3)]">
-                      {track.album ?? "—"}
+                      {track.album ?? "-"}
                     </span>
                   </td>
                 )}

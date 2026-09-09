@@ -10,11 +10,11 @@
   --color-shadow-moss: #93b799;
   --color-echo-green: #c4e4c9;
 
-  /* Typography */
-  --font-twk-lausanne: 'TWK Lausanne', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-pp-mondwest: 'PP Mondwest', ui-serif, Georgia, "Times New Roman", serif;
-  --font-editorial-new: 'Editorial New', ui-serif, Georgia, "Times New Roman", serif;
-  --font-times: 'Times', ui-serif, Georgia, "Times New Roman", serif;
+  /* Typography — Geist is the public substitute for TWK / Mondwest */
+  --font-twk-lausanne: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-pp-mondwest: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-editorial-new: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-times: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
 
   /* Typography — Scale */
   --text-caption: 11px;

@@ -5,10 +5,10 @@ import { AppShell } from "@/components/cosmos/AppShell";
 import "./cosmos.css";
 
 export const metadata: Metadata = {
-  title: "Listen Now — Resonant",
+  title: "Listen Now - Resonant",
   description:
     "A cognition-first music app with Apple Music clarity. No genres, no BPM, no popularity ranking. " +
-    "Browse songs, albums, artists and stations — the engine drifts from how you listen.",
+    "Browse songs, albums, artists and stations. The engine drifts from how you listen.",
 };
 
 export default function CosmosLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,5 @@
 /**
- * LISTEN NOW — York editorial hero, then the shelves.
+ * LISTEN NOW — York canvas, Taste Skill composition.
  */
 
 import Link from "next/link";
@@ -17,15 +17,13 @@ export default function ListenNowPage() {
     <>
       <section className="cx-hero">
         <p className="sr-only">Favorite Songs. Connect Apple Music.</p>
-        <p className="cx-kicker">Resonant</p>
         <h1 className="cx-display">Listen Now</h1>
         <p className="cx-hero-lede">
-          A broadsheet for listening. The atlas opens every electronic branch from Every Noise —
-          then Apple Music, Spotify, YouTube Music, and SoundCloud for the same recording.
+          Every Noise branches, then the same recording on Apple Music, Spotify, YouTube Music, and SoundCloud.
         </p>
         <div className="cx-hero-inserts" aria-hidden>
-          {topPicks.slice(0, 3).map((track) => (
-            <span key={track.id} className="cx-hero-insert">
+          {topPicks.slice(0, 2).map((track, index) => (
+            <span key={track.id} className="cx-hero-insert" data-size={index === 0 ? "wide" : "tall"}>
               {track.artworkUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={track.artworkUrl} alt="" />

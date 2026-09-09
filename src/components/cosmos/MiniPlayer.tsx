@@ -256,7 +256,7 @@ export function MiniPlayer() {
           <p className="cx-meta mt-2">
             {fragilityNow > 0.2
               ? "This is the most exposed moment in the track. Turn it up here and we’ll read it as a strong yes."
-              : "Turn the volume up when a voice is at its most exposed — that’s the signal we listen for."}
+              : "Turn the volume up when a voice is at its most exposed. That is the signal we listen for."}
           </p>
 
           {lyricsStatus !== "idle" && (

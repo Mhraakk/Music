@@ -4,8 +4,8 @@ import { curators } from "@/lib/library";
 import { songsLabel } from "@/lib/format";
 
 export const metadata = {
-  title: "Artists — Resonant",
-  description: "Artists Resonant is calibrated to — and the songs that sit closest to each.",
+  title: "Artists - Resonant",
+  description: "Artists Resonant is calibrated to, and the songs that sit closest to each.",
 };
 
 export default function ArtistsPage() {
@@ -16,8 +16,7 @@ export default function ArtistsPage() {
       <header className="cx-section-head">
         <h1 className="cx-display">Artists</h1>
         <p className="cx-body">
-          Seven reference artists. What you see under each name is the music that sits closest to
-          them — not a follower count, not a pitch.
+          Reference artists. Closest recordings, not a follower count.
         </p>
       </header>
 

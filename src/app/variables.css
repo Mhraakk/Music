@@ -20,14 +20,14 @@
   --color-slate-pill: #2bee4b;
   --color-iridescent-fade: #2bee4b;
 
-  /* Typography — Font Families */
-  --font-twk-lausanne: 'TWK Lausanne', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-pp-mondwest: 'PP Mondwest', ui-serif, Georgia, "Times New Roman", serif;
-  --font-editorial-new: 'Editorial New', ui-serif, Georgia, "Times New Roman", serif;
-  --font-times: 'Times', ui-serif, Georgia, "Times New Roman", serif;
+  /* Typography — Font Families (Geist stands in for the York licensed faces) */
+  --font-twk-lausanne: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-pp-mondwest: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-editorial-new: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-times: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
   --font-roobert: var(--font-twk-lausanne);
-  --font-raleway: var(--font-pp-mondwest);
-  --font-system-ui: 'Times', ui-serif, Georgia, "Times New Roman", serif;
+  --font-raleway: var(--font-twk-lausanne);
+  --font-system-ui: var(--font-loaded-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Typography — Scale */
   --text-caption: 11px;

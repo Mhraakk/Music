@@ -76,7 +76,7 @@ export function AtlasArtistView({ name }: { name: string }) {
       </p>
       <h1 className="cx-atlas-display">{page.artist.name}</h1>
       <p className="cx-body cx-atlas-lede">
-        Features from Every Noise, recordings from Apple Music. Tap any chip — a branch or a neighbour —
+        Features from Every Noise, recordings from Apple Music. Tap a branch or a neighbour
         and the next map opens. Links below are this person on each service.
       </p>
 
