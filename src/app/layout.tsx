@@ -3,9 +3,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Resonant — discover music by feeling",
+  title: "Resonant — Listen Now",
   description:
-    "A cognition-first music app. No genres, no BPM, no popularity ranking. " +
+    "A cognition-first music app with Apple Music clarity. No genres, no BPM, no popularity ranking. " +
     "The engine drifts from how you listen.",
 };
 

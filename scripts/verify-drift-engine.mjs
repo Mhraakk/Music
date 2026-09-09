@@ -550,7 +550,7 @@ async function verifyProductSurface() {
 
   const home = await fetch(`${BASE}/`).then((r) => r.text());
   check(!home.includes("Classic view"), "discover no longer leaks the retired classic app");
-  check(home.includes("Cognitive engine") || home.includes("Listen by feeling"), "discover speaks as the cognition app");
+  check(home.includes("Listen Now"), "home is Listen Now");
   check(home.length < 900_000, "homepage is no longer a 1.5MB catalog dump", `${Math.round(home.length / 1024)} KB`);
 
   const classic = await fetch(`${BASE}/classic`, { redirect: "manual" });
