@@ -6,6 +6,8 @@ import { TOPOGRAPHY, adjacentCoordinates, type CoordinateId } from "@/lib/drift/
 import type { GeminiFunctionDeclaration } from "@/lib/mcp/gemini";
 import { looksLikeHexColor, matchRoom } from "./rooms";
 import { findMusic, sourceLabel } from "./anywhere";
+import { findRelated } from "./kin";
+import { harvestRoom } from "./live-room";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type ToolContext = {
@@ -40,6 +42,7 @@ export function card(track: LibraryTrack): ConverseTrackCard {
     source,
     openUrl: track.openUrl ?? track.appleUrl ?? null,
     playable: Boolean(track.previewUrl) || Boolean(track.openUrl),
+    videoUrl: track.videoUrl ?? null,
   };
 }
 
@@ -139,10 +142,10 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "find_music",
     description:
-      "Search the open web for real recordings matching the listener's words — any language, decade, genre, artist, or mood. " +
-      "Queries Deezer, YouTube, YouTube Music, SoundCloud and Apple/iTunes in parallel. " +
-      "THIS is the default tool for almost every music request. The Resonant catalog is optional. " +
-      "Use their phrasing as-is (e.g. 'آهنگ های دهه ۹۰', '90s hits', 'from SoundCloud'). Then play_tracks with the returned ids.",
+      "Search Apple Music first for real recordings matching the listener. " +
+      "Then Deezer if needed. YouTube only when they asked for YouTube — otherwise YouTube is used for official videos/trailers attached to Apple tracks. " +
+      "Do not search Iranian/local mixes unless they asked for Iranian music. " +
+      "Use English decade queries for دهه ۹۰ (1990s pop hits). Then play_tracks with the returned ids.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -153,6 +156,22 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
         limit: { type: "INTEGER", description: "How many songs to return, 4–12. Default 8." },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "find_related",
+    description:
+      "More songs by the same person, then related artists, from Apple Music. " +
+      "Use when they want similar songs, kin, 'more like this', or tracks from this artist. " +
+      "Pass the artist name from the last search or now playing. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        artist: { type: "STRING", description: "Artist to expand from." },
+        title: { type: "STRING", description: "Optional song title they named." },
+        limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+      },
+      required: ["artist"],
     },
   },
   {
@@ -181,7 +200,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from find_music, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, find_related, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -198,8 +217,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "start_station",
     description:
-      "Start a room as a radio station: lock the destination and play a song from that room. " +
-      "The engine then drifts inside that feeling. There is no skip.",
+      "Start a map room: lock the destination and harvest live Apple Music for that feeling. There is no skip.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -329,8 +347,26 @@ export async function executeConverseTool(
         count: tracks.length,
         tracks: tracks.map(card),
         note: tracks.length
-          ? "These are real recordings. Name artist, title and source (Deezer, YouTube, YouTube Music, SoundCloud). Call play_tracks with their ids. Do not say they are missing from a catalog."
-          : "No hits yet — try a broader query (artist name, decade in English, or a song title).",
+          ? "Real Apple Music recordings first. Name artist, title, and Apple. If videoUrl is set, mention the official video. Call play_tracks. Do not refuse."
+          : "No hits yet — try the artist name in English, or a song title.",
+      };
+    }
+    case "find_related": {
+      const artist = asString(args.artist) || ctx.session.currentArtist || "";
+      const title = asString(args.title) || ctx.session.currentTitle || "";
+      const tracks = await findRelated({ artist, title, limit: asNumber(args.limit, 8) });
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        artist,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "Same person first, then kin, from Apple Music. Call play_tracks. Do not invent other names."
+          : "Could not resolve that artist on Apple Music. Call find_music with the artist in English.",
       };
     }
     case "search_catalog": {
@@ -368,10 +404,24 @@ export async function executeConverseTool(
     case "start_station": {
       const room = asRoom(args.room);
       if (!room) return { ok: false, error: "Unknown room." };
+      pushDestination(ctx, room);
+      const live = await harvestRoom(room, Date.now(), 8);
+      if (live.length) {
+        rememberSearch(ctx, live);
+        ctx.ingest.push(...live);
+        ctx.effects.push({ type: "ingest", tracks: live });
+        pushPlay(ctx, live, `${TOPOGRAPHY.find((r) => r.id === room)?.label ?? "Station"} live`);
+        return {
+          ok: true,
+          room: { id: room, label: TOPOGRAPHY.find((r) => r.id === room)?.label, live: true },
+          playing: card(live[0]),
+          tracks: live.map(card),
+          note: "Live Apple Music harvest for this map room — not the static shelf.",
+        };
+      }
       const shelf = collection(room);
       if (!shelf?.tracks.length) return { ok: false, error: "That room is empty right now." };
       rememberSearch(ctx, shelf.tracks.slice(0, 12));
-      pushDestination(ctx, room);
       pushPlay(ctx, [shelf.tracks[0]]);
       return {
         ok: true,

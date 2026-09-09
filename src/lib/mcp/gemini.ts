@@ -49,7 +49,9 @@ export function geminiModel(): string {
 
 /** Strip anything that looks like a Google API key from an error surface. */
 export function redactSecrets(text: string): string {
-  return text.replace(/AIza[0-9A-Za-z_-]{10,}/g, "[redacted]");
+  return text
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[redacted]")
+    .replace(/sk-[A-Za-z0-9_\-]{10,}/g, "[redacted]");
 }
 
 /**

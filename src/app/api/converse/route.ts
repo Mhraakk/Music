@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { converse } from "@/lib/converse/orchestrator";
 import { roomCatalog } from "@/lib/converse/rooms";
 import { geminiConfigured, geminiModel, redactSecrets } from "@/lib/mcp/gemini";
+import { openaiConfigured, openaiModel } from "@/lib/mcp/openai";
 import type { ConverseMessage, ConverseSession } from "@/lib/converse/types";
 import { parseFavoriteOverlay } from "@/lib/apple/overlay";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
@@ -18,25 +19,39 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const MAX_KEY_CHARS = 200;
+const MAX_KEY_CHARS = 512;
 const MAX_MESSAGE_CHARS = 4000;
 const COORDINATE_IDS = new Set(TOPOGRAPHY.map((c) => c.id));
 
 export async function GET() {
-  const configured = geminiConfigured();
+  const gemini = geminiConfigured();
+  const openai = openaiConfigured();
   return NextResponse.json({
-    configured,
+    configured: gemini || openai,
     acceptsClientKey: true,
-    model: configured ? geminiModel() : null,
+    acceptsOpenAiKey: true,
+    geminiConfigured: gemini,
+    openaiConfigured: openai,
+    model: gemini ? geminiModel() : null,
+    openaiModel: openai ? openaiModel() : null,
     rooms: roomCatalog(),
-    note: configured
-      ? "Operator Gemini key is present. Ask will use it unless a device key is pasted."
-      : "No operator Gemini key. Paste yours in Ask — it stays on this device and is sent only as x-gemini-key.",
+    note:
+      openai || gemini
+        ? "Operator keys present. A device ChatGPT or Gemini key in Ask still wins for that request."
+        : "Paste a ChatGPT (OpenAI) or Gemini key in Ask — stored on this device, sent only as a request header.",
   });
 }
 
 function readClientKey(request: NextRequest): string | null {
   const header = request.headers.get("x-gemini-key") ?? request.headers.get("x-resonant-gemini-key");
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (!trimmed || trimmed.length > MAX_KEY_CHARS) return null;
+  return trimmed;
+}
+
+function readOpenAiKey(request: NextRequest): string | null {
+  const header = request.headers.get("x-openai-key") ?? request.headers.get("x-resonant-openai-key");
   if (!header) return null;
   const trimmed = header.trim();
   if (!trimmed || trimmed.length > MAX_KEY_CHARS) return null;
@@ -116,6 +131,7 @@ export async function POST(request: NextRequest) {
       messages,
       session: parseSession(rec.session),
       apiKey: readClientKey(request),
+      openaiKey: readOpenAiKey(request),
     });
     return NextResponse.json(result);
   } catch (error) {

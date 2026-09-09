@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer } from "@/context/PlayerContext";
+import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { LibraryConnect } from "./LibraryConnect";
 import { AlbumRow, MasonryGrid } from "./MasonryGrid";
@@ -11,6 +11,8 @@ import { SearchBar, type SearchMode } from "./SearchBar";
 import { SessionMind } from "./SessionMind";
 import type { Collection, Curator } from "@/lib/library";
 import { CollectionRail } from "./CollectionRail";
+import { FeelingMap } from "./FeelingMap";
+import type { CoordinateId } from "@/lib/drift/topography";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -29,13 +31,17 @@ export function DiscoverSurface({
   artists: Pick<Curator, "slug" | "name" | "covers" | "tint">[];
   catalogTotal: number;
 }) {
-  const { extras } = usePlayer();
+  const { extras, destination } = usePlayer();
+  const { ingest, setDestination } = usePlayerActions();
   const { circulating, searchLocal, colorLocal, synced } = useLibrary();
   const [mode, setMode] = useState<SearchMode>({ kind: "none" });
   const [remote, setRemote] = useState<LibraryTrack[] | null>(null);
   const [total, setTotal] = useState(catalogTotal);
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [arrived, setArrived] = useState<LibraryTrack[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (location.hash === "#search") {
@@ -118,20 +124,45 @@ export function DiscoverSurface({
     }
   }
 
+  async function refreshLive(room: CoordinateId = destination) {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const seed = Date.now();
+      const response = await fetch(`/api/discover/fresh?room=${encodeURIComponent(room)}&seed=${seed}&limit=10`);
+      const payload = (await response.json()) as { ok?: boolean; tracks?: LibraryTrack[]; error?: string };
+      const tracks = payload.tracks ?? [];
+      if (!tracks.length) {
+        setRefreshNote(payload.error || "Apple Music did not return new recordings just now.");
+        return;
+      }
+      ingest(tracks);
+      setArrived(tracks);
+      setRefreshNote(`Just arrived from Apple Music · ${tracks.length} recordings`);
+    } catch {
+      setRefreshNote("Refresh could not reach Apple Music.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const searching = mode.kind !== "none";
   const canShowMore = searching && results.length < total;
+  const arrivedIds = new Set(arrived.map((t) => t.id));
+  const otherFresh = fresh.filter((t) => !arrivedIds.has(t.id));
 
   return (
     <>
       <RoomTint searchColor={mode.kind === "color" ? mode.hex : null} />
 
       <div className="mb-8 max-w-[420px]">
-          <SearchBar
-            mode={mode}
-            onChange={setMode}
-            resultCount={searching ? (busy && !remote ? null : results.length) : null}
-          />
-        </div>
+        <SearchBar
+          mode={mode}
+          onChange={setMode}
+          resultCount={searching ? (busy && !remote ? null : results.length) : null}
+        />
+      </div>
 
       {searching ? (
         <section className="cx-section">
@@ -154,12 +185,46 @@ export function DiscoverSurface({
         <>
           <SessionMind />
 
-          {fresh.length > 0 && (
+          <section className="cx-section">
+            <div className="cx-section-head">
+              <h2 className="cx-title">Emotional map</h2>
+              <button
+                type="button"
+                className="cx-pill cx-pill-dark"
+                onClick={() => void refreshLive()}
+                disabled={refreshing}
+              >
+                {refreshing ? "Harvesting…" : "Refresh live Apple Music"}
+              </button>
+            </div>
+            <p className="cx-meta mb-3">
+              Tap a room. Refresh pulls new recordings from Apple Music for that feeling — not the static shelf.
+            </p>
+            <FeelingMap
+              current={destination}
+              onPick={(id) => {
+                setDestination(id);
+                void refreshLive(id);
+              }}
+            />
+            {refreshNote && <p className="cx-meta mt-3">{refreshNote}</p>}
+          </section>
+
+          {arrived.length > 0 && (
+            <section className="cx-section">
+              <div className="cx-section-head">
+                <h2 className="cx-title">Just arrived</h2>
+              </div>
+              <AlbumRow tracks={arrived} />
+            </section>
+          )}
+
+          {otherFresh.length > 0 && (
             <section className="cx-section">
               <div className="cx-section-head">
                 <h2 className="cx-title">New for you</h2>
               </div>
-              <AlbumRow tracks={fresh} />
+              <AlbumRow tracks={otherFresh} />
             </section>
           )}
 

@@ -28,7 +28,7 @@ export type ConverseEffect =
   | { type: "ingest"; tracks: LibraryTrack[] }
   | { type: "destination"; id: CoordinateId };
 
-export type ConverseSource = "gemini" | "local";
+export type ConverseSource = "gemini" | "openai" | "local";
 
 export type ConverseResult = {
   ok: true;
@@ -49,7 +49,11 @@ export type ConverseFailure = {
 export type ConverseStatus = {
   configured: boolean;
   acceptsClientKey: true;
+  acceptsOpenAiKey: true;
+  geminiConfigured: boolean;
+  openaiConfigured: boolean;
   model: string | null;
+  openaiModel: string | null;
   rooms: { id: CoordinateId; label: string; description: string }[];
   note: string;
 };
@@ -66,4 +70,5 @@ export type ConverseTrackCard = {
   source: string;
   openUrl: string | null;
   playable: boolean;
+  videoUrl?: string | null;
 };

@@ -136,7 +136,7 @@ export function MiniPlayer() {
         </div>
       </div>
 
-      {playing && yt && (
+      {playing && yt && !current?.previewUrl && (
         <iframe
           className="cx-embed"
           title="YouTube"
@@ -252,14 +252,24 @@ export function MiniPlayer() {
               {current.shape}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {current.appleUrl && (
+              {(current.openUrl || current.appleUrl) && (
                 <a
-                  href={current.openUrl || current.appleUrl}
+                  href={current.openUrl || current.appleUrl || "#"}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
                 >
                   {via ? `Open on ${via}` : "Play the full track"}
+                </a>
+              )}
+              {(current.videoUrl || yt) && (
+                <a
+                  href={current.videoUrl || `https://www.youtube.com/watch?v=${yt}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
+                >
+                  Official video
                 </a>
               )}
               <button type="button" onClick={stop} className="cx-pill cx-pill-ghost h-8 shrink-0 px-3">
