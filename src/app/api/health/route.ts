@@ -27,6 +27,7 @@ export async function GET() {
         harvested: status.ontology.harvested,
         admitted: status.ontology.admitted,
         refused: status.ontology.refused,
+        favorites: status.ontology.favorites ?? 0,
         genreFields: status.ontology.genreFields,
         axes: status.ontology.axes,
         tools: status.tools,

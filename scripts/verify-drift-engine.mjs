@@ -484,6 +484,33 @@ async function verifyExpansion() {
   } catch (error) {
     check(true, "live expansion skipped after transport failure", error.message);
   }
+
+  try {
+    const fromLibrary = await callTool("generate_taste_expansion", {
+      sessionId: "verify-library-taste",
+      libraryVectors: [
+        {
+          depth: 0.62,
+          narrative: 0.7,
+          fragility: 0.55,
+          cinema: 0.68,
+          warmth: 0.72,
+          imperfection: 0.74,
+          insistence: 0.36,
+        },
+      ],
+      libraryArtists: [{ artist: "Portishead", via: "f-1" }],
+      limit: 10,
+      analyze: false,
+    });
+    check(
+      fromLibrary.taste?.source === "library",
+      "generate-10 reports library as the taste source when Favorite Songs vectors are sent",
+      fromLibrary.taste?.source
+    );
+  } catch (error) {
+    check(true, "library taste expansion skipped after transport failure", error.message);
+  }
 }
 
 async function verifyProductSurface() {
@@ -534,6 +561,93 @@ async function verifyProductSurface() {
   );
 }
 
+async function verifyFavoriteCirculation() {
+  section("Favorite Songs circulation");
+
+  const status = await fetch(`${BASE}/api/library/sync`).then((r) => r.json());
+  check(status.playlistId === "pl.u-jEUdxzrWgb", "library status names the Favorite Songs playlist", status.playlistId);
+  check(Array.isArray(status.missing), "library status reports MusicKit secret gaps", (status.missing ?? []).join(", ") || "configured");
+  check(typeof status.stats?.favorites === "number", "catalog stats expose a favorites count");
+
+  const health = await fetch(`${BASE}/api/health`).then((r) => r.json());
+  check(typeof health.engine?.favorites === "number", "health reports favorites in the living catalog", `${health.engine?.favorites ?? "?"}`);
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Favorite Songs"), "discover invites Favorite Songs as catalog and taste");
+  check(home.includes("Connect Apple Music"), "discover exposes Apple Music connect");
+
+  const art = "https://is1-ssl.mzstatic.com/image/thumb/Music/fixture/1000x1000bb.jpg";
+  const preview = "https://audio-ssl.itunes.apple.com/itunes-assets/fixture.m4a";
+  const ingest = await fetch(`${BASE}/api/library/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      candidates: [
+        {
+          appleTrackId: "770000001",
+          title: "Verify Loved One",
+          artist: "Verify Noir Ensemble",
+          album: "Fixture",
+          durationMs: 280000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+        {
+          appleTrackId: "770000002",
+          title: "Verify Loved Two",
+          artist: "Verify Warm Players",
+          album: "Fixture",
+          durationMs: 265000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+        {
+          appleTrackId: "770000003",
+          title: "Glory Box (Karaoke)",
+          artist: "Karaoke Tribute Band",
+          album: "Fixture",
+          durationMs: 240000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+      ],
+    }),
+  });
+  const payload = await ingest.json();
+  check(ingest.ok, "library ingest accepts a Favorite Songs page without MusicKit", `HTTP ${ingest.status}`);
+  check(
+    payload.admitted >= 1 && Array.isArray(payload.tracks),
+    "ontology admits loved recordings into the living catalog",
+    `admitted ${payload.admitted}, refused ${payload.refused}`
+  );
+  check(
+    (payload.tracks ?? []).every((t) => String(t.id).startsWith("f-")),
+    "admitted favorites use the f- prefix",
+    (payload.tracks ?? []).map((t) => t.id).join(", ")
+  );
+  check(
+    (payload.tracks ?? []).every((t) => t.origin === "favorite" && t.vector && !("genre" in t)),
+    "favorite library tracks carry origin, a vector, and no genre field"
+  );
+  check(payload.refused >= 1, "karaoke / unprojectable loved tracks are still refused", `${payload.refused} refused`);
+  check(
+    Boolean(payload.tracks?.[0]?.artworkUrl || payload.tracks?.[0]?.previewUrl),
+    "admitted favorites keep media on the record returned to the client"
+  );
+
+  const listed = await rpc("tools/list", {});
+  const drift = listed.tools.find((t) => t.name === "get_next_emotional_drift");
+  const plan = listed.tools.find((t) => t.name === "plan_emotional_drift");
+  check(
+    Boolean(drift?.inputSchema?.properties?.libraryOverlay),
+    "get_next_emotional_drift accepts a Favorite Songs overlay"
+  );
+  check(
+    Boolean(plan?.inputSchema?.properties?.libraryOverlay),
+    "plan_emotional_drift accepts a Favorite Songs overlay"
+  );
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -545,6 +659,7 @@ try {
   await verifyArrival();
   await verifyExpansion();
   await verifyProductSurface();
+  await verifyFavoriteCirculation();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

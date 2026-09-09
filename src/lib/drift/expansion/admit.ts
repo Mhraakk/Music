@@ -61,7 +61,7 @@ export function admitCandidate(
     pool: readonly DriftTrack[];
     build: MaterializeFn;
     features?: AudioFeatures | null;
-    idPrefix?: "h" | "x";
+    idPrefix?: "h" | "x" | "f";
   }
 ): Admission | null {
   if (isUnprojectable(candidate)) return null;
@@ -101,7 +101,10 @@ export function alreadyKnown(
   known: { id: string; title: string; artist: string }[]
 ): boolean {
   const idHit = known.some(
-    (t) => t.id === `h-${candidate.appleTrackId}` || t.id === `x-${candidate.appleTrackId}`
+    (t) =>
+      t.id === `h-${candidate.appleTrackId}` ||
+      t.id === `x-${candidate.appleTrackId}` ||
+      t.id === `f-${candidate.appleTrackId}`
   );
   if (idHit) return true;
 

@@ -37,6 +37,7 @@ import { adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
 import { getNextEmotionalDrift } from "@/lib/mcp/client";
 import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
+import { compactOverlay } from "@/lib/apple/publish";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
 const FADE_MS = 2200;
@@ -184,6 +185,19 @@ export function PlayerProvider({
     async (id: string): Promise<LibraryTrack | null> => {
       const local = lookup(id);
       if (local) return local;
+      try {
+        const { readFavorite } = await import("@/lib/apple/store");
+        const cached = await readFavorite(id);
+        if (cached) {
+          rememberTrack(cached);
+          const extras = [...extrasRef.current.filter((t) => t.id !== cached.id), cached];
+          extrasRef.current = extras;
+          setState((s) => ({ ...s, extras }));
+          return cached;
+        }
+      } catch {
+        /* IndexedDB unavailable */
+      }
       try {
         const response = await fetch(`/api/catalog?ids=${encodeURIComponent(id)}`);
         if (!response.ok) return null;
@@ -398,6 +412,7 @@ export function PlayerProvider({
             .filter((v): v is EmotionalVector => Boolean(v)),
           signals: live.current.signals,
           branches: live.current.branches,
+          libraryOverlay: compactOverlay(),
         });
 
         if (!outcome.ok) {
@@ -455,11 +470,14 @@ export function PlayerProvider({
       map.set(track.id, track);
       trackVectorCache.set(track.id, track.vector);
     }
-    const extras = [...map.values()];
+    const all = [...map.values()];
+    const expansions = all.filter((t) => t.origin === "expansion" || t.id.startsWith("x-"));
+    const favorites = all.filter((t) => t.origin === "favorite" || t.id.startsWith("f-")).slice(-80);
+    const extras = [...expansions, ...favorites];
     extrasRef.current = extras;
     setState((s) => ({ ...s, extras }));
     try {
-      window.localStorage.setItem(EXPANSION_KEY, JSON.stringify(extras));
+      window.localStorage.setItem(EXPANSION_KEY, JSON.stringify(expansions));
     } catch {
       /* quota or private mode — the session still has them in memory */
     }

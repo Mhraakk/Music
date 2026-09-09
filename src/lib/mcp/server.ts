@@ -28,6 +28,7 @@ import { TOPOGRAPHY, adjacentCoordinates, auditTopography } from "@/lib/drift/to
 import { catalogStats, driftTrack } from "@/lib/drift/catalog";
 import { generateTasteExpansion, inspectExpansionEngine } from "@/lib/drift/expansion";
 import { toLibraryTrack } from "@/lib/library";
+import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
 import type { BranchState } from "@/lib/drift/algorithm";
 import type { ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
 import { geminiConfigured, geminiModel } from "./gemini";
@@ -139,6 +140,30 @@ export const TOOLS: readonly ToolDescriptor[] = [
           description: "Branch memory by coordinate id: open, deepened or pruned.",
           additionalProperties: true,
         },
+        libraryOverlay: {
+          type: "array",
+          description:
+            "Circulating Favorite Songs positions from the listener's device. " +
+            "The living catalog on a serverless instance cannot keep tens of thousands of loved recordings; " +
+            "this window lets the next phase occupy them.",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              artist: { type: "string" },
+              duration: { type: "number" },
+              vector: {
+                type: "object",
+                properties: Object.fromEntries(
+                  AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+                ),
+              },
+              note: { type: "string" },
+              appleMusicId: { type: "string" },
+            },
+          },
+        },
       },
       required: ["sessionId", "destination"],
     },
@@ -157,6 +182,12 @@ export const TOOLS: readonly ToolDescriptor[] = [
         origin: { type: "string", enum: COORDINATE_IDS },
         destination: { type: "string", enum: COORDINATE_IDS },
         exclude: { type: "array", items: { type: "string" }, description: "Track ids to skip." },
+        libraryOverlay: {
+          type: "array",
+          description:
+            "Circulating Favorite Songs from the listener's device, so the planned arc can occupy loved recordings without writing them into the shared catalog.",
+          items: { type: "object" },
+        },
       },
       required: ["origin", "destination"],
     },
@@ -232,6 +263,24 @@ export const TOOLS: readonly ToolDescriptor[] = [
             properties: Object.fromEntries(
               AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
             ),
+          },
+        },
+        libraryVectors: {
+          type: "array",
+          description: "Sampled positions from the listener's Favorite Songs library.",
+          items: {
+            type: "object",
+            properties: Object.fromEntries(
+              AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+            ),
+          },
+        },
+        libraryArtists: {
+          type: "array",
+          description: "Artists already occupying Favorite Songs — used as Apple search probes.",
+          items: {
+            type: "object",
+            properties: { artist: { type: "string" }, via: { type: "string" } },
           },
         },
         exclude: {
@@ -325,6 +374,14 @@ function parseVectors(value: unknown): EmotionalVector[] {
   return value.map((raw) => parseVector(raw)).filter((v) => AXIS_KEYS.some((key) => v[key] !== 0.5));
 }
 
+function parseArtistProbes(value: unknown): { artist: string; via: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((raw) => asRecord(raw))
+    .map((raw) => ({ artist: asString(raw.artist), via: asString(raw.via, asString(raw.artist)) }))
+    .filter((row) => row.artist);
+}
+
 /* ────────────────────────────── TOOL HANDLERS ────────────────────────────── */
 
 async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context: McpContext): Promise<ToolResult> {
@@ -349,6 +406,8 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
         .map((id) => driftTrack(id)?.vector)
         .filter((v): v is EmotionalVector => Boolean(v));
 
+  const overlay = materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay));
+
   try {
     const decision = await decideNextDrift({
       sessionId,
@@ -359,6 +418,7 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
       signals: parseSignals(args.signals),
       branches: parseBranches(args.branches),
       soundCloudAccessToken: context.soundCloudAccessToken ?? null,
+      overlay,
     });
 
     const summary = [
@@ -383,6 +443,7 @@ async function toolPlanEmotionalDrift(args: Record<string, unknown>, context: Mc
     sessionId: asString(args.sessionId, `session_${Date.now()}`),
     exclude: asStringArray(args.exclude),
     soundCloudAccessToken: context.soundCloudAccessToken ?? null,
+    overlay: materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay)),
   });
 
   const summary = [
@@ -460,6 +521,8 @@ async function toolGenerateTasteExpansion(args: Record<string, unknown>): Promis
   const result = await generateTasteExpansion({
     historyIds: asStringArray(args.history),
     tasteVectors: parseVectors(args.tasteVectors),
+    libraryVectors: parseVectors(args.libraryVectors),
+    libraryArtists: parseArtistProbes(args.libraryArtists),
     excludeIds: asStringArray(args.exclude),
     limit: asNumber(args.limit, 10),
     analyze: args.analyze === false ? false : true,
@@ -533,6 +596,7 @@ export function engineStatus() {
       seed: stats.seed,
       harvested: stats.harvested,
       expanded: stats.expanded,
+      favorites: stats.favorites,
       admitted: stats.admitted,
       refused: stats.refused,
       rejectionRules: REJECTION_RULES.map((r) => r.id),

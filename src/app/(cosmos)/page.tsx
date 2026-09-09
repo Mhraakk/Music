@@ -47,8 +47,8 @@ export default function DiscoverPage() {
 
         <p className="cx-body mt-5 max-w-[52ch]">
           No genre tags, no BPM, no popularity ranking. {stats.admitted} positions in an emotional
-          substrate — {stats.seed} authored, the rest admitted from Apple Music. Search a feeling
-          or a colour, or ask for ten new positions near how you listen.
+          substrate — {stats.seed} authored, plus Apple harvest. Connect Favorite Songs and tens of
+          thousands of loved recordings circulate here as catalog and as taste.
         </p>
 
         <p className="cx-meta mt-3">

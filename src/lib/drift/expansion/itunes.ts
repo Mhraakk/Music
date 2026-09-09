@@ -230,4 +230,54 @@ export async function searchAppleSongs(
   return searchITunes(term, limit);
 }
 
+function titlesAgree(expected: string, got: string): boolean {
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\(.*?\)/g, " ")
+      .replace(/\[.*?\]/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const a = clean(expected);
+  const b = clean(got);
+  if (!a || !b) return false;
+  return a === b || a.startsWith(b) || b.startsWith(a);
+}
+
+/**
+ * Resolve one recording by artist + title. Used to fill preview/artwork for
+ * library tracks that Apple's library payload left incomplete.
+ */
+export async function lookupAppleSong(artist: string, title: string): Promise<ExternalCandidate | null> {
+  const term = `${artist} ${title}`.trim();
+  if (!term) return null;
+  try {
+    const rows = await itunesGet(
+      `${ITUNES}?term=${encodeURIComponent(term)}&entity=song&limit=8`
+    );
+    const match = rows.find(
+      (row) =>
+        artistAgrees(artist, row.artistName ?? "") && titlesAgree(title, row.trackName ?? "")
+    ) ?? rows.find((row) => artistAgrees(artist, row.artistName ?? ""));
+    if (!match?.trackId) return null;
+    const art = match.artworkUrl100 ?? null;
+    return {
+      appleTrackId: String(match.trackId),
+      title: match.trackName ?? title,
+      artist: match.artistName ?? artist,
+      album: match.collectionName ?? null,
+      durationMs: match.trackTimeMillis ?? 0,
+      previewUrl: match.previewUrl ?? null,
+      artworkUrl: art ? upsizeArtwork(art, 1000) : null,
+      thumbUrl: art ? upsizeArtwork(art, 200) : null,
+      appleUrl: match.trackViewUrl ?? null,
+      probeArtist: artist,
+      probeVia: artist,
+      retrievalHint: match.primaryGenreName,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export { RateLimited };

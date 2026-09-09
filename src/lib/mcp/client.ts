@@ -80,6 +80,16 @@ export function getNextEmotionalDrift(args: {
   trajectory: EmotionalVector[];
   signals: ResonanceSignal[];
   branches: BranchState;
+  /** Circulating Favorite Songs the serverless catalog cannot see. */
+  libraryOverlay?: {
+    id: string;
+    title: string;
+    artist: string;
+    duration: number;
+    vector: EmotionalVector;
+    note?: string;
+    appleMusicId?: string | null;
+  }[];
 }): Promise<McpCallOutcome<NextDriftPayload>> {
   return callTool<NextDriftPayload>("get_next_emotional_drift", args);
 }
@@ -101,6 +111,15 @@ export function planEmotionalDrift(args: {
   origin: string;
   destination: string;
   exclude?: string[];
+  libraryOverlay?: {
+    id: string;
+    title: string;
+    artist: string;
+    duration: number;
+    vector: EmotionalVector;
+    note?: string;
+    appleMusicId?: string | null;
+  }[];
 }): Promise<McpCallOutcome<PlannedArcPayload>> {
   return callTool<PlannedArcPayload>("plan_emotional_drift", args);
 }
@@ -114,7 +133,7 @@ export function evaluateEmotionalResonance(args: {
 
 export type TasteExpansionPayload = {
   taste: {
-    source: "history" | "baseline";
+    source: "history" | "baseline" | "library";
     note: string;
     nearestAnchors: string[];
     nearestRegions: string[];
@@ -132,6 +151,8 @@ export function generateTasteExpansion(args: {
   sessionId?: string;
   history?: string[];
   tasteVectors?: EmotionalVector[];
+  libraryVectors?: EmotionalVector[];
+  libraryArtists?: { artist: string; via: string }[];
   exclude?: string[];
   limit?: number;
   analyze?: boolean;

@@ -95,6 +95,8 @@ export type DriftRequestInput = {
   signals: ResonanceSignal[];
   branches: BranchState;
   soundCloudAccessToken?: string | null;
+  /** Per-request Favorite Songs window. Never written into the shared catalog. */
+  overlay?: DriftTrack[];
 };
 
 /* ──────────────────────────── SHORTLIST BUILDING ──────────────────────────── */
@@ -112,10 +114,11 @@ function buildShortlist(
   destination: EmotionalVector,
   exclude: string[],
   branches: BranchState,
-  seed: string
+  seed: string,
+  overlay?: DriftTrack[]
 ): Candidate[] {
   const used = new Set(exclude);
-  const pool = admissiblePool();
+  const pool = admissiblePool(overlay);
   return pool
     .map((track) => scoreCandidate(track, {
       target,
@@ -312,6 +315,7 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
     branches: input.branches,
     exclude: input.exclude,
     seed: input.sessionId,
+    overlay: input.overlay,
   });
 
   if (!baseline) {
@@ -337,7 +341,8 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
       coordinateOrDefault(input.destination, "cinematic_warmth").vector,
       input.exclude,
       branches,
-      input.sessionId
+      input.sessionId,
+      input.overlay
     );
 
     if (shortlist.length === 0) {
@@ -399,7 +404,8 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
   }
 
   // 3. Turn the emotional decision into something playable.
-  const track = driftTrack(phase.trackId);
+  const track =
+    input.overlay?.find((t) => t.id === phase.trackId) ?? driftTrack(phase.trackId);
   const audio = track
     ? await resolveAudio(track, input.soundCloudAccessToken)
     : {
@@ -451,6 +457,7 @@ export async function planFullDrift(input: {
   exclude?: string[];
   branches?: BranchState;
   soundCloudAccessToken?: string | null;
+  overlay?: DriftTrack[];
 }): Promise<PlannedArc> {
   const arc = planDrift({
     origin: input.origin,
@@ -458,11 +465,13 @@ export async function planFullDrift(input: {
     seed: input.sessionId,
     exclude: input.exclude,
     branches: input.branches,
+    overlay: input.overlay,
   });
 
   const phases = await Promise.all(
     arc.phases.map(async (phase) => {
-      const track = driftTrack(phase.trackId);
+      const track =
+        input.overlay?.find((t) => t.id === phase.trackId) ?? driftTrack(phase.trackId);
       const audio = track
         ? await resolveAudio(track, input.soundCloudAccessToken)
         : {

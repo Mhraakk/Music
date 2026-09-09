@@ -134,6 +134,8 @@ function commitAdmissions(admitted: Admission[]) {
 export async function generateTasteExpansion(input: {
   historyIds?: string[];
   tasteVectors?: import("@/lib/drift/ontology").EmotionalVector[];
+  libraryVectors?: import("@/lib/drift/ontology").EmotionalVector[];
+  libraryArtists?: { artist: string; via: string }[];
   excludeIds?: string[];
   limit?: number;
   analyze?: boolean;
@@ -143,6 +145,8 @@ export async function generateTasteExpansion(input: {
   const taste = profileTaste({
     historyIds: input.historyIds,
     tasteVectors: input.tasteVectors,
+    libraryVectors: input.libraryVectors,
+    libraryArtists: input.libraryArtists,
     pool,
   });
 

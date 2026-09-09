@@ -61,8 +61,8 @@ export type LibraryTrack = {
    * character gives the column rhythm that makes this kind of grid feel alive.
    */
   aspect: number;
-  /** `seed` is authored; `harvest` came from Apple at build time; `expansion` was generated this session. */
-  origin: "seed" | "harvest" | "expansion";
+  /** `seed` is authored; `harvest` came from Apple at build time; `expansion` was generated this session; `favorite` is from the listener's Apple Music Favorite Songs. */
+  origin: "seed" | "harvest" | "expansion" | "favorite";
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
@@ -88,11 +88,17 @@ function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
 function originFor(id: string): LibraryTrack["origin"] {
   if (id.startsWith("x-")) return "expansion";
   if (id.startsWith("h-")) return "harvest";
+  if (id.startsWith("f-")) return "favorite";
   return "seed";
 }
 
-export function toLibraryTrack(track: DriftTrack): LibraryTrack {
-  const media: TrackMedia | null = trackMedia(track.id);
+/** Authored + harvest + session expansions. Favorites circulate from the client. */
+function engineLibrary(): LibraryTrack[] {
+  return library().filter((t) => t.origin !== "favorite");
+}
+
+export function toLibraryTrack(track: DriftTrack, mediaOverride?: TrackMedia | null): LibraryTrack {
+  const media: TrackMedia | null = mediaOverride === undefined ? trackMedia(track.id) : mediaOverride;
   const tint = media?.averageColor ?? fallbackColor(track.vector);
   const searchColor = media?.searchColor ?? tint;
 
@@ -125,7 +131,7 @@ let cache: LibraryTrack[] | null = null;
 
 /** Every admissible position, media-joined. Rejected material never appears. */
 export function library(): LibraryTrack[] {
-  if (!cache) cache = admissiblePool().map(toLibraryTrack);
+  if (!cache) cache = admissiblePool().map((track) => toLibraryTrack(track));
   return cache;
 }
 
@@ -222,7 +228,7 @@ export type Collection = {
  * the music and useful for browsing.
  */
 export function collections(): Collection[] {
-  const all = library();
+  const all = engineLibrary();
 
   return TOPOGRAPHY.map((coordinate) => {
     const ranked = all
@@ -285,7 +291,7 @@ export function curatorSlug(name: string): string {
  * accounts, no editorial copy that the engine cannot justify.
  */
 export function curators(): Curator[] {
-  const all = library();
+  const all = engineLibrary();
   const byAnchor = new Map<string, LibraryTrack[]>();
 
   for (const track of all) {
@@ -325,7 +331,7 @@ export function curator(slug: string): Curator | null {
  * material surfaces first.
  */
 export function featured(limit = 48, offset = 0): LibraryTrack[] {
-  return library()
+  return engineLibrary()
     .slice()
     .sort((a, b) => b.avi - a.avi)
     .slice(offset, offset + limit);
@@ -379,6 +385,6 @@ export function queryCatalog(input: CatalogQuery): CatalogPage {
     };
   }
 
-  const all = library().length;
-  return { tracks: featured(limit, offset), total: all, mode: "featured" };
+  const total = engineLibrary().length;
+  return { tracks: featured(limit, offset), total, mode: "featured" };
 }

@@ -10,10 +10,12 @@
 
 import Link from "next/link";
 import { usePlayer } from "@/context/PlayerContext";
+import { useLibrary } from "@/context/LibraryContext";
 import { coordinate } from "@/lib/drift/topography";
 
 export function SessionMind() {
   const { current, destination, cognition, reading, historyIds, fromEngine } = usePlayer();
+  const { synced } = useLibrary();
   const dest = coordinate(destination);
 
   return (
@@ -27,11 +29,13 @@ export function SessionMind() {
           : "Waiting. Pick a sleeve — the engine will drift from there."}
       </p>
       <p className="cx-meta mt-1">
-        {cognition
-          ? cognition.source === "gemini-mcp"
-            ? "Gemini proposed · verified against the ontology"
-            : cognition.note
-          : "Deterministic local cognition. No genre, no chart, no next button."}
+        {synced
+          ? `Favorite Songs circulating · ${synced.toLocaleString()} loved positions in the substrate.`
+          : cognition
+            ? cognition.source === "gemini-mcp"
+              ? "Gemini proposed · verified against the ontology"
+              : cognition.note
+            : "Deterministic local cognition. No genre, no chart, no next button."}
         {reading ? ` · ${reading.mode}` : ""}
         {historyIds.length ? ` · ${historyIds.length} heard` : ""}
         {" · "}

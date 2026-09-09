@@ -36,6 +36,7 @@ import type { ResolvedAudio } from "@/lib/providers/resolve";
 import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { getNextEmotionalDrift, planEmotionalDrift, type NextDriftPayload } from "@/lib/mcp/client";
 import { DriftAudioEngine } from "@/lib/audio/driftEngine";
+import { compactOverlay } from "@/lib/apple/publish";
 
 /** Length of every crossfade. Long enough that no seam is audible. */
 const DRIFT_MS = 6500;
@@ -353,6 +354,7 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
           trajectory: recent.map((p) => p.target),
           signals: live.current.signals,
           branches: live.current.branches,
+          libraryOverlay: compactOverlay(),
         });
 
         if (!outcome.ok) {
@@ -412,7 +414,12 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
       live.current.origin = origin;
       live.current.destination = destination;
 
-      const outcome = await planEmotionalDrift({ sessionId, origin, destination });
+      const outcome = await planEmotionalDrift({
+        sessionId,
+        origin,
+        destination,
+        libraryOverlay: compactOverlay(),
+      });
       if (!outcome.ok) {
         dispatch({ type: "error", message: outcome.error });
         return;

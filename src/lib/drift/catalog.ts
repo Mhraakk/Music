@@ -285,8 +285,11 @@ export function driftTrack(id: string): DriftTrack | null {
 }
 
 /** Everything that survives the strict rejection rules, living catalog included. */
-export function admissiblePool(): DriftTrack[] {
-  return livingCatalog().filter((t) => t.resonance > 0);
+export function admissiblePool(extra: readonly DriftTrack[] = []): DriftTrack[] {
+  const base = livingCatalog().filter((t) => t.resonance > 0 && !t.id.startsWith("f-"));
+  if (!extra.length) return base;
+  const seen = new Set(base.map((t) => t.id));
+  return extra.filter((t) => t.resonance > 0 && !seen.has(t.id)).concat(base);
 }
 
 /** What the rejection rules actually removed, for the health route and the UI. */
@@ -308,6 +311,7 @@ export function catalogStats() {
     seed: DRIFT_CATALOG.length,
     harvested: extras.filter((t) => t.id.startsWith("h-")).length,
     expanded: extras.filter((t) => t.id.startsWith("x-")).length,
+    favorites: extras.filter((t) => t.id.startsWith("f-")).length,
     living: DRIFT_CATALOG.length + extras.length,
     admitted: admissiblePool().length,
     refused: rejectedPool().length,

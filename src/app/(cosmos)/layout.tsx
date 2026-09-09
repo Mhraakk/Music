@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { PlayerProvider } from "@/context/PlayerContext";
+import { LibraryProvider } from "@/context/LibraryContext";
 import { FloatingNav } from "@/components/cosmos/FloatingNav";
 import "./cosmos.css";
 
@@ -29,8 +30,10 @@ export default function CosmosLayout({ children }: { children: React.ReactNode }
   return (
     <div className={`cosmos ${inter.variable}`}>
       <PlayerProvider>
-        {children}
-        <FloatingNav />
+        <LibraryProvider>
+          {children}
+          <FloatingNav />
+        </LibraryProvider>
       </PlayerProvider>
     </div>
   );

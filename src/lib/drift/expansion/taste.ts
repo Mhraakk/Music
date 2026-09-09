@@ -25,6 +25,19 @@ import { driftTrack, type DriftTrack } from "@/lib/drift/catalog";
 import type { TasteProfile } from "./types";
 import { baselinePrior, normaliseName } from "./project";
 
+function mix(a: EmotionalVector, b: EmotionalVector, t: number): EmotionalVector {
+  const k = clamp01(t);
+  return vec({
+    depth: a.depth * (1 - k) + b.depth * k,
+    narrative: a.narrative * (1 - k) + b.narrative * k,
+    fragility: a.fragility * (1 - k) + b.fragility * k,
+    cinema: a.cinema * (1 - k) + b.cinema * k,
+    warmth: a.warmth * (1 - k) + b.warmth * k,
+    imperfection: a.imperfection * (1 - k) + b.imperfection * k,
+    insistence: a.insistence * (1 - k) + b.insistence * k,
+  });
+}
+
 export function parseVector(raw: unknown): EmotionalVector | null {
   if (!raw || typeof raw !== "object") return null;
   const rec = raw as Record<string, unknown>;
@@ -100,26 +113,45 @@ export function artistsNear(
 export function profileTaste(input: {
   historyIds?: string[];
   tasteVectors?: EmotionalVector[];
+  libraryVectors?: EmotionalVector[];
+  libraryArtists?: { artist: string; via: string }[];
   pool: readonly DriftTrack[];
 }): TasteProfile {
   const heard = vectorsFromHistory(input.historyIds ?? [], input.tasteVectors ?? []);
-  const source = heard.length ? "history" : "baseline";
-  const centre = heard.length ? centroid(heard) : baselinePrior();
+  const library = (input.libraryVectors ?? []).filter((v) => v);
+  const centre = library.length
+    ? heard.length
+      ? mix(centroid(library), centroid(heard), 0.18)
+      : centroid(library)
+    : heard.length
+      ? centroid(heard)
+      : baselinePrior();
+  const source: TasteProfile["source"] = library.length ? "library" : heard.length ? "history" : "baseline";
 
   const anchors = nearestAnchors(centre);
   const regions = nearestRegions(centre);
   const nearArtists = artistsNear(centre, input.pool, 10);
+  const libraryArtists = input.libraryArtists ?? [];
 
   const probeArtists = [
-    ...nearArtists,
+    ...libraryArtists,
+    ...nearArtists.filter(
+      (p) => !libraryArtists.some((l) => normaliseName(l.artist) === normaliseName(p.artist))
+    ),
     ...anchors
-      .filter((name) => !nearArtists.some((p) => normaliseName(p.artist) === normaliseName(name)))
+      .filter(
+        (name) =>
+          !libraryArtists.some((l) => normaliseName(l.artist) === normaliseName(name)) &&
+          !nearArtists.some((p) => normaliseName(p.artist) === normaliseName(name))
+      )
       .map((name) => ({ artist: name, via: name })),
   ].slice(0, 10);
 
-  const note = heard.length
-    ? `Listening has settled ${describeVector(centre)}, nearest ${anchors[0]}.`
-    : `No history yet — searching from the engine's own resonance, nearest ${anchors[0]}.`;
+  const note = library.length
+    ? `Favorite Songs have settled ${describeVector(centre)}, nearest ${anchors[0]}.`
+    : heard.length
+      ? `Listening has settled ${describeVector(centre)}, nearest ${anchors[0]}.`
+      : `No history yet — searching from the engine's own resonance, nearest ${anchors[0]}.`;
 
   return {
     centroid: centre,

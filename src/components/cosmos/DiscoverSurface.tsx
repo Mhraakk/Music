@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer } from "@/context/PlayerContext";
+import { useLibrary } from "@/context/LibraryContext";
+import { LibraryConnect } from "./LibraryConnect";
 import { MasonryGrid } from "./MasonryGrid";
 import { NowPlayingSheet } from "./NowPlayingSheet";
 import { RoomTint } from "./RoomTint";
@@ -22,6 +24,7 @@ const PAGE = 72;
 
 export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTrack[]; total: number }) {
   const { extras } = usePlayer();
+  const { circulating, searchLocal, colorLocal, synced } = useLibrary();
   const [mode, setMode] = useState<SearchMode>({ kind: "none" });
   const [remote, setRemote] = useState<LibraryTrack[] | null>(null);
   const [total, setTotal] = useState(catalogTotal);
@@ -32,7 +35,7 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
   useEffect(() => {
     if (mode.kind === "none") {
       setRemote(null);
-      setTotal(catalogTotal);
+      setTotal(catalogTotal + synced);
       setOffset(wall.length + more.length);
       return;
     }
@@ -50,8 +53,15 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
         return response.json() as Promise<{ tracks: LibraryTrack[]; total: number }>;
       })
       .then((payload) => {
-        setRemote(payload.tracks);
-        setTotal(payload.total);
+        const local =
+          mode.kind === "text"
+            ? searchLocal(mode.query)
+            : mode.kind === "color"
+              ? colorLocal(mode.hex)
+              : [];
+        const seen = new Set(local.map((t) => t.id));
+        setRemote([...local, ...payload.tracks.filter((t) => !seen.has(t.id))]);
+        setTotal(payload.total + synced);
         setOffset(payload.tracks.length);
         setBusy(false);
       })
@@ -61,7 +71,7 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
       });
 
     return () => controller.abort();
-  }, [mode, catalogTotal]);
+  }, [mode, catalogTotal, searchLocal, colorLocal, synced]);
 
   const fresh = extras.filter((t) => t.origin === "expansion");
 
@@ -71,9 +81,12 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
       const extraHits = fresh.filter((t) => !remoteIds.has(t.id));
       return [...extraHits, ...(remote ?? [])];
     }
-    const rest = [...wall, ...more].filter((t) => !fresh.some((e) => e.id === t.id));
-    return [...fresh, ...rest];
-  }, [mode.kind, remote, wall, more, fresh]);
+    const rest = [...circulating, ...wall, ...more].filter(
+      (t) => !fresh.some((e) => e.id === t.id)
+    );
+    const seen = new Set<string>();
+    return [...fresh, ...rest.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)))];
+  }, [mode.kind, remote, wall, more, fresh, circulating]);
 
   async function showMore() {
     if (busy) return;
@@ -96,7 +109,7 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
           return [...(prev ?? []), ...payload.tracks.filter((t) => !seen.has(t.id))];
         });
       }
-      setTotal(payload.total);
+      setTotal(payload.total + synced);
       setOffset(offset + payload.tracks.length);
     } catch {
       /* keep the wall that already rendered */
@@ -121,6 +134,8 @@ export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTr
           <TasteExpand />
         </div>
       </div>
+
+      <LibraryConnect />
 
       <SessionMind />
 
