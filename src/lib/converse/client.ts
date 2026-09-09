@@ -1,6 +1,7 @@
 import type { ConverseMessage, ConverseResult, ConverseSession, ConverseStatus } from "./types";
 
-const KEY_HEADER = "x-gemini-key";
+const GEMINI_HEADER = "x-gemini-key";
+const OPENAI_HEADER = "x-openai-key";
 
 export async function fetchConverseStatus(): Promise<ConverseStatus> {
   const response = await fetch("/api/converse", { method: "GET" });
@@ -8,7 +9,11 @@ export async function fetchConverseStatus(): Promise<ConverseStatus> {
     return {
       configured: false,
       acceptsClientKey: true,
+      acceptsOpenAiKey: true,
+      geminiConfigured: false,
+      openaiConfigured: false,
       model: null,
+      openaiModel: null,
       rooms: [],
       note: "Ask is unreachable right now.",
     };
@@ -20,10 +25,13 @@ export async function sendConverseTurn(input: {
   messages: ConverseMessage[];
   session: ConverseSession;
   apiKey?: string | null;
+  openaiKey?: string | null;
 }): Promise<ConverseResult | { ok: false; error: string }> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  const key = input.apiKey?.trim();
-  if (key) headers[KEY_HEADER] = key;
+  const gemini = input.apiKey?.trim();
+  const openai = input.openaiKey?.trim();
+  if (gemini) headers[GEMINI_HEADER] = gemini;
+  if (openai) headers[OPENAI_HEADER] = openai;
 
   const response = await fetch("/api/converse", {
     method: "POST",

@@ -63,6 +63,13 @@ export type LibraryTrack = {
   aspect: number;
   /** `seed` is authored; `harvest` came from Apple at build time; `expansion` was generated this session; `favorite` is from the listener's Apple Music Favorite Songs. */
   origin: "seed" | "harvest" | "expansion" | "favorite";
+  /** Where Ask found this recording. Absent on shelf tracks. */
+  foundVia?: "deezer" | "youtube" | "youtube_music" | "soundcloud" | "apple";
+  /** Outbound page on that service. */
+  openUrl?: string | null;
+  /** Official music video / trailer on YouTube, when we resolved one. */
+  videoId?: string | null;
+  videoUrl?: string | null;
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
@@ -86,7 +93,7 @@ function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
 }
 
 function originFor(id: string): LibraryTrack["origin"] {
-  if (id.startsWith("x-")) return "expansion";
+  if (id.startsWith("x-") || id.startsWith("w-")) return "expansion";
   if (id.startsWith("h-")) return "harvest";
   if (id.startsWith("f-")) return "favorite";
   return "seed";

@@ -1,21 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { compactOverlay } from "@/lib/apple/publish";
 import { fetchConverseStatus, sendConverseTurn } from "@/lib/converse/client";
+import { sourceLabel } from "@/lib/converse/anywhere";
 import type { ConverseEffect, ConverseMessage, ConverseStatus } from "@/lib/converse/types";
 import type { LibraryTrack } from "@/lib/library";
 import { PlayIcon, SpinnerGlyph } from "./icons";
 
-const KEY_STORAGE = "resonant.gemini.key";
+const GEMINI_KEY = "resonant.gemini.key";
+const OPENAI_KEY = "resonant.openai.key";
 
 const STARTERS = [
+  { fa: "آهنگ‌های دهه ۹۰ از اپل موزیک", en: "90s hits from Apple Music" },
+  { fa: "آهنگ‌های شبیه Radiohead", en: "Songs like Radiohead" },
   { fa: "یه آهنگ گرم سینمایی بذار", en: "Play something warm and cinematic" },
-  { fa: "پلی‌لیستی برای شب تنها", en: "A playlist for a quiet night" },
-  { fa: "ایستگاه غم عمیق رو شروع کن", en: "Start the deep melancholy station" },
-  { fa: "یه چیزی شبیه این، ولی نرم‌تر", en: "Something else — softer than this" },
+  { fa: "نماهنگ رسمی Nothing Compares 2 U", en: "Official video for this song" },
 ];
 
 type Line = {
@@ -23,25 +24,25 @@ type Line = {
   role: "user" | "assistant";
   text: string;
   tracks: LibraryTrack[];
-  source?: "gemini" | "local";
+  source?: "gemini" | "openai" | "local";
 };
 
 function uid(): string {
   return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function readStoredKey(): string {
+function readStored(key: string): string {
   try {
-    return window.localStorage.getItem(KEY_STORAGE) ?? "";
+    return window.localStorage.getItem(key) ?? "";
   } catch {
     return "";
   }
 }
 
-function writeStoredKey(value: string) {
+function writeStored(key: string, value: string) {
   try {
-    if (value) window.localStorage.setItem(KEY_STORAGE, value);
-    else window.localStorage.removeItem(KEY_STORAGE);
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
   } catch {
     /* private mode */
   }
@@ -81,18 +82,23 @@ export function TalkSurface() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyOpen, setKeyOpen] = useState(false);
-  const [keyDraft, setKeyDraft] = useState("");
-  const [deviceKey, setDeviceKey] = useState("");
+  const [geminiDraft, setGeminiDraft] = useState("");
+  const [openaiDraft, setOpenaiDraft] = useState("");
+  const [deviceGemini, setDeviceGemini] = useState("");
+  const [deviceOpenai, setDeviceOpenai] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const stored = readStoredKey();
-    setDeviceKey(stored);
-    setKeyDraft(stored);
+    const gemini = readStored(GEMINI_KEY);
+    const openai = readStored(OPENAI_KEY);
+    setDeviceGemini(gemini);
+    setGeminiDraft(gemini);
+    setDeviceOpenai(openai);
+    setOpenaiDraft(openai);
     void fetchConverseStatus().then((next) => {
       setStatus(next);
-      if (!next.configured && !stored) setKeyOpen(true);
+      if (!next.configured && !gemini && !openai) setKeyOpen(true);
     });
   }, []);
 
@@ -100,7 +106,7 @@ export function TalkSurface() {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [lines, busy]);
 
-  const ready = Boolean(status?.configured || deviceKey.trim());
+  const ready = Boolean(status?.configured || deviceGemini.trim() || deviceOpenai.trim());
 
   const applyEffects = useCallback(
     (effects: ConverseEffect[]) => {
@@ -148,7 +154,8 @@ export function TalkSurface() {
           overlay: compactOverlay(),
           tasteVectors: player.tasteVectors,
         },
-        apiKey: deviceKey,
+        apiKey: deviceGemini,
+        openaiKey: deviceOpenai,
       });
 
       setBusy(false);
@@ -170,27 +177,35 @@ export function TalkSurface() {
         },
       ]);
     },
-    [applyEffects, busy, deviceKey, lines, player]
+    [applyEffects, busy, deviceGemini, deviceOpenai, lines, player]
   );
 
-  function saveKey() {
-    const value = keyDraft.trim();
-    writeStoredKey(value);
-    setDeviceKey(value);
+  function saveKeys() {
+    const gemini = geminiDraft.trim();
+    const openai = openaiDraft.trim();
+    writeStored(GEMINI_KEY, gemini);
+    writeStored(OPENAI_KEY, openai);
+    setDeviceGemini(gemini);
+    setDeviceOpenai(openai);
     setKeyOpen(false);
   }
 
-  function clearKey() {
-    writeStoredKey("");
-    setDeviceKey("");
-    setKeyDraft("");
+  function clearKeys() {
+    writeStored(GEMINI_KEY, "");
+    writeStored(OPENAI_KEY, "");
+    setDeviceGemini("");
+    setDeviceOpenai("");
+    setGeminiDraft("");
+    setOpenaiDraft("");
   }
 
   const statusLabel = useMemo(() => {
-    if (deviceKey.trim()) return "Using the Gemini key on this device.";
+    if (deviceOpenai.trim()) return "Using the ChatGPT (OpenAI) key on this device. Apple Music first.";
+    if (deviceGemini.trim()) return "Using the Gemini key on this device.";
+    if (status?.openaiConfigured) return "ChatGPT is ready on the server.";
     if (status?.configured) return "Gemini is ready on the server.";
-    return "No Gemini key yet — I can still find songs from the catalog. Paste yours below; it never leaves this device except as a request header.";
-  }, [deviceKey, status?.configured]);
+    return "No model key yet — I still search Apple Music first and attach official videos. Paste ChatGPT or Gemini below.";
+  }, [deviceGemini, deviceOpenai, status]);
 
   return (
     <div className="cx-talk">
@@ -200,18 +215,37 @@ export function TalkSurface() {
 
       <div className="cx-talk-key">
         <button type="button" id="ask-key-toggle" className="cx-see-all" onClick={() => setKeyOpen((v) => !v)}>
-          {keyOpen ? "Hide Gemini key" : deviceKey ? `Device key ${maskKey(deviceKey)}` : "Add Gemini API key"}
+          {keyOpen
+            ? "Hide keys"
+            : deviceOpenai
+              ? `ChatGPT ${maskKey(deviceOpenai)}`
+              : deviceGemini
+                ? `Gemini ${maskKey(deviceGemini)}`
+                : "Add ChatGPT or Gemini key"}
         </button>
         {keyOpen && (
           <form
             className="cx-talk-key-form"
             onSubmit={(event) => {
               event.preventDefault();
-              saveKey();
+              saveKeys();
             }}
           >
+            <label className="cx-label" htmlFor="openai-key">
+              ChatGPT / OpenAI API key — stored only in this browser
+            </label>
+            <input
+              id="openai-key"
+              className="cx-talk-input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={openaiDraft}
+              onChange={(event) => setOpenaiDraft(event.target.value)}
+              placeholder="sk-…"
+            />
             <label className="cx-label" htmlFor="gemini-key">
-              Gemini API key — stored only in this browser
+              Gemini API key — optional fallback
             </label>
             <input
               id="gemini-key"
@@ -219,15 +253,15 @@ export function TalkSurface() {
               type="password"
               autoComplete="off"
               spellCheck={false}
-              value={keyDraft}
-              onChange={(event) => setKeyDraft(event.target.value)}
+              value={geminiDraft}
+              onChange={(event) => setGeminiDraft(event.target.value)}
               placeholder="AIza…"
             />
             <div className="flex flex-wrap gap-2">
               <button type="submit" className="cx-pill cx-pill-primary">
                 Save on this device
               </button>
-              <button type="button" className="cx-pill cx-pill-ghost" onClick={clearKey}>
+              <button type="button" className="cx-pill cx-pill-ghost" onClick={clearKeys}>
                 Clear
               </button>
             </div>
@@ -239,8 +273,8 @@ export function TalkSurface() {
         {lines.length === 0 && (
           <div className="cx-talk-empty">
             <p className="cx-body">
-              Ask in Persian or English. Songs, mixes, stations — Resonant plays them here. There is no skip;
-              if you want something else, just say so.
+              Ask however you talk. Apple Music first — same artist, kin, official videos as trailers.
+              ChatGPT if you paste a key. The Resonant shelf is optional.
             </p>
             <div className="cx-talk-starters">
               {STARTERS.map((item) => (
@@ -262,7 +296,7 @@ export function TalkSurface() {
           <article key={line.id} className={`cx-talk-bubble cx-talk-${line.role}`} dir="auto">
             <p>{line.text}</p>
             {line.role === "assistant" && line.source === "local" && !ready && (
-              <p className="cx-meta mt-2">Catalog companion — add a Gemini key for full conversation.</p>
+              <p className="cx-meta mt-2">بدون کلید هم از اپل موزیک می‌آورم. برای گفتگوی کامل ChatGPT را بگذار.</p>
             )}
             {line.tracks.length > 0 && (
               <ul className="cx-talk-tracks">
@@ -274,15 +308,42 @@ export function TalkSurface() {
                         style={{ backgroundColor: track.tint }}
                       >
                         {track.artworkUrl && (
-                          <Image src={track.artworkUrl} alt="" fill sizes="40px" style={{ objectFit: "cover" }} />
+                          // Remote art from Deezer / YouTube / SoundCloud is not all on Apple's CDN.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={track.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         )}
                       </span>
                       <span className="min-w-0 text-left">
                         <span className="cx-truncate block text-[13px] font-semibold">{track.title}</span>
-                        <span className="cx-truncate block text-[12px] text-[var(--ink-3)]">{track.artist}</span>
+                        <span className="cx-truncate block text-[12px] text-[var(--ink-3)]">
+                          {track.artist}
+                          {sourceLabel(track.foundVia) ? ` · ${sourceLabel(track.foundVia)}` : ""}
+                        </span>
+                        {track.note && (
+                          <span className="cx-truncate block text-[11px] text-[var(--ink-3)]">{track.note}</span>
+                        )}
                       </span>
                       <PlayIcon size={12} />
                     </button>
+                    {(track.openUrl || track.appleUrl || track.videoUrl) && (
+                      <span className="flex shrink-0 items-center">
+                        {(track.openUrl || track.appleUrl) && (
+                          <a
+                            href={track.openUrl || track.appleUrl || "#"}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="cx-meta px-2"
+                          >
+                            Open
+                          </a>
+                        )}
+                        {track.videoUrl && (
+                          <a href={track.videoUrl} target="_blank" rel="noreferrer noopener" className="cx-meta px-2">
+                            Video
+                          </a>
+                        )}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -312,7 +373,7 @@ export function TalkSurface() {
           rows={2}
           dir="auto"
           value={draft}
-          placeholder="A song, a mix, a feeling…"
+          placeholder="Radiohead، دهه ۹۰، حس سینمایی…"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {

@@ -5,6 +5,9 @@ import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/ov
 import { TOPOGRAPHY, adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
 import type { GeminiFunctionDeclaration } from "@/lib/mcp/gemini";
 import { looksLikeHexColor, matchRoom } from "./rooms";
+import { findMusic, sourceLabel } from "./anywhere";
+import { findRelated } from "./kin";
+import { harvestRoom } from "./live-room";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type ToolContext = {
@@ -27,6 +30,7 @@ export function createToolContext(session: ConverseSession): ToolContext {
 
 export function card(track: LibraryTrack): ConverseTrackCard {
   const room = TOPOGRAPHY.find((r) => r.id === track.region);
+  const source = sourceLabel(track.foundVia) ?? (track.id.startsWith("w-") ? "web" : "Resonant");
   return {
     id: track.id,
     title: track.title,
@@ -35,6 +39,10 @@ export function card(track: LibraryTrack): ConverseTrackCard {
     room: room?.label ?? track.region.replace(/_/g, " "),
     feeling: track.shape,
     duration: track.duration,
+    source,
+    openUrl: track.openUrl ?? track.appleUrl ?? null,
+    playable: Boolean(track.previewUrl) || Boolean(track.openUrl),
+    videoUrl: track.videoUrl ?? null,
   };
 }
 
@@ -110,9 +118,15 @@ function mergeTracks(a: LibraryTrack[], b: LibraryTrack[]): LibraryTrack[] {
 }
 
 function pushPlay(ctx: ToolContext, tracks: LibraryTrack[], title?: string) {
-  const list = playable(tracks);
-  if (!list.length) return;
-  const [first, ...rest] = list;
+  const list = tracks.filter((t) => t.previewUrl || t.openUrl || t.id.startsWith("w-"));
+  const unique = list.filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i);
+  if (!unique.length) return;
+  const guests = unique.filter((t) => t.id.startsWith("w-"));
+  if (guests.length) {
+    ctx.ingest.push(...guests);
+    ctx.effects.push({ type: "ingest", tracks: guests });
+  }
+  const [first, ...rest] = unique;
   ctx.effects.push({ type: "play", track: first });
   if (rest.length) {
     ctx.effects.push({ type: "queue", tracks: rest, title: title?.trim() || ctx.lastPlaylistTitle || "A set for you" });
@@ -126,10 +140,45 @@ function pushDestination(ctx: ToolContext, id: CoordinateId) {
 
 export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
+    name: "find_music",
+    description:
+      "Search Apple Music first for real recordings matching the listener. " +
+      "Then Deezer if needed. YouTube only when they asked for YouTube — otherwise YouTube is used for official videos/trailers attached to Apple tracks. " +
+      "Do not search Iranian/local mixes unless they asked for Iranian music. " +
+      "Use English decade queries for دهه ۹۰ (1990s pop hits). Then play_tracks with the returned ids.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: {
+          type: "STRING",
+          description: "The listener's request in their own words. Do not rewrite it into feeling jargon.",
+        },
+        limit: { type: "INTEGER", description: "How many songs to return, 4–12. Default 8." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "find_related",
+    description:
+      "More songs by the same person, then related artists, from Apple Music. " +
+      "Use when they want similar songs, kin, 'more like this', or tracks from this artist. " +
+      "Pass the artist name from the last search or now playing. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        artist: { type: "STRING", description: "Artist to expand from." },
+        title: { type: "STRING", description: "Optional song title they named." },
+        limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+      },
+      required: ["artist"],
+    },
+  },
+  {
     name: "search_catalog",
     description:
-      "Search Resonant's living catalog by feeling, artist, title, room name, or sleeve colour hex. " +
-      "Never search by genre. Returns songs you may then play or put in a playlist.",
+      "Optional: search only Resonant's own shelf. Never use this as a reason to refuse a request. " +
+      "If the listener wants songs that may live outside the shelf, call find_music instead.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -151,7 +200,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, find_related, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -168,8 +217,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "start_station",
     description:
-      "Start a room as a radio station: lock the destination and play a song from that room. " +
-      "The engine then drifts inside that feeling. There is no skip.",
+      "Start a map room: lock the destination and harvest live Apple Music for that feeling. There is no skip.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -185,8 +233,8 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "make_playlist",
     description:
-      "Assemble a mix from the catalog (and Favorite Songs overlay) matching a feeling or query, " +
-      "and start it. Use this when they ask for a playlist, mix, or لیست.",
+      "Assemble a mix matching a feeling, decade, genre, artist, or any request, then start it. " +
+      "Prefers find_music (Deezer / YouTube / SoundCloud / Apple). The Resonant catalog is only a fallback.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -286,6 +334,41 @@ export async function executeConverseTool(
   ctx: ToolContext
 ): Promise<Record<string, unknown>> {
   switch (name) {
+    case "find_music": {
+      const query = asString(args.query);
+      const tracks = await findMusic(query, asNumber(args.limit, 8));
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        query,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "Real Apple Music recordings first. Name artist, title, and Apple. If videoUrl is set, mention the official video. Call play_tracks. Do not refuse."
+          : "No hits yet — try the artist name in English, or a song title.",
+      };
+    }
+    case "find_related": {
+      const artist = asString(args.artist) || ctx.session.currentArtist || "";
+      const title = asString(args.title) || ctx.session.currentTitle || "";
+      const tracks = await findRelated({ artist, title, limit: asNumber(args.limit, 8) });
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        artist,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "Same person first, then kin, from Apple Music. Call play_tracks. Do not invent other names."
+          : "Could not resolve that artist on Apple Music. Call find_music with the artist in English.",
+      };
+    }
     case "search_catalog": {
       const query = asString(args.query);
       const tracks = searchTracks(ctx, query, asNumber(args.limit, 8));
@@ -294,8 +377,8 @@ export async function executeConverseTool(
         count: tracks.length,
         tracks: tracks.map(card),
         note: tracks.length
-          ? "Play with play_tracks or fold into make_playlist. Do not invent other songs."
-          : "Nothing matched. Try a room name or a feeling (warm, fragile, night).",
+          ? "Optional shelf matches. Prefer find_music for anything outside this shelf."
+          : "Nothing on the Resonant shelf. Call find_music with the same request — do not refuse.",
       };
     }
     case "list_rooms": {
@@ -312,7 +395,7 @@ export async function executeConverseTool(
     case "play_tracks": {
       const ids = asStringArray(args.ids).slice(0, 12);
       const tracks = ids.map((id) => resolveId(ctx, id)).filter((t): t is LibraryTrack => Boolean(t));
-      if (!tracks.length) return { ok: false, error: "None of those ids are in the catalog." };
+      if (!tracks.length) return { ok: false, error: "None of those ids resolved. Call find_music again." };
       const title = asString(args.title);
       if (title) ctx.lastPlaylistTitle = title;
       pushPlay(ctx, tracks, title);
@@ -321,10 +404,24 @@ export async function executeConverseTool(
     case "start_station": {
       const room = asRoom(args.room);
       if (!room) return { ok: false, error: "Unknown room." };
+      pushDestination(ctx, room);
+      const live = await harvestRoom(room, Date.now(), 8);
+      if (live.length) {
+        rememberSearch(ctx, live);
+        ctx.ingest.push(...live);
+        ctx.effects.push({ type: "ingest", tracks: live });
+        pushPlay(ctx, live, `${TOPOGRAPHY.find((r) => r.id === room)?.label ?? "Station"} live`);
+        return {
+          ok: true,
+          room: { id: room, label: TOPOGRAPHY.find((r) => r.id === room)?.label, live: true },
+          playing: card(live[0]),
+          tracks: live.map(card),
+          note: "Live Apple Music harvest for this map room — not the static shelf.",
+        };
+      }
       const shelf = collection(room);
       if (!shelf?.tracks.length) return { ok: false, error: "That room is empty right now." };
       rememberSearch(ctx, shelf.tracks.slice(0, 12));
-      pushDestination(ctx, room);
       pushPlay(ctx, [shelf.tracks[0]]);
       return {
         ok: true,
@@ -342,18 +439,19 @@ export async function executeConverseTool(
         (room ? `${TOPOGRAPHY.find((r) => r.id === room)?.label ?? "Listening"} mix` : query.slice(0, 48) || "A mix for you");
       ctx.lastPlaylistTitle = title;
 
-      let tracks: LibraryTrack[] = [];
-      if (room) {
+      const found = await findMusic(query, count);
+      let tracks: LibraryTrack[] = found;
+      if (tracks.length < count && room) {
         const shelf = collection(room);
-        tracks = shelf?.tracks.slice(0, count) ?? [];
+        tracks = mergeTracks(tracks, shelf?.tracks.slice(0, count) ?? []);
       }
-      if (tracks.length < count) {
+      if (tracks.length < 4) {
         tracks = mergeTracks(tracks, searchTracks(ctx, query || room || "warm", count));
       }
-      tracks = playable(tracks).slice(0, count);
+      tracks = tracks.slice(0, count);
       rememberSearch(ctx, tracks);
-      if (!tracks.length) return { ok: false, error: "Could not assemble a mix from the catalog." };
-      pushDestination(ctx, room ?? tracks[0].region);
+      if (!tracks.length) return { ok: false, error: "Search returned nothing. Try another wording." };
+      if (room) pushDestination(ctx, room);
       pushPlay(ctx, tracks, title);
       return { ok: true, title, tracks: tracks.map(card) };
     }

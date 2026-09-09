@@ -145,6 +145,15 @@ export function roomCatalog() {
   }));
 }
 
+function tokensOf(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .split(/[\s\u200c،,.!?;:()"'«»|/]+/u)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 2);
+}
+
 export function matchRoom(query: string): CoordinateId | null {
   const q = query.trim().toLowerCase().replace(/[_-]+/g, " ");
   if (!q) return null;
@@ -154,13 +163,17 @@ export function matchRoom(query: string): CoordinateId | null {
     if (room.label.toLowerCase() === q) return room.id;
   }
 
+  const tokens = tokensOf(q);
   let best: { id: CoordinateId; len: number } | null = null;
   for (const [id, aliases] of Object.entries(ROOM_ALIASES) as [CoordinateId, string[]][]) {
     for (const alias of aliases) {
       const a = alias.toLowerCase();
-      if (q === a || q.includes(a) || a.includes(q)) {
-        if (!best || a.length > best.len) best = { id, len: a.length };
-      }
+      const phrase = a.includes(" ");
+      const hit = phrase
+        ? q.includes(a)
+        : q === a || tokens.includes(a);
+      if (!hit) continue;
+      if (!best || a.length > best.len) best = { id, len: a.length };
     }
   }
   return best?.id ?? null;

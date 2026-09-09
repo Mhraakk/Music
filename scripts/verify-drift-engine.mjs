@@ -654,6 +654,8 @@ async function verifyConverse() {
   const status = await fetch(`${BASE}/api/converse`).then((r) => r.json());
   check(typeof status.configured === "boolean", "GET /api/converse reports configured without leaking a key");
   check(status.acceptsClientKey === true, "Ask accepts a device Gemini key");
+  check(status.acceptsOpenAiKey === true, "Ask accepts a device ChatGPT key");
+  check(typeof status.openaiConfigured === "boolean", "Ask reports OpenAI configuration without leaking a key");
   check(Array.isArray(status.rooms) && status.rooms.length === 9, "Ask lists the nine rooms", `${status.rooms?.length}`);
   const dumped = JSON.stringify(status);
   check(!/AIza[0-9A-Za-z_-]{10,}/.test(dumped), "converse status does not contain a Google API key");
@@ -662,6 +664,7 @@ async function verifyConverse() {
   const talk = await fetch(`${BASE}/talk`).then((r) => r.text());
   check(talk.includes("Ask"), "Ask page is reachable");
   check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
+  check(/ChatGPT|OpenAI/.test(talk), "Ask page explains the ChatGPT key field");
   check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
 
   async function turn(text) {
@@ -679,7 +682,7 @@ async function verifyConverse() {
 
   const warm = await turn("Play something warm and cinematic");
   check(warm.response.ok && warm.payload.ok, "Ask fulfils a play request without a Gemini key", `HTTP ${warm.response.status}`);
-  check(warm.payload.source === "local" || warm.payload.source === "gemini", "Ask names its source");
+  check(warm.payload.source === "local" || warm.payload.source === "gemini" || warm.payload.source === "openai", "Ask names its source");
   const play = (warm.payload.effects ?? []).find((e) => e.type === "play");
   check(Boolean(play?.track?.id && play.track.title && play.track.artist), "warm request returns a real catalog track");
   check(play && !("genre" in play.track), "played track has no genre field");
@@ -702,6 +705,70 @@ async function verifyConverse() {
   const faPlay = (persian.payload.effects ?? []).find((e) => e.type === "play");
   check(persian.payload.ok && Boolean(faPlay?.track?.id), "Persian play request fulfils from the catalog");
   check(/[\u0600-\u06FF]/.test(persian.payload.reply || ""), "Persian request gets a Persian reply");
+
+  const nineties = await turn("آهنگ های دهه ۹۰ میخوام");
+  const nPlay = (nineties.payload.effects ?? []).find((e) => e.type === "play");
+  const nQueue = (nineties.payload.effects ?? []).find((e) => e.type === "queue");
+  const nTracks = [nPlay?.track, ...(nQueue?.tracks ?? [])].filter(Boolean);
+  check(nineties.payload.ok && Boolean(nPlay?.track?.id), "90s request returns a real song", nPlay?.track ? `${nPlay.track.artist} — ${nPlay.track.title}` : "none");
+  check(!/کاتالوگ|in the catalog|from the catalog/i.test(nineties.payload.reply || ""), "90s reply does not hide behind the catalog", nineties.payload.reply?.slice(0, 120));
+  check(
+    nTracks.some((t) => t.foundVia || String(t.id).startsWith("w-")),
+    "90s hits come from open search (Deezer / YouTube / SoundCloud / Apple)",
+    nTracks.map((t) => t.foundVia || t.id).slice(0, 4).join(", ")
+  );
+  check(
+    nTracks.some((t) => t.previewUrl || t.openUrl || t.appleUrl),
+    "90s hits are openable or previewable",
+    nPlay?.track?.foundVia ?? "none"
+  );
+  check(/[\u0600-\u06FF]/.test(nineties.payload.reply || ""), "90s Persian request gets a Persian reply");
+  check(
+    nPlay?.track?.foundVia === "apple" || String(nPlay?.track?.id || "").startsWith("w-it-"),
+    "90s search prefers Apple Music",
+    nPlay?.track?.foundVia ?? nPlay?.track?.id ?? "none"
+  );
+  check(
+    !/[\u0600-\u06FF]/.test(`${nPlay?.track?.title ?? ""} ${nPlay?.track?.artist ?? ""}`),
+    "90s default is not an Iranian-script pick",
+    `${nPlay?.track?.artist ?? ""} — ${nPlay?.track?.title ?? ""}`
+  );
+
+  const related = await turn("آهنگ‌های شبیه Radiohead");
+  const rPlay = (related.payload.effects ?? []).find((e) => e.type === "play");
+  const rQueue = (related.payload.effects ?? []).find((e) => e.type === "queue");
+  const rTracks = [rPlay?.track, ...(rQueue?.tracks ?? [])].filter(Boolean);
+  check(related.payload.ok && Boolean(rPlay?.track?.id), "related request returns real songs", rPlay?.track ? `${rPlay.track.artist} — ${rPlay.track.title}` : "none");
+  check(
+    rTracks.some((t) => /radiohead/i.test(`${t.artist}`)),
+    "related hits include the named artist",
+    rTracks.map((t) => `${t.artist}`).slice(0, 4).join(", ")
+  );
+  const relatedDest = (related.payload.effects ?? []).find((e) => e.type === "destination");
+  check(
+    !relatedDest,
+    "related Radiohead does not start a map station",
+    relatedDest?.id ?? "none"
+  );
+
+  const fresh = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=17&limit=8`).then((r) => r.json());
+  check(fresh.ok && Array.isArray(fresh.tracks) && fresh.tracks.length > 0, "Discover live harvest returns Apple recordings", `${fresh.tracks?.length ?? 0}`);
+  check(
+    (fresh.tracks ?? []).every((t) => t.foundVia === "apple" || String(t.id).startsWith("w-it-")),
+    "live harvest is Apple Music",
+    (fresh.tracks ?? []).map((t) => t.foundVia || t.id).slice(0, 3).join(", ")
+  );
+  check(
+    (fresh.tracks ?? []).some((t) => t.previewUrl),
+    "live harvest includes audio trailers",
+    `${(fresh.tracks ?? []).filter((t) => t.previewUrl).length} previews`
+  );
+  const zeroSeven = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=1&limit=6`).then((r) => r.json());
+  check(
+    (zeroSeven.tracks ?? []).some((t) => /zero\s*7/i.test(t.artist)),
+    "Zero 7 probe does not collapse to a different Zero",
+    (zeroSeven.tracks ?? []).map((t) => t.artist).slice(0, 3).join(", ")
+  );
 
   const home = await fetch(`${BASE}/`).then((r) => r.text());
   check(home.includes("Ask"), "Listen Now chrome includes Ask");
