@@ -17,7 +17,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Collection } from "@/lib/library";
 
-export function CollectionRail({ collections }: { collections: Collection[] }) {
+export function CollectionRail({ collections }: { collections: Omit<Collection, "tracks">[] }) {
   return (
     <div className="cx-rail -mx-4 px-4 md:-mx-8 md:px-8">
       {collections.map((collection) => (

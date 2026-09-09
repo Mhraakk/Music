@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { FloatingNav } from "@/components/cosmos/FloatingNav";
-import { randomUUID } from "node:crypto";
 import "./cosmos.css";
 
 /**
@@ -27,13 +26,9 @@ export const metadata: Metadata = {
 };
 
 export default function CosmosLayout({ children }: { children: React.ReactNode }) {
-  // One session per navigation. Seeds the engine's deterministic tie-breaking,
-  // so two listeners never share an identical drift.
-  const sessionId = randomUUID();
-
   return (
     <div className={`cosmos ${inter.variable}`}>
-      <PlayerProvider sessionId={sessionId}>
+      <PlayerProvider>
         {children}
         <FloatingNav />
       </PlayerProvider>

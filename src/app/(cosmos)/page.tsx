@@ -67,7 +67,7 @@ export default function DiscoverPage() {
             All {shelves.length} →
           </Link>
         </div>
-        <CollectionRail collections={shelves} />
+        <CollectionRail collections={shelves.map(({ tracks: _tracks, ...shelf }) => shelf)} />
       </section>
 
       {/* ── The wall ── */}

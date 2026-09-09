@@ -528,8 +528,8 @@ async function verifyProductSurface() {
 
   const classic = await fetch(`${BASE}/classic`, { redirect: "manual" });
   check(
-    classic.status === 307 || classic.status === 308 || classic.status === 200,
-    "classic route no longer serves the 60-track demo",
+    [301, 307, 308].includes(classic.status),
+    "classic route redirects to discover",
     `status ${classic.status}`
   );
 }

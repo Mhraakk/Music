@@ -140,13 +140,20 @@ function inferDestination(origin: CoordinateId): CoordinateId {
   return next?.id ?? "cinematic_warmth";
 }
 
+function newSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function PlayerProvider({
   children,
   sessionId,
   tracks = [],
 }: {
   children: ReactNode;
-  sessionId: string;
+  sessionId?: string;
   /**
    * Optional seed of already-rendered sleeves. Engine-chosen ids that are not
    * in this list are resolved through `/api/catalog` so the homepage does not
@@ -154,7 +161,10 @@ export function PlayerProvider({
    */
   tracks?: LibraryTrack[];
 }) {
-  const [state, setState] = useState<PlayerState>({ ...INITIAL, sessionId });
+  const [state, setState] = useState<PlayerState>({
+    ...INITIAL,
+    sessionId: sessionId ?? "",
+  });
 
   const byId = useMemo(() => {
     const map = new Map(tracks.map((t) => [t.id, t]));
@@ -218,7 +228,24 @@ export function PlayerProvider({
     destination: "cinematic_warmth" as CoordinateId,
     destinationLocked: false,
     tasteVectors: [] as EmotionalVector[],
+    sessionId: sessionId ?? "",
   });
+
+  useEffect(() => {
+    if (sessionId) {
+      live.current.sessionId = sessionId;
+      return;
+    }
+    setState((s) => {
+      if (s.sessionId) {
+        live.current.sessionId = s.sessionId;
+        return s;
+      }
+      const id = newSessionId();
+      live.current.sessionId = id;
+      return { ...s, sessionId: id };
+    });
+  }, [sessionId]);
 
   const ensureLanes = useCallback((): [HTMLAudioElement, HTMLAudioElement] => {
     if (!lanes.current) {
@@ -362,7 +389,7 @@ export function PlayerProvider({
         const recentIds = live.current.historyIds.slice(-24);
         const destination = live.current.destination;
         const outcome = await getNextEmotionalDrift({
-          sessionId,
+          sessionId: live.current.sessionId || newSessionId(),
           origin: current.region,
           destination,
           history: recentIds,
@@ -405,7 +432,7 @@ export function PlayerProvider({
         advancing.current = false;
       }
     },
-    [recordSignal, rememberTrack, resolveTrack, sessionId, sound]
+    [recordSignal, rememberTrack, resolveTrack, sound]
   );
 
   /**
