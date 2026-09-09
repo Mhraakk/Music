@@ -82,16 +82,27 @@ async function lrclib(url: string): Promise<unknown> {
   }
 }
 
+function tidyNames(artist: string, title: string): { artist: string; title: string } {
+  const who = artist.trim();
+  let song = title.trim();
+  const prefix = `${who} - `;
+  if (who && song.toLowerCase().startsWith(prefix.toLowerCase())) {
+    song = song.slice(prefix.length).trim();
+  }
+  return { artist: who, title: song };
+}
+
 function fromHit(hit: LrclibHit | null, artist: string, title: string): LyricsResult | null {
   if (!hit) return null;
   const synced = parseLrc(hit.syncedLyrics ?? "");
   const plain = (hit.plainLyrics ?? "").trim();
   const lines = synced.length ? synced : plain ? unsynced(plain) : [];
   if (!lines.length) return null;
+  const names = tidyNames(hit.artistName || artist, hit.trackName || title);
   return {
     ok: true,
-    artist: hit.artistName || artist,
-    title: hit.trackName || title,
+    artist: names.artist,
+    title: names.title,
     source: "lrclib",
     synced: synced.length > 0,
     lines,
@@ -105,9 +116,40 @@ function cleanQuery(raw: string): string {
     .replace(/متن(\s+این)?(\s+آهنگ)?/g, " ")
     .replace(/لیریک|کلمات آهنگ|كلمات آهنگ/g, " ")
     .replace(/این آهنگ|همین آهنگ/g, " ")
-    .replace(/\b(please|show|me|the|for|this|that|song|track|words|of)\b/gi, " ")
+    .replace(/\b(please|show|me|for|this|that|song|track|words)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function guesses(q: string): { artist: string; title: string }[] {
+  const parts = q.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return [];
+  const out = [{ artist: parts[0], title: parts.slice(1).join(" ") }];
+  if (parts.length >= 3) out.push({ artist: parts.slice(0, 2).join(" "), title: parts.slice(2).join(" ") });
+  return out;
+}
+
+function scoreHit(hit: LrclibHit, q: string): number {
+  const artist = (hit.artistName ?? "").trim();
+  const title = (hit.trackName ?? "").trim();
+  const core = tidyNames(artist, title).title;
+  const ql = q.toLowerCase();
+  let score = 0;
+  if (hit.syncedLyrics) score += 8;
+  else if (hit.plainLyrics) score += 1;
+  if (artist && title && artist.toLowerCase() !== title.toLowerCase()) score += 4;
+  if (core && artist && !title.toLowerCase().startsWith(artist.toLowerCase())) score += 2;
+  if (artist && ql.includes(artist.toLowerCase())) score += 2;
+  if (core && ql.includes(core.toLowerCase())) score += 3;
+  return score;
+}
+
+async function getByName(artist: string, title: string): Promise<LyricsResult | null> {
+  if (!artist || !title) return null;
+  const direct = (await lrclib(
+    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
+  )) as LrclibHit | null;
+  return fromHit(direct, artist, title);
 }
 
 export async function fetchLyrics(input: { artist?: string; title?: string; query?: string }): Promise<LyricsResult> {
@@ -121,20 +163,24 @@ export async function fetchLyrics(input: { artist?: string; title?: string; quer
     return { ok: false, artist: "", title: "", source: null, synced: false, lines: [], note: "Name an artist and title." };
   }
 
-  if (artist && title) {
-    const direct = (await lrclib(
-      `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
-    )) as LrclibHit | null;
-    const parsed = fromHit(direct, artist, title);
-    if (parsed) return parsed;
+  const named = await getByName(artist, title);
+  if (named?.synced) return named;
+
+  if (!(artist && title) && cleaned) {
+    for (const guess of guesses(cleaned)) {
+      const hit = await getByName(guess.artist, guess.title);
+      if (hit?.synced) return hit;
+    }
   }
 
-  const named = [artist, title].filter(Boolean).join(" ");
-  const q = artist && title ? named : cleaned || named || query;
+  const q = [artist, title].filter(Boolean).join(" ") || cleaned || query;
   const found = (await lrclib(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`)) as LrclibHit[] | null;
-  const first = Array.isArray(found) ? found.find((row) => row.syncedLyrics || row.plainLyrics) : null;
-  const parsed = fromHit(first ?? null, artist, title);
+  const ranked = Array.isArray(found)
+    ? [...found].filter((row) => row.syncedLyrics || row.plainLyrics).sort((a, b) => scoreHit(b, q) - scoreHit(a, q))
+    : [];
+  const parsed = fromHit(ranked[0] ?? null, artist, title);
   if (parsed) return parsed;
+  if (named) return named;
 
   return {
     ok: false,

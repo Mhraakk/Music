@@ -845,6 +845,12 @@ async function verifyCyreneLyrics() {
   const lyrics = await fetch(`${BASE}/api/lyrics?artist=Radiohead&title=Creep`).then((r) => r.json());
   check(lyrics.ok === true && Array.isArray(lyrics.lines) && lyrics.lines.length > 4, "lrclib returns Creep lyrics", lyrics.note);
   check(typeof lyrics.lines[0]?.text === "string" && lyrics.lines[0].text.length > 0, "lyric lines have text");
+  check(lyrics.synced === true, "direct artist/title lookup is synced");
+
+  const byQuery = await fetch(`${BASE}/api/lyrics?query=${encodeURIComponent("Radiohead Creep")}`).then((r) => r.json());
+  check(byQuery.ok === true, "query-only lyrics lookup succeeds");
+  check(/radiohead/i.test(byQuery.artist ?? "") && /^creep$/i.test(byQuery.title ?? ""), "query-only lyrics lookup names Radiohead / Creep", `${byQuery.artist} — ${byQuery.title}`);
+  check(byQuery.synced === true, "query-only lyrics lookup prefers synced LRC");
 
   const asked = await fetch(`${BASE}/api/converse`, {
     method: "POST",
@@ -875,6 +881,8 @@ async function verifyCyreneLyrics() {
   check(named.ok === true, "Ask answers a named lyrics request without a current track");
   check(!named.effects?.some((e) => e.type === "play"), "named lyrics request does not start a new play");
   check(/when you were here before|i'm a creep|whatever makes you happy/i.test(named.reply ?? ""), "named lyrics request quotes Creep");
+  check(/radiohead/i.test(named.reply ?? "") && /\bcreep\b/i.test(named.reply ?? ""), "named lyrics reply names the recording");
+  check(!/radiohead\s+creep\s+[—-]\s+radiohead\s+creep/i.test(named.reply ?? ""), "named lyrics reply is not a duplicated query string");
 }
 
 try {
