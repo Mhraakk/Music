@@ -117,10 +117,13 @@ export function namedArtistQuery(text: string): string | null {
   const words = latin
     .split(/\s+/)
     .map((word) => word.trim())
-    .filter((word) => word.length > 1 && !FEELING_STOP.has(word.toLowerCase()));
+    .filter((word) => {
+      if (!word || FEELING_STOP.has(word.toLowerCase())) return false;
+      return word.length > 1 || /^\d+$/.test(word);
+    });
   if (!words.length) return null;
   const joined = words.join(" ").trim();
-  if (joined.length < 3) return null;
+  if (joined.length < 2) return null;
   if (/^\d0s$|^\d{4}s?$|hits|pop hits/i.test(joined)) return null;
   return joined;
 }

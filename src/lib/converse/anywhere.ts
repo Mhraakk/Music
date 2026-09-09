@@ -602,7 +602,8 @@ export type FindMusicOptions = {
 
 export async function findMusic(query: string, limit = 10, options: FindMusicOptions = {}): Promise<LibraryTrack[]> {
   const cap = Math.max(4, Math.min(12, limit));
-  const queries = searchQueries(query);
+  const queries =
+    options.artistFocus && query.trim() ? [query.trim()] : searchQueries(query);
   if (!queries.length) return [];
   const original = query.trim();
   const catalogQueries = queries.slice(0, 2);
