@@ -12,7 +12,7 @@ import {
   describeVector,
 } from "@/lib/drift/ontology";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
-import { artistAgrees } from "@/lib/drift/expansion";
+import { artistAgrees } from "@/lib/drift/expansion/project";
 import { fallbackColor, hexToRgb, overlayMedia, rgbToHsl } from "@/lib/media";
 import type { LibraryTrack } from "@/lib/library";
 import { latinCore, namedArtistQuery } from "./intent";
