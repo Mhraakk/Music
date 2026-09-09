@@ -191,7 +191,7 @@ export const TOPOGRAPHY: readonly EmotionalCoordinate[] = [
       imperfection: 0.9,
       insistence: 0.14,
     }),
-    description: "Degrading in real time. Not nostalgia — the process of forgetting.",
+    description: "Degrading in real time. Not nostalgia: the process of forgetting.",
   },
 ] as const;
 

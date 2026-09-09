@@ -81,7 +81,7 @@ export function admitCandidate(
     duration,
     vector: projection.vector,
     chartGravity,
-    note: `Near ${near} — ${describeVector(projection.vector)}`,
+    note: `Near ${near}: ${describeVector(projection.vector)}`,
     appleMusicId: candidate.appleTrackId,
   });
 

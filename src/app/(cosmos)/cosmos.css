@@ -422,13 +422,13 @@
 
 .cx-hero {
   position: relative;
-  min-height: 100dvh;
+  min-height: min(72dvh, 720px);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
   text-align: left;
-  padding: 88px 28px 56px;
+  padding: 88px 28px 40px;
   background-color: var(--surface-canvas);
   color: var(--color-press-black);
   overflow: hidden;
