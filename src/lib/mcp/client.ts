@@ -111,3 +111,30 @@ export function evaluateEmotionalResonance(args: {
 }): Promise<McpCallOutcome<{ admitted: boolean; violations: { id: string; statement: string }[] }>> {
   return callTool("evaluate_emotional_resonance", args);
 }
+
+export type TasteExpansionPayload = {
+  taste: {
+    source: "history" | "baseline";
+    note: string;
+    nearestAnchors: string[];
+    nearestRegions: string[];
+    probeArtists: { artist: string; via: string }[];
+  };
+  tracks: { track: { id: string; title: string; artist: string; region: string }; projection: string; distance: number }[];
+  libraryTracks: import("@/lib/library").LibraryTrack[];
+  considered: number;
+  refused: number;
+  probes: string[];
+  note: string;
+};
+
+export function generateTasteExpansion(args: {
+  sessionId?: string;
+  history?: string[];
+  tasteVectors?: EmotionalVector[];
+  exclude?: string[];
+  limit?: number;
+  analyze?: boolean;
+}): Promise<McpCallOutcome<TasteExpansionPayload>> {
+  return callTool<TasteExpansionPayload>("generate_taste_expansion", args);
+}

@@ -25,6 +25,10 @@ import {
   type EmotionalVector,
 } from "./ontology";
 import { nearestCoordinate, type CoordinateId } from "./topography";
+import { overlayMedia } from "@/lib/media";
+import { admitCandidate } from "./expansion/admit";
+import type { HarvestFile } from "./expansion/types";
+import harvest from "./harvest.json";
 
 export type DriftTrack = {
   id: string;
@@ -111,7 +115,7 @@ function fromLegacy(t: Track): DriftTrack {
   });
 }
 
-function build(input: {
+export function materializeTrack(input: {
   id: string;
   title: string;
   artist: string;
@@ -119,6 +123,7 @@ function build(input: {
   vector: EmotionalVector;
   chartGravity: number;
   note: string;
+  appleMusicId?: string | null;
 }): DriftTrack {
   const { vector } = input;
   return {
@@ -135,11 +140,14 @@ function build(input: {
     note: input.note,
     resolution: {
       query: `${input.artist} ${input.title}`,
-      appleMusicId: null,
+      appleMusicId: input.appleMusicId ?? null,
       soundcloudUrl: null,
     },
   };
 }
+
+/** @deprecated Use `materializeTrack`. Kept as a local alias for the seed builder. */
+const build = materializeTrack;
 
 /**
  * ANCHOR SEEDS
@@ -252,25 +260,58 @@ export const DRIFT_CATALOG: readonly DriftTrack[] = [
 
 const BY_ID = new Map(DRIFT_CATALOG.map((t) => [t.id, t]));
 
-export function driftTrack(id: string): DriftTrack | null {
-  return BY_ID.get(id) ?? null;
+/** Runtime + harvest admissions. Never mutates the authored seed. */
+const extras: DriftTrack[] = [];
+const extraById = new Map<string, DriftTrack>();
+
+export function ingestTracks(tracks: readonly DriftTrack[]): number {
+  let added = 0;
+  for (const track of tracks) {
+    if (BY_ID.has(track.id) || extraById.has(track.id)) continue;
+    extras.push(track);
+    extraById.set(track.id, track);
+    added += 1;
+  }
+  return added;
 }
 
-/** Everything that survives the strict rejection rules. */
+/** Authored seed plus every admitted harvest / expansion track. */
+export function livingCatalog(): DriftTrack[] {
+  return extras.length ? [...DRIFT_CATALOG, ...extras] : [...DRIFT_CATALOG];
+}
+
+export function driftTrack(id: string): DriftTrack | null {
+  return BY_ID.get(id) ?? extraById.get(id) ?? null;
+}
+
+/** Everything that survives the strict rejection rules, living catalog included. */
 export function admissiblePool(): DriftTrack[] {
-  return DRIFT_CATALOG.filter((t) => t.resonance > 0);
+  return livingCatalog().filter((t) => t.resonance > 0);
 }
 
 /** What the rejection rules actually removed, for the health route and the UI. */
 export function rejectedPool(): { track: DriftTrack; reason: string; severity: number }[] {
-  return DRIFT_CATALOG.filter((t) => t.resonance === 0).map((t) => {
-    const verdict = evaluateRejections(t.vector, t.chartGravity);
-    return {
-      track: t,
-      reason: verdict.violations[0]?.statement ?? "unspecified",
-      severity: verdict.severity,
-    };
-  });
+  return livingCatalog()
+    .filter((t) => t.resonance === 0)
+    .map((t) => {
+      const verdict = evaluateRejections(t.vector, t.chartGravity);
+      return {
+        track: t,
+        reason: verdict.violations[0]?.statement ?? "unspecified",
+        severity: verdict.severity,
+      };
+    });
+}
+
+export function catalogStats() {
+  return {
+    seed: DRIFT_CATALOG.length,
+    harvested: extras.filter((t) => t.id.startsWith("h-")).length,
+    expanded: extras.filter((t) => t.id.startsWith("x-")).length,
+    living: DRIFT_CATALOG.length + extras.length,
+    admitted: admissiblePool().length,
+    refused: rejectedPool().length,
+  };
 }
 
 /**
@@ -339,3 +380,23 @@ export function emotionalField(v: EmotionalVector): string {
   const b = Math.round(255 * luminance * (0.72 - warm * 0.3 + v.cinema * 0.16));
   return `${Math.min(255, r)} ${Math.min(255, g)} ${Math.min(255, b)}`;
 }
+
+/**
+ * Harvest is identity + media only. Vectors are projected here so a change to
+ * the ontology re-admits the same recordings without re-querying Apple.
+ */
+function ingestHarvest() {
+  const file = harvest as HarvestFile;
+  for (const candidate of file.candidates ?? []) {
+    const admission = admitCandidate(candidate, {
+      pool: DRIFT_CATALOG,
+      build: materializeTrack,
+      idPrefix: "h",
+    });
+    if (!admission) continue;
+    ingestTracks([admission.track]);
+    overlayMedia(admission.track.id, admission.media);
+  }
+}
+
+ingestHarvest();

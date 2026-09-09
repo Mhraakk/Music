@@ -56,21 +56,29 @@ type MediaFile = {
 };
 
 const FILE = raw as MediaFile;
+const overlay = new Map<string, TrackMedia>();
 
 export const MEDIA_GENERATED_AT = FILE.generatedAt;
 export const MEDIA_COUNTS = FILE.counts;
 
+/** Runtime / harvest artwork. Wins over the committed media map. */
+export function overlayMedia(id: string, media: TrackMedia): void {
+  overlay.set(id, media);
+}
+
 export function trackMedia(id: string): TrackMedia | null {
+  const live = overlay.get(id);
+  if (live?.artworkUrl) return live;
   const entry = FILE.media[id];
   return entry?.artworkUrl ? entry : null;
 }
 
 export function hasArtwork(id: string): boolean {
-  return Boolean(FILE.media[id]?.artworkUrl);
+  return Boolean(overlay.get(id)?.artworkUrl || FILE.media[id]?.artworkUrl);
 }
 
 export function previewUrl(id: string): string | null {
-  return FILE.media[id]?.previewUrl ?? null;
+  return overlay.get(id)?.previewUrl ?? FILE.media[id]?.previewUrl ?? null;
 }
 
 /* ────────────────────────────── colour utilities ────────────────────────────── */

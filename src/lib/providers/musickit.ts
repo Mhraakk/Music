@@ -8,8 +8,9 @@
  *   2. Resolve a de-genred catalog entry to a concrete Apple Music song id.
  *
  * Resolution is a *lookup*, never a recommendation source. Apple's catalog is
- * asked "which song is this", never "what should play next" — the cognitive core
- * owns that decision and Apple's charts are deliberately never consulted.
+ * asked "which song is this" or "what recordings exist near this artist", never
+ * "what should play next" — the cognitive core owns admission and Apple's charts
+ * are deliberately never consulted.
  */
 
 import { createPrivateKey, sign as cryptoSign, type KeyObject } from "node:crypto";

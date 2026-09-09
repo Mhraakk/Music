@@ -11,7 +11,7 @@
  */
 
 import Link from "next/link";
-import { collections, featured, library } from "@/lib/library";
+import { collections, library, libraryStats } from "@/lib/library";
 import { signaturePlates } from "@/lib/signature";
 import { CollectionRail } from "@/components/cosmos/CollectionRail";
 import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
@@ -22,7 +22,7 @@ const SIGNATURE_TINTS = signaturePlates().map((plate) => plate.tint);
 export default function DiscoverPage() {
   const tracks = library();
   const shelves = collections();
-  const opening = featured(tracks.length);
+  const stats = libraryStats();
 
   /**
    * Counted over the library rather than the media file. The media map covers
@@ -45,9 +45,9 @@ export default function DiscoverPage() {
         </div>
 
         <p className="cx-body mt-5 max-w-[52ch]">
-          No genre tags, no BPM, no popularity ranking. {tracks.length} positions in an emotional
-          substrate, each one a sleeve you can pick up. Search a feeling or search a colour — then
-          let the engine read how you listen and drift from there.
+          No genre tags, no BPM, no popularity ranking. {stats.admitted} positions in an emotional
+          substrate — {stats.seed} authored, the rest admitted from Apple Music. Search a feeling
+          or a colour, or ask for ten new positions near how you listen.
         </p>
 
         <p className="cx-meta mt-3">
@@ -75,7 +75,7 @@ export default function DiscoverPage() {
           Everything
           <span className="cx-meta ml-3 font-normal">most audibly human first</span>
         </h2>
-        <DiscoverSurface tracks={opening} />
+        <DiscoverSurface tracks={tracks} />
       </section>
 
       {/*

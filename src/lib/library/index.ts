@@ -21,7 +21,7 @@ import {
   AESTHETIC_ANCHORS,
   type EmotionalVector,
 } from "@/lib/drift/ontology";
-import { admissiblePool, type DriftTrack } from "@/lib/drift/catalog";
+import { admissiblePool, catalogStats, type DriftTrack } from "@/lib/drift/catalog";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
 import {
   colorDistance,
@@ -61,6 +61,8 @@ export type LibraryTrack = {
    * character gives the column rhythm that makes this kind of grid feel alive.
    */
   aspect: number;
+  /** `seed` is authored; `harvest` came from Apple at build time; `expansion` was generated this session. */
+  origin: "seed" | "harvest" | "expansion";
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
@@ -83,7 +85,13 @@ function aspectFor(track: DriftTrack, media: TrackMedia | null): number {
   return 1;
 }
 
-function toLibraryTrack(track: DriftTrack): LibraryTrack {
+function originFor(id: string): LibraryTrack["origin"] {
+  if (id.startsWith("x-")) return "expansion";
+  if (id.startsWith("h-")) return "harvest";
+  return "seed";
+}
+
+export function toLibraryTrack(track: DriftTrack): LibraryTrack {
   const media: TrackMedia | null = trackMedia(track.id);
   const tint = media?.averageColor ?? fallbackColor(track.vector);
   const searchColor = media?.searchColor ?? tint;
@@ -109,6 +117,7 @@ function toLibraryTrack(track: DriftTrack): LibraryTrack {
     shape: describeVector(track.vector),
     note: track.note,
     aspect: aspectFor(track, media),
+    origin: originFor(track.id),
   };
 }
 
@@ -118,6 +127,16 @@ let cache: LibraryTrack[] | null = null;
 export function library(): LibraryTrack[] {
   if (!cache) cache = admissiblePool().map(toLibraryTrack);
   return cache;
+}
+
+/** Drop the memo after the living catalog changes. */
+export function refreshLibrary(): LibraryTrack[] {
+  cache = null;
+  return library();
+}
+
+export function libraryStats() {
+  return catalogStats();
 }
 
 export function libraryTrack(id: string): LibraryTrack | null {
@@ -214,11 +233,12 @@ export function collections(): Collection[] {
 
     // Never ship an empty shelf: if the radius is too tight for a sparse
     // region, fall back to its nearest positions regardless of distance.
-    const tracks = ranked.length >= 6 ? ranked : all
+    const tracks = (ranked.length >= 6 ? ranked : all
       .map((track) => ({ track, d: emotionalDistance(track.vector, coordinate.vector) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 8)
-      .map((x) => x.track);
+      .map((x) => x.track)
+    ).slice(0, 48);
 
     return {
       id: coordinate.id,

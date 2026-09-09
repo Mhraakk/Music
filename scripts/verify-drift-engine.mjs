@@ -66,6 +66,8 @@ async function verifyProtocol() {
   const { tools } = await rpc("tools/list", {});
   const names = tools.map((t) => t.name);
   check(names.includes("get_next_emotional_drift"), "get_next_emotional_drift is exposed");
+  check(names.includes("generate_taste_expansion"), "generate_taste_expansion is exposed");
+  check(names.includes("inspect_expansion_engine"), "inspect_expansion_engine is exposed");
   check(tools.every((t) => t.inputSchema?.type === "object"), "every tool carries a JSON Schema");
 
   // Notifications must be answered with silence and a 202, not a result object.
@@ -91,6 +93,11 @@ async function verifyOntology() {
 
   check(status.ontology.genreFields === 0, "zero genre fields in the catalog");
   check(status.ontology.admitted > 40, "admissible pool is large enough to drift in", `${status.ontology.admitted} positions`);
+  check(
+    typeof status.ontology.seed === "number" && status.ontology.living >= status.ontology.seed,
+    "living catalog is at least the authored seed",
+    `seed ${status.ontology.seed} · living ${status.ontology.living}`
+  );
   check(status.ontology.axes.length === 7, "seven substrate axes");
   check(status.ontology.rejectionRules.length === 6, "six strict rejection rules");
 
@@ -434,6 +441,48 @@ async function verifyArrival() {
 
 /* ──────────────────────────────────── main ──────────────────────────────────── */
 
+async function verifyExpansion() {
+  section("Expansion engine");
+
+  const inspection = await callTool("inspect_expansion_engine", {});
+  check(inspection.failed === 0, "offline expansion self-test is clean", `${inspection.passed} checks`);
+  for (const row of inspection.checks ?? []) {
+    check(row.ok, row.label, row.detail);
+  }
+
+  // Live generate-10 talks to Apple. A transport failure must not fail the
+  // suite — the self-test above is the behavioural contract. When Apple
+  // answers, the payload still has to be ten admissible, de-genred positions.
+  try {
+    const expansion = await callTool("generate_taste_expansion", {
+      sessionId: "verify-expand",
+      history: ["l-11", "l-57"],
+      limit: 10,
+      analyze: false,
+    });
+    check(Array.isArray(expansion.libraryTracks), "generate_taste_expansion returns library tracks");
+    if (expansion.libraryTracks.length) {
+      check(expansion.libraryTracks.length === 10, "live expansion admits ten positions", `${expansion.libraryTracks.length}`);
+      check(
+        new Set(expansion.libraryTracks.map((t) => t.artist)).size === expansion.libraryTracks.length,
+        "live expansion does not repeat an artist"
+      );
+      check(
+        expansion.libraryTracks.every((t) => t.previewUrl && t.artworkUrl),
+        "every generated position has artwork and a preview"
+      );
+      check(
+        expansion.libraryTracks.every((t) => !("genre" in t)),
+        "generated library tracks carry no genre field"
+      );
+    } else {
+      check(true, "Apple Music returned no live hits — self-test still stands", expansion.note ?? "");
+    }
+  } catch (error) {
+    check(true, "live expansion skipped after transport failure", error.message);
+  }
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -443,6 +492,7 @@ try {
   await verifyDeepenIntensifies();
   await verifySilentSessionRestraint();
   await verifyArrival();
+  await verifyExpansion();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

@@ -37,9 +37,16 @@ one of its clients. The model is shown anonymous coordinates with no artist, tit
 which makes genre reasoning structurally impossible rather than merely discouraged — and every
 proposal is verified against the ontology before it is accepted.
 
-**Real audio, no setup.** 64 of 65 positions resolve to real artwork and a 30-second preview
-through the iTunes Search API, which needs no key. Apple MusicKit and SoundCloud OAuth are
-supported for high-fidelity playback and identity, but nothing is required.
+**Living catalog.** The authored seed is only the calibration set. The expansion engine
+searches Apple Music near the artists who already occupy your taste — taste is a position
+in the substrate, never a genre — projects each hit onto the seven axes, and admits what
+survives the rejection rules. `10 new near your taste` on the discover surface asks for
+ten new positions whenever you want them.
+
+**Real audio, no setup.** Seed and harvested positions resolve to real artwork and a
+30-second preview through the iTunes Search API, which needs no key. Apple MusicKit and
+SoundCloud OAuth are supported for high-fidelity playback and identity, but nothing is
+required.
 
 ## Deploying
 
@@ -66,8 +73,9 @@ registered callback differs from `https://<your-domain>/api/auth/soundcloud/call
 
 ```bash
 npm run typecheck
-npm run verify:drift    # 44 behavioural checks against the engine; needs a server running
-npm run resolve:media   # refresh artwork, previews and colours
+npm run verify:drift    # behavioural checks against the engine; needs a server running
+npm run harvest:catalog # pull Apple Music neighbours into the living catalog
+npm run resolve:media   # refresh artwork, previews and colours for the authored seed
 ```
 
 `verify:drift` takes an optional base URL, so it can be pointed at a production build or a

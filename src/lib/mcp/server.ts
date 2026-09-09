@@ -13,6 +13,7 @@
 
 import {
   AXES,
+  AXIS_KEYS,
   REJECTION_RULES,
   acousticVulnerability,
   anchorAlignment,
@@ -24,7 +25,9 @@ import {
   type EmotionalVector,
 } from "@/lib/drift/ontology";
 import { TOPOGRAPHY, adjacentCoordinates, auditTopography } from "@/lib/drift/topography";
-import { admissiblePool, driftTrack, rejectedPool, DRIFT_CATALOG } from "@/lib/drift/catalog";
+import { catalogStats, driftTrack } from "@/lib/drift/catalog";
+import { generateTasteExpansion, inspectExpansionEngine } from "@/lib/drift/expansion";
+import { toLibraryTrack } from "@/lib/library";
 import type { BranchState } from "@/lib/drift/algorithm";
 import type { ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
 import { geminiConfigured, geminiModel } from "./gemini";
@@ -205,6 +208,58 @@ export const TOOLS: readonly ToolDescriptor[] = [
       required: ["vector"],
     },
   },
+  {
+    name: "generate_taste_expansion",
+    title: "Generate ten new positions",
+    description:
+      "Search Apple Music for recordings near the listener's current taste — taste is a " +
+      "position in the emotional substrate, never a genre — project each hit, run the " +
+      "rejection rules, and return up to ten newly admitted positions with artwork and previews.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string" },
+        history: {
+          type: "array",
+          items: { type: "string" },
+          description: "Track ids already heard. Used to locate taste and to exclude repeats.",
+        },
+        tasteVectors: {
+          type: "array",
+          description: "Optional substrate positions of the heard tracks, when the server has not ingested them yet.",
+          items: {
+            type: "object",
+            properties: Object.fromEntries(
+              AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+            ),
+          },
+        },
+        exclude: {
+          type: "array",
+          items: { type: "string" },
+          description: "Additional track ids to skip.",
+        },
+        limit: {
+          type: "number",
+          minimum: 1,
+          maximum: 10,
+          description: "How many new positions to admit. Defaults to 10.",
+        },
+        analyze: {
+          type: "boolean",
+          description: "When true (default) and ffmpeg is present, refine vectors from the 30-second preview.",
+        },
+      },
+    },
+  },
+  {
+    name: "inspect_expansion_engine",
+    title: "Inspect the expansion engine",
+    description:
+      "Run the expansion engine's offline self-test: feature projection, wander " +
+      "determinism, taste probes, and a fixture generate-10. No network.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ] as const;
 
 /* ─────────────────────────────── PARAM PARSING ─────────────────────────────── */
@@ -263,6 +318,11 @@ function parseVector(value: unknown): EmotionalVector {
     if (typeof n === "number" && Number.isFinite(n)) partial[axis.key] = n;
   }
   return vec(partial);
+}
+
+function parseVectors(value: unknown): EmotionalVector[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((raw) => parseVector(raw)).filter((v) => AXIS_KEYS.some((key) => v[key] !== 0.5));
 }
 
 /* ────────────────────────────── TOOL HANDLERS ────────────────────────────── */
@@ -396,6 +456,39 @@ function toolEvaluateResonance(args: Record<string, unknown>): ToolResult {
   return textResult(summary, structured);
 }
 
+async function toolGenerateTasteExpansion(args: Record<string, unknown>): Promise<ToolResult> {
+  const result = await generateTasteExpansion({
+    historyIds: asStringArray(args.history),
+    tasteVectors: parseVectors(args.tasteVectors),
+    excludeIds: asStringArray(args.exclude),
+    limit: asNumber(args.limit, 10),
+    analyze: args.analyze === false ? false : true,
+  });
+
+  const libraryTracks = result.tracks.map((item) => toLibraryTrack(item.track));
+  const summary = [
+    result.note,
+    `Taste: ${result.taste.note}`,
+    `Probes: ${result.probes.join(", ") || "none"}`,
+    ...result.tracks.map(
+      (item, i) =>
+        `${i + 1}. ${item.track.artist} — ${item.track.title} ` +
+        `(${item.track.region.replace(/_/g, " ")}, AVI ${item.track.avi.toFixed(2)}, ${item.projection})`
+    ),
+  ].join("\n");
+
+  return textResult(summary, { ...result, libraryTracks });
+}
+
+function toolInspectExpansionEngine(): ToolResult {
+  const inspection = inspectExpansionEngine();
+  const summary = [
+    `${inspection.passed}/${inspection.passed + inspection.failed} expansion checks passed.`,
+    ...inspection.checks.map((c) => `${c.ok ? "ok" : "FAIL"}  ${c.label}${c.detail ? ` — ${c.detail}` : ""}`),
+  ].join("\n");
+  return textResult(summary, inspection);
+}
+
 async function callTool(name: string, args: Record<string, unknown>, context: McpContext): Promise<ToolResult> {
   switch (name) {
     case "get_next_emotional_drift":
@@ -406,6 +499,10 @@ async function callTool(name: string, args: Record<string, unknown>, context: Mc
       return toolDescribeTopography(args);
     case "evaluate_emotional_resonance":
       return toolEvaluateResonance(args);
+    case "generate_taste_expansion":
+      return toolGenerateTasteExpansion(args);
+    case "inspect_expansion_engine":
+      return toolInspectExpansionEngine();
     default:
       return errorResult(`Unknown tool "${name}".`);
   }
@@ -415,8 +512,7 @@ async function callTool(name: string, args: Record<string, unknown>, context: Mc
 
 /** Engine capability and configuration report, also served by the health route. */
 export function engineStatus() {
-  const pool = admissiblePool();
-  const refused = rejectedPool();
+  const stats = catalogStats();
   return {
     server: SERVER_INFO,
     protocolVersion: DEFAULT_PROTOCOL_VERSION,
@@ -432,9 +528,13 @@ export function engineStatus() {
     ontology: {
       axes: AXES.map((a) => a.key),
       genreFields: 0,
-      catalogSize: DRIFT_CATALOG.length,
-      admitted: pool.length,
-      refused: refused.length,
+      catalogSize: stats.living,
+      living: stats.living,
+      seed: stats.seed,
+      harvested: stats.harvested,
+      expanded: stats.expanded,
+      admitted: stats.admitted,
+      refused: stats.refused,
       rejectionRules: REJECTION_RULES.map((r) => r.id),
     },
     topography: {
@@ -474,7 +574,8 @@ export async function handleRpc(message: unknown, context: McpContext): Promise<
         instructions:
           "Sonic Drift reasons about music as emotional structure. Candidates are anonymous " +
           "substrate coordinates: no genre, tempo or popularity is available to you or to the " +
-          "engine. Call get_next_emotional_drift to advance a session.",
+          "engine. Call get_next_emotional_drift to advance a session, or generate_taste_expansion " +
+          "to admit ten new Apple Music positions near the listener's taste.",
       });
     }
 

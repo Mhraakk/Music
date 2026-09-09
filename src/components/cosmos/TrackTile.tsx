@@ -105,6 +105,7 @@ export function TrackTile({
           Playing
         </span>
       )}
+      {!playing && track.origin === "expansion" && <span className="cx-tile-badge">New</span>}
 
       <span className="cx-tile-caption">
         <span className="block text-[13px] font-medium leading-tight cx-truncate">{track.title}</span>

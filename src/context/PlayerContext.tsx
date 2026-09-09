@@ -46,6 +46,7 @@ const GESTURE_SETTLE_MS = 420;
 const ABANDON_BEFORE = 0.85;
 
 export type PlayerState = {
+  sessionId: string;
   current: LibraryTrack | null;
   playing: boolean;
   /** Normalised position in the current track. */
@@ -61,6 +62,8 @@ export type PlayerState = {
   /** Set when the engine, not the listener, chose the current track. */
   fromEngine: boolean;
   error: string | null;
+  /** Session-generated positions, merged on top of the server library. */
+  extras: LibraryTrack[];
 };
 
 export type PlayerActions = {
@@ -70,12 +73,15 @@ export type PlayerActions = {
   setVolume: (v: number) => void;
   seek: (progress: number) => void;
   stop: () => void;
+  /** Admit newly generated positions into the client library. */
+  ingest: (tracks: LibraryTrack[]) => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
 const ActionsContext = createContext<PlayerActions | null>(null);
 
 const INITIAL: PlayerState = {
+  sessionId: "",
   current: null,
   playing: false,
   progress: 0,
@@ -87,6 +93,7 @@ const INITIAL: PlayerState = {
   loading: false,
   fromEngine: false,
   error: null,
+  extras: [],
 };
 
 /**
@@ -126,10 +133,17 @@ export function PlayerProvider({
    */
   tracks: LibraryTrack[];
 }) {
-  const [state, setState] = useState<PlayerState>(INITIAL);
+  const [state, setState] = useState<PlayerState>({ ...INITIAL, sessionId });
 
-  const byId = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks]);
+  const byId = useMemo(() => {
+    const map = new Map(tracks.map((t) => [t.id, t]));
+    for (const extra of state.extras) map.set(extra.id, extra);
+    return map;
+  }, [tracks, state.extras]);
   const lookup = useCallback((id: string) => byId.get(id) ?? null, [byId]);
+
+  const extrasRef = useRef<LibraryTrack[]>([]);
+  extrasRef.current = state.extras;
 
   /**
    * Two audio elements so a track can fade into the next while the outgoing one
@@ -346,6 +360,23 @@ export function PlayerProvider({
 
   /* ───────────────────────────── actions ───────────────────────────── */
 
+  const ingest = useCallback((incoming: LibraryTrack[]) => {
+    if (!incoming.length) return;
+    const map = new Map(extrasRef.current.map((t) => [t.id, t]));
+    for (const track of incoming) {
+      map.set(track.id, track);
+      trackVectorCache.set(track.id, track.vector);
+    }
+    const extras = [...map.values()];
+    extrasRef.current = extras;
+    setState((s) => ({ ...s, extras }));
+    try {
+      window.localStorage.setItem(EXPANSION_KEY, JSON.stringify(extras));
+    } catch {
+      /* quota or private mode — the session still has them in memory */
+    }
+  }, []);
+
   const play = useCallback(
     (track: LibraryTrack) => {
       // Choosing something new mid-track is a statement about what was playing.
@@ -492,9 +523,20 @@ export function PlayerProvider({
     };
   }, [clearFades]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(EXPANSION_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as LibraryTrack[];
+      if (Array.isArray(parsed) && parsed.length) ingest(parsed);
+    } catch {
+      /* ignore a corrupt cache */
+    }
+  }, [ingest]);
+
   const actions = useMemo<PlayerActions>(
-    () => ({ play, toggle, setVolume, seek, stop }),
-    [play, toggle, setVolume, seek, stop]
+    () => ({ play, toggle, setVolume, seek, stop, ingest }),
+    [play, toggle, setVolume, seek, stop, ingest]
   );
 
   return (
@@ -510,6 +552,7 @@ export function PlayerProvider({
  * own intended path rather than a reconstruction.
  */
 const trackVectorCache = new Map<string, EmotionalVector>();
+const EXPANSION_KEY = "resonant.expansion.v1";
 
 export function usePlayer(): PlayerState {
   const state = useContext(StateContext);

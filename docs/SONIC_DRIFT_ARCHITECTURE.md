@@ -56,7 +56,7 @@ flowchart TB
         Topo["Topography<br/>9 coordinates, self-audited"]
         Algo["Drift algorithm<br/>bowed arc · seam cap<br/>deepen / prune / explore"]
         Res["Resonance reader<br/>implicit feedback → mode"]
-        Cat["De-genred catalog<br/>65 positions, 0 genre fields"]
+        Cat["Living catalog<br/>authored seed + Apple harvest<br/>0 genre fields"]
     end
 
     subgraph External["External services"]
@@ -251,6 +251,8 @@ MCP host at the endpoint and the same four tools are available.
 | `plan_emotional_drift` | Compute a complete 5–7 phase arc between two coordinates |
 | `describe_emotional_topography` | The map, with neighbours and the admissibility audit |
 | `evaluate_emotional_resonance` | Score an arbitrary position, run the rejection rules |
+| `generate_taste_expansion` | Search Apple Music near the listener's taste and admit ten new positions |
+| `inspect_expansion_engine` | Offline self-test of projection, taste probes and generate-10 |
 
 ### The model is never told what the music is
 
@@ -377,7 +379,7 @@ npm run dev
 node scripts/verify-drift-engine.mjs     # drives /api/mcp end to end
 ```
 
-44 checks. The script asserts the MCP handshake and notification semantics, that all nine
+The script asserts the MCP handshake and notification semantics, that all nine
 coordinates pass admissibility, that each rejection rule fires on its canonical shape while
 every anchor shape is admitted, that a planned arc respects the seam cap and bows through its
 deepest point mid-arc, and that an eight-phase session with mixed feedback produces no repeats
@@ -403,7 +405,9 @@ eventually exhaust the admissible pool, after which the engine could only repeat
 |---|---|
 | `src/lib/drift/ontology.ts` | Axes, AVI, Cinematic Space, rejection rules, anchors |
 | `src/lib/drift/topography.ts` | Nine coordinates, adjacency, admissibility audit |
-| `src/lib/drift/catalog.ts` | De-genred projection, fragility windows, emotional field |
+| `src/lib/drift/catalog.ts` | Seed projection, living catalog, fragility windows, emotional field |
+| `src/lib/drift/expansion/` | Taste probes, Apple search, feature projection, generate-10 |
+| `src/lib/drift/harvest.json` | Identity + media for Apple neighbours (vectors projected at load) |
 | `src/lib/drift/resonance.ts` | Implicit feedback → valence, confidence, mode |
 | `src/lib/drift/algorithm.ts` | Arc planning, selection scoring, redirection, next phase |
 | `src/lib/mcp/server.ts` | Tool registry, JSON-RPC dispatch, engine status |
@@ -515,3 +519,28 @@ node scripts/resolve-media.mjs --force     # re-resolve everything
 The public endpoint rate-limits hard. Throttled requests are left absent rather than recorded
 as misses, so a re-run retries them — an earlier version conflated the two and permanently
 marked 29 tracks as having no artwork, including several verified by hand to resolve fine.
+
+---
+
+## 10. The living catalog
+
+The authored seed (legacy projection + five warm-house anchors) is a calibration set, not
+the database. Apple Music is treated as a retrieval index: the engine searches for *artists
+already near the listener's taste*, never for a genre and never for a chart.
+
+Each hit is projected onto the seven axes from two signals only:
+
+1. **Neighborhood** — the substrate position of the artist (or the aesthetic anchor) that
+   justified the search. A Portishead-adjacent probe starts near Portishead.
+2. **Audio features** — loudness, silence, spectrum, onset density, read from the 30-second
+   preview when ffmpeg is available. Optional. Vercel does not ship ffmpeg, so generate-10
+   must succeed from neighborhood alone.
+
+The rejection rules are a hard gate. What survives is ingested into the living catalog with
+artwork and a preview, and becomes a first-class occupant of the topography — searchable,
+collectable, and available to the drift.
+
+`generate_taste_expansion` is the listener-facing move: ten new positions, artist-diverse,
+on demand. `npm run harvest:catalog` does the same offline for the committed harvest file.
+Vectors are never stored in that file; they are projected at load so an ontology change
+re-admits the same recordings without another network pass.
