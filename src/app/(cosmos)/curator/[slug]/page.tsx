@@ -32,7 +32,7 @@ export default async function CuratorPage({ params }: { params: Promise<{ slug: 
       <header className="cx-playlist-hero">
         <div
           className="cx-playlist-art"
-          style={{ borderRadius: "50%", backgroundColor: profile.tint }}
+          style={{ borderRadius: 0, backgroundColor: profile.tint }}
         >
           <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-[1px]">
             {profile.covers.map((track) => (

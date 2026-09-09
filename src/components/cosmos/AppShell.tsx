@@ -1,30 +1,23 @@
 "use client";
 
 /**
- * Floating charcoal control pill on desktop, instrument tabbar on mobile.
+ * Transparent editorial header. Inverse over the iridescent hero.
  * Mini-player always. No skip.
  */
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLibrary } from "@/context/LibraryContext";
 import { MiniPlayer } from "./MiniPlayer";
-import {
-  ArtistsIcon,
-  AskIcon,
-  BrowseIcon,
-  LibraryIcon,
-  ListenIcon,
-  RadioIcon,
-} from "./icons";
 
 const ITEMS = [
-  { href: "/", label: "Listen Now", icon: ListenIcon },
-  { href: "/collections", label: "Browse", icon: BrowseIcon },
-  { href: "/radio", label: "Radio", icon: RadioIcon },
-  { href: "/talk", label: "Ask", icon: AskIcon },
-  { href: "/library", label: "Library", icon: LibraryIcon },
-  { href: "/curators", label: "Artists", icon: ArtistsIcon, desktopOnly: true },
+  { href: "/", label: "Listen Now" },
+  { href: "/collections", label: "Browse" },
+  { href: "/radio", label: "Radio" },
+  { href: "/talk", label: "Ask" },
+  { href: "/library", label: "Library" },
+  { href: "/curators", label: "Artists", desktopOnly: true },
 ];
 
 function activeFor(pathname: string, href: string): boolean {
@@ -39,16 +32,26 @@ function activeFor(pathname: string, href: string): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { connected, syncing, connect } = useLibrary();
+  const [inverse, setInverse] = useState(pathname === "/");
+
+  useEffect(() => {
+    if (pathname !== "/") {
+      setInverse(false);
+      return;
+    }
+    const root = document.querySelector(".cx-main");
+    const onScroll = () => setInverse((root?.scrollTop ?? 0) < window.innerHeight * 0.62);
+    onScroll();
+    root?.addEventListener("scroll", onScroll, { passive: true });
+    return () => root?.removeEventListener("scroll", onScroll);
+  }, [pathname]);
 
   return (
     <div className="cx-shell">
       <div className="cx-main">
-        <header className="cx-floatnav-wrap">
+        <header className={`cx-floatnav-wrap${inverse ? " cx-nav-inverse" : ""}`}>
           <nav className="cx-floatnav" aria-label="Primary">
             <Link href="/" className="cx-brand">
-              <span className="cx-brand-mark" aria-hidden>
-                ///
-              </span>
               <span className="cx-brand-name">Resonant</span>
             </Link>
 
@@ -72,7 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {!connected && (
                 <button
                   type="button"
-                  className="cx-pill cx-pill-primary"
+                  className="cx-pill cx-pill-ghost"
                   onClick={() => void connect()}
                   disabled={syncing}
                 >
@@ -94,7 +97,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav className="cx-tabbar" aria-label="Primary">
         {ITEMS.filter((item) => !item.desktopOnly).map((item) => {
-          const Icon = item.icon;
           const active = activeFor(pathname, item.href);
           return (
             <Link
@@ -103,7 +105,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="cx-tab"
               aria-current={active ? "page" : undefined}
             >
-              <Icon />
               {item.label}
             </Link>
           );

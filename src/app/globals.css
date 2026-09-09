@@ -3,26 +3,25 @@
 @import "./variables.css";
 
 /*
- * theme.css + variables.css are the uploaded Telepathic token files.
- * --spacing-8..96 and --radius-full collide with Tailwind's default scale
- * (p-8, h-8, w-56) and with rounded-full circles. Restore those utilities.
- * The 8px design grid stays on --spacing-unit and the named layout tokens.
+ * Monopo Saigon @theme spacing/radius names collide with Tailwind defaults.
+ * Restore utilities; the 4px design grid lives on --spacing-unit and named tokens.
  */
 @theme {
   --spacing-8: calc(var(--spacing) * 8);
-  --spacing-16: calc(var(--spacing) * 16);
-  --spacing-24: calc(var(--spacing) * 24);
+  --spacing-12: calc(var(--spacing) * 12);
+  --spacing-28: calc(var(--spacing) * 28);
   --spacing-40: calc(var(--spacing) * 40);
-  --spacing-56: calc(var(--spacing) * 56);
+  --spacing-48: calc(var(--spacing) * 48);
   --spacing-64: calc(var(--spacing) * 64);
-  --spacing-80: calc(var(--spacing) * 80);
-  --spacing-96: calc(var(--spacing) * 96);
+  --spacing-68: calc(var(--spacing) * 68);
+  --spacing-152: calc(var(--spacing) * 152);
   --radius-full: 9999px;
 }
 
 html {
-  --font-suisse-intl: var(--font-loaded-sans), "Suisse Intl", ui-sans-serif, system-ui, sans-serif;
-  --font-suisse-intl-mono: var(--font-loaded-mono), "Suisse Intl Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-roobert: var(--font-loaded-sans), "Roobert", ui-sans-serif, system-ui, sans-serif;
+  --font-raleway: var(--font-loaded-display), "Raleway", ui-sans-serif, system-ui, sans-serif;
+  --ease-glide: cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 * {
@@ -32,11 +31,10 @@ html {
 html,
 body {
   min-height: 100%;
-  background: var(--surface-page-canvas);
-  color: var(--color-carbon-black);
-  font-family: var(--font-suisse-intl);
+  background: var(--surface-paper);
+  color: var(--color-obsidian);
+  font-family: var(--font-roobert);
   font-weight: var(--font-weight-regular);
-  font-feature-settings: "tnum";
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
@@ -55,7 +53,6 @@ body {
 .display {
   font-size: var(--text-display);
   font-weight: var(--font-weight-regular);
-  letter-spacing: var(--tracking-display);
   line-height: var(--leading-display);
 }
 

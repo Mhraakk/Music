@@ -1,5 +1,5 @@
 /**
- * LISTEN NOW — atmospheric hero, then instrument-grade shelves.
+ * LISTEN NOW — iridescent editorial hero, then quiet paper shelves.
  */
 
 import { collections, curators, featured, libraryStats } from "@/lib/library";
@@ -17,7 +17,16 @@ export default function ListenNowPage() {
       <section className="cx-hero">
         <p className="sr-only">Favorite Songs. Connect Apple Music.</p>
         <h1 className="cx-display">Listen Now</h1>
-        <p className="cx-hero-tag">Music by feeling — songs, albums, artists and stations. No genres, no charts.</p>
+        <div className="cx-scroll-badge" aria-hidden>
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <path id="cx-scroll-path" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0" />
+            </defs>
+            <text>
+              <textPath href="#cx-scroll-path">SCROLL DOWN · SCROLL DOWN · </textPath>
+            </text>
+          </svg>
+        </div>
       </section>
       <main className="cx-page">
         <DiscoverSurface
