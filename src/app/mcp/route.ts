@@ -7,7 +7,6 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { NUCLEAR_SERVER_INFO, NUCLEAR_TOOLS } from "@/lib/nuclear/mcp";
 import { handleNuclearRpc, isInitialize } from "@/lib/nuclear/rpc";
 
@@ -18,15 +17,19 @@ export const maxDuration = 60;
 function sessionId(request: NextRequest, payload: unknown): string {
   const existing = request.headers.get("mcp-session-id");
   if (existing?.trim()) return existing.trim();
-  if (isInitialize(payload) || (Array.isArray(payload) && payload.some(isInitialize))) return randomUUID();
-  return randomUUID();
+  if (isInitialize(payload) || (Array.isArray(payload) && payload.some(isInitialize))) return crypto.randomUUID();
+  return crypto.randomUUID();
 }
 
 function wrap(body: unknown, session: string, status = 200) {
+  const headers = {
+    "Mcp-Session-Id": session,
+    "MCP-Protocol-Version": "2025-06-18",
+  };
   if (body === null) {
-    return new NextResponse(null, { status: 202, headers: { "mcp-session-id": session } });
+    return new NextResponse(null, { status: 202, headers });
   }
-  return NextResponse.json(body, { status, headers: { "mcp-session-id": session } });
+  return NextResponse.json(body, { status, headers });
 }
 
 export async function POST(request: NextRequest) {

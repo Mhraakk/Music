@@ -821,6 +821,13 @@ async function verifyNuclear() {
   check(nuclearNames.includes("list_methods") && nuclearNames.includes("call"), "POST /mcp tools/list exposes Nuclear tools");
   check(nuclearNames.length === 4, "Nuclear MCP surface is the four discovery tools", String(nuclearNames.length));
 
+  const listedResources = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list" }),
+  }).then((r) => r.json());
+  check(Array.isArray(listedResources.result?.resources), "POST /mcp resources/list is empty, not an error");
+
   const called = await callTool("call", { method: "Streaming.searchForTrack", params: { artist: "Radiohead", title: "Creep" } });
   check(Boolean(called?.stream?.videoId || called?.ok), "call Streaming.searchForTrack returns a stream");
 

@@ -63,9 +63,18 @@ export async function handleNuclearRpc(message: unknown): Promise<JsonRpcRespons
     }
     case "notifications/initialized":
     case "notifications/cancelled":
+    case "notifications/progress":
       return null;
     case "ping":
       return ok(id, {});
+    case "logging/setLevel":
+      return ok(id, {});
+    case "resources/list":
+      return ok(id, { resources: [] });
+    case "resources/templates/list":
+      return ok(id, { resourceTemplates: [] });
+    case "prompts/list":
+      return ok(id, { prompts: [] });
     case "tools/list":
       return ok(id, { tools: NUCLEAR_TOOLS });
     case "tools/call": {
