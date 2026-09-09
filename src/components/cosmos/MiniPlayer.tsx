@@ -10,6 +10,7 @@ import { useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
+import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
 import { PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
 
 const MODE_LABEL: Record<string, string> = {
@@ -23,6 +24,9 @@ export function MiniPlayer() {
     usePlayer();
   const { toggle, setVolume, seek, stop, setDestination } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
+  const yt = current ? youtubeVideoId(current) : null;
+  const sc = current ? isSoundcloudTrack(current) : false;
+  const via = current ? sourceLabel(current.foundVia) : null;
 
   const total = current ? (current.previewUrl ? 30 : current.duration) : 0;
   const elapsed = progress * total;
@@ -44,9 +48,13 @@ export function MiniPlayer() {
             className="relative h-12 w-12 shrink-0 overflow-hidden"
             style={{ borderRadius: 6, backgroundColor: current?.tint ?? "var(--paper-sunken)" }}
           >
-            {current?.artworkUrl && (
-              <Image src={current.artworkUrl} alt="" fill sizes="48px" style={{ objectFit: "cover" }} />
-            )}
+            {current?.artworkUrl &&
+              (current.foundVia ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <Image src={current.artworkUrl} alt="" fill sizes="48px" style={{ objectFit: "cover" }} />
+              ))}
           </span>
           <span className="min-w-0">
             <span className="cx-truncate block text-[13px] font-semibold leading-tight">
@@ -60,7 +68,13 @@ export function MiniPlayer() {
                 <span className="tabular-nums">
                   {clock(elapsed)} / {clock(total)}
                 </span>
-                {fromAsk && (
+                {via && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{via}</span>
+                  </>
+                )}
+                {fromAsk && !via && (
                   <>
                     <span aria-hidden>·</span>
                     <span>{queueTitle ? queueTitle : "You asked for this"}</span>
@@ -121,6 +135,24 @@ export function MiniPlayer() {
           />
         </div>
       </div>
+
+      {playing && yt && (
+        <iframe
+          className="cx-embed"
+          title="YouTube"
+          src={`https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0`}
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+        />
+      )}
+      {playing && sc && current?.openUrl && (
+        <iframe
+          className="cx-embed"
+          title="SoundCloud"
+          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(current.openUrl)}&auto_play=true&hide_related=true&show_comments=false&visual=false`}
+          allow="autoplay"
+        />
+      )}
 
       {expanded && current && (
         <div className="cx-panel">
@@ -222,12 +254,12 @@ export function MiniPlayer() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {current.appleUrl && (
                 <a
-                  href={current.appleUrl}
+                  href={current.openUrl || current.appleUrl}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
                 >
-                  Play the full track
+                  {via ? `Open on ${via}` : "Play the full track"}
                 </a>
               )}
               <button type="button" onClick={stop} className="cx-pill cx-pill-ghost h-8 shrink-0 px-3">

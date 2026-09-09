@@ -1,9 +1,9 @@
 /**
  * ASK ORCHESTRATOR
  *
- * Gemini function-calling loop over Resonant's catalog tools. If no key is
- * present, or Gemini fails, a local companion still searches, plays, and
- * assembles mixes so the listener is never stranded.
+ * Gemini function-calling loop. find_music searches Deezer, YouTube, YouTube
+ * Music, SoundCloud and Apple. The Resonant catalog is optional. If no key is
+ * present, the same tools still run so the listener is never stranded.
  */
 
 import { geminiGenerate, geminiModel, resolveGeminiApiKey, type GeminiContent } from "@/lib/mcp/gemini";
@@ -12,6 +12,7 @@ import { CONVERSE_TOOLS, createToolContext, executeConverseTool, searchTracks, t
 import { collection } from "@/lib/library";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { detectLanguage, interpretLocal, wantsPlayback, type ListenerLanguage } from "./intent";
+import { sourceLabel } from "./anywhere";
 import type { ConverseMessage, ConverseResult, ConverseSession } from "./types";
 
 const MAX_ROUNDS = 5;
@@ -41,42 +42,49 @@ function hasPlayEffect(ctx: ToolContext): boolean {
 async function ensurePlayback(ctx: ToolContext, userText: string) {
   if (!wantsPlayback(userText) || hasPlayEffect(ctx)) return;
   if (ctx.lastSearch[0]) {
-    await executeConverseTool("play_tracks", { ids: [ctx.lastSearch[0].id] }, ctx);
+    await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
     return;
   }
   const intent = interpretLocal(userText);
   if (intent.kind === "station" || intent.kind === "destination") {
     await executeConverseTool("start_station", { room: intent.room }, ctx);
-    return;
+    if (hasPlayEffect(ctx)) return;
   }
   if (intent.kind === "alternative") {
     await executeConverseTool("play_alternative", {}, ctx);
+    if (hasPlayEffect(ctx)) return;
+  }
+  await executeConverseTool("find_music", { query: userText, limit: 8 }, ctx);
+  if (ctx.lastSearch[0]) {
+    await executeConverseTool(
+      "play_tracks",
+      { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: userText.slice(0, 48) },
+      ctx
+    );
     return;
   }
-  const query = "query" in intent ? intent.query : userText;
-  const tracks = searchTracks(ctx, query, 6);
-  if (tracks[0]) await executeConverseTool("play_tracks", { ids: tracks.map((t) => t.id), title: query.slice(0, 40) }, ctx);
+  const tracks = searchTracks(ctx, userText, 6);
+  if (tracks[0]) await executeConverseTool("play_tracks", { ids: tracks.map((t) => t.id), title: userText.slice(0, 40) }, ctx);
 }
 
 function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: string): string {
   const play = ctx.effects.find((e) => e.type === "play");
   const queue = ctx.effects.find((e) => e.type === "queue");
   const dest = ctx.effects.find((e) => e.type === "destination");
-  const roomLabel = dest
-    ? TOPOGRAPHY.find((r) => r.id === dest.id)?.label
-    : play
-      ? TOPOGRAPHY.find((r) => r.id === play.track.region)?.label
-      : null;
+  const roomLabel = dest ? TOPOGRAPHY.find((r) => r.id === dest.id)?.label : null;
+  const via = play ? sourceLabel(play.track.foundVia) : null;
 
   if (play && lang === "fa") {
-    const extra = queue ? ` ${queue.tracks.length} آهنگ دیگر هم در همین ست می‌آید.` : "";
+    const extra = queue ? ` ${queue.tracks.length} آهنگ دیگر هم در همین ست هست.` : "";
+    const where = via ? ` از ${via}.` : "";
     const room = roomLabel ? ` حس ${roomLabel}.` : "";
-    return `همین را گذاشتم: ${play.track.artist} — ${play.track.title}.${room}${extra} اگر چیز دیگری می‌خواهی، بگو چه حسی باشد.`;
+    return `این را پیدا کردم: ${play.track.artist} — ${play.track.title}.${where}${room}${extra} اگر چیز دیگری می‌خواهی، همان را بگو.`;
   }
   if (play) {
     const extra = queue ? ` ${queue.tracks.length} more follow in this set.` : "";
+    const where = via ? ` From ${via}.` : "";
     const room = roomLabel ? ` ${roomLabel}.` : "";
-    return `Playing ${play.track.title} by ${play.track.artist}.${room}${extra} There is no skip — say if you want something else.`;
+    return `Here's ${play.track.title} by ${play.track.artist}.${where}${room}${extra} Say if you want something else.`;
   }
 
   if (dest && lang === "fa") {
@@ -87,9 +95,9 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
   }
 
   if (lang === "fa") {
-    return `چیزی که با «${userText.slice(0, 80)}» جور باشد در کاتالوگ پیدا نکردم. یک حس بگو — گرم، شکننده، شب، خاطره — یا اسم هنرمند.`;
+    return `هنوز چیزی برای «${userText.slice(0, 80)}» پیدا نکردم. اسم آهنگ، خواننده، دهه یا منبع را بگو — یوتیوب، ساوندکلاد، دیزر.`;
   }
-  return `I couldn't match “${userText.slice(0, 80)}” in the catalog. Name a feeling — warm, fragile, night, memory — or an artist.`;
+  return `I haven't found a match for “${userText.slice(0, 80)}” yet. Name a song, artist, decade, or a source — YouTube, SoundCloud, Deezer.`;
 }
 
 export async function fulfillLocally(
@@ -123,26 +131,25 @@ export async function fulfillLocally(
       break;
     case "play":
     case "search": {
-      if (intent.room && intent.kind === "play") {
+      if (intent.room && intent.kind === "play" && !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر/i.test(intent.query)) {
         await executeConverseTool("start_station", { room: intent.room }, ctx);
-      } else {
-        const tracks = searchTracks(ctx, intent.query, 8);
-        if (tracks.length && intent.kind === "play") {
+      }
+      if (!hasPlayEffect(ctx)) {
+        await executeConverseTool("find_music", { query: intent.query, limit: 8 }, ctx);
+        if (ctx.lastSearch.length) {
           await executeConverseTool(
             "play_tracks",
-            { ids: tracks.map((t) => t.id).slice(0, 8), title: intent.query.slice(0, 48) },
+            { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: intent.query.slice(0, 48) },
             ctx
           );
-        } else if (intent.room) {
-          await executeConverseTool("start_station", { room: intent.room }, ctx);
         }
       }
       break;
     }
     case "chat": {
-      const tracks = searchTracks(ctx, intent.query || "warm", 6);
-      if (tracks.length && wantsPlayback(userText)) {
-        await executeConverseTool("play_tracks", { ids: tracks.map((t) => t.id).slice(0, 1) }, ctx);
+      await executeConverseTool("find_music", { query: intent.query || userText, limit: 8 }, ctx);
+      if (ctx.lastSearch.length && wantsPlayback(userText)) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
       }
       break;
     }
@@ -157,7 +164,7 @@ export async function fulfillLocally(
     model: null,
     effects: ctx.effects,
     suggestions: localSuggestions(lang),
-    note: "Gemini is not in this turn — catalog tools still ran.",
+    note: "Gemini is not in this turn — open search still ran.",
   };
 }
 
@@ -173,7 +180,7 @@ export async function converse(input: {
     return {
       ok: true,
       source: "local",
-      reply: "Say a feeling, an artist, or ask for a mix.",
+      reply: "Ask for a song, a decade, an artist, or a mix — from anywhere.",
       model: null,
       effects: [],
       suggestions: localSuggestions(lang),
@@ -261,7 +268,7 @@ export async function converse(input: {
   const local = await fulfillLocally(messages, input.session);
   return {
     ...local,
-    note: lastError ? `Gemini unavailable (${lastError}). Catalog companion continued.` : local.note,
+    note: lastError ? `Gemini unavailable (${lastError}). Open search continued.` : local.note,
   };
 }
 

@@ -5,6 +5,7 @@ import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/ov
 import { TOPOGRAPHY, adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
 import type { GeminiFunctionDeclaration } from "@/lib/mcp/gemini";
 import { looksLikeHexColor, matchRoom } from "./rooms";
+import { findMusic, sourceLabel } from "./anywhere";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type ToolContext = {
@@ -27,6 +28,7 @@ export function createToolContext(session: ConverseSession): ToolContext {
 
 export function card(track: LibraryTrack): ConverseTrackCard {
   const room = TOPOGRAPHY.find((r) => r.id === track.region);
+  const source = sourceLabel(track.foundVia) ?? (track.id.startsWith("w-") ? "web" : "Resonant");
   return {
     id: track.id,
     title: track.title,
@@ -35,6 +37,9 @@ export function card(track: LibraryTrack): ConverseTrackCard {
     room: room?.label ?? track.region.replace(/_/g, " "),
     feeling: track.shape,
     duration: track.duration,
+    source,
+    openUrl: track.openUrl ?? track.appleUrl ?? null,
+    playable: Boolean(track.previewUrl) || Boolean(track.openUrl),
   };
 }
 
@@ -110,9 +115,16 @@ function mergeTracks(a: LibraryTrack[], b: LibraryTrack[]): LibraryTrack[] {
 }
 
 function pushPlay(ctx: ToolContext, tracks: LibraryTrack[], title?: string) {
-  const list = playable(tracks);
-  if (!list.length) return;
-  const [first, ...rest] = list;
+  const list = tracks.filter((t) => t.previewUrl || t.openUrl || t.id.startsWith("w-"));
+  const ordered = playable(list).concat(list.filter((t) => !playable([t]).length));
+  const unique = ordered.filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i);
+  if (!unique.length) return;
+  const guests = unique.filter((t) => t.id.startsWith("w-"));
+  if (guests.length) {
+    ctx.ingest.push(...guests);
+    ctx.effects.push({ type: "ingest", tracks: guests });
+  }
+  const [first, ...rest] = unique;
   ctx.effects.push({ type: "play", track: first });
   if (rest.length) {
     ctx.effects.push({ type: "queue", tracks: rest, title: title?.trim() || ctx.lastPlaylistTitle || "A set for you" });
@@ -126,10 +138,29 @@ function pushDestination(ctx: ToolContext, id: CoordinateId) {
 
 export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
+    name: "find_music",
+    description:
+      "Search the open web for real recordings matching the listener's words — any language, decade, genre, artist, or mood. " +
+      "Queries Deezer, YouTube, YouTube Music, SoundCloud and Apple/iTunes in parallel. " +
+      "THIS is the default tool for almost every music request. The Resonant catalog is optional. " +
+      "Use their phrasing as-is (e.g. 'آهنگ های دهه ۹۰', '90s hits', 'from SoundCloud'). Then play_tracks with the returned ids.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: {
+          type: "STRING",
+          description: "The listener's request in their own words. Do not rewrite it into feeling jargon.",
+        },
+        limit: { type: "INTEGER", description: "How many songs to return, 4–12. Default 8." },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "search_catalog",
     description:
-      "Search Resonant's living catalog by feeling, artist, title, room name, or sleeve colour hex. " +
-      "Never search by genre. Returns songs you may then play or put in a playlist.",
+      "Optional: search only Resonant's own shelf. Never use this as a reason to refuse a request. " +
+      "If the listener wants songs that may live outside the shelf, call find_music instead.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -151,7 +182,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -185,8 +216,8 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "make_playlist",
     description:
-      "Assemble a mix from the catalog (and Favorite Songs overlay) matching a feeling or query, " +
-      "and start it. Use this when they ask for a playlist, mix, or لیست.",
+      "Assemble a mix matching a feeling, decade, genre, artist, or any request, then start it. " +
+      "Prefers find_music (Deezer / YouTube / SoundCloud / Apple). The Resonant catalog is only a fallback.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -286,6 +317,23 @@ export async function executeConverseTool(
   ctx: ToolContext
 ): Promise<Record<string, unknown>> {
   switch (name) {
+    case "find_music": {
+      const query = asString(args.query);
+      const tracks = await findMusic(query, asNumber(args.limit, 8));
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        query,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "These are real recordings. Name artist, title and source (Deezer, YouTube, YouTube Music, SoundCloud). Call play_tracks with their ids. Do not say they are missing from a catalog."
+          : "No hits yet — try a broader query (artist name, decade in English, or a song title).",
+      };
+    }
     case "search_catalog": {
       const query = asString(args.query);
       const tracks = searchTracks(ctx, query, asNumber(args.limit, 8));
@@ -294,8 +342,8 @@ export async function executeConverseTool(
         count: tracks.length,
         tracks: tracks.map(card),
         note: tracks.length
-          ? "Play with play_tracks or fold into make_playlist. Do not invent other songs."
-          : "Nothing matched. Try a room name or a feeling (warm, fragile, night).",
+          ? "Optional shelf matches. Prefer find_music for anything outside this shelf."
+          : "Nothing on the Resonant shelf. Call find_music with the same request — do not refuse.",
       };
     }
     case "list_rooms": {
@@ -312,7 +360,7 @@ export async function executeConverseTool(
     case "play_tracks": {
       const ids = asStringArray(args.ids).slice(0, 12);
       const tracks = ids.map((id) => resolveId(ctx, id)).filter((t): t is LibraryTrack => Boolean(t));
-      if (!tracks.length) return { ok: false, error: "None of those ids are in the catalog." };
+      if (!tracks.length) return { ok: false, error: "None of those ids resolved. Call find_music again." };
       const title = asString(args.title);
       if (title) ctx.lastPlaylistTitle = title;
       pushPlay(ctx, tracks, title);
@@ -342,18 +390,21 @@ export async function executeConverseTool(
         (room ? `${TOPOGRAPHY.find((r) => r.id === room)?.label ?? "Listening"} mix` : query.slice(0, 48) || "A mix for you");
       ctx.lastPlaylistTitle = title;
 
-      let tracks: LibraryTrack[] = [];
-      if (room) {
+      const found = await findMusic(query, count);
+      let tracks: LibraryTrack[] = found;
+      if (tracks.length < count && room) {
         const shelf = collection(room);
-        tracks = shelf?.tracks.slice(0, count) ?? [];
+        tracks = mergeTracks(tracks, shelf?.tracks.slice(0, count) ?? []);
       }
-      if (tracks.length < count) {
+      if (tracks.length < 4) {
         tracks = mergeTracks(tracks, searchTracks(ctx, query || room || "warm", count));
       }
-      tracks = playable(tracks).slice(0, count);
+      const playableFirst = playable(tracks);
+      const rest = tracks.filter((t) => !playableFirst.some((p) => p.id === t.id));
+      tracks = [...playableFirst, ...rest].slice(0, count);
       rememberSearch(ctx, tracks);
-      if (!tracks.length) return { ok: false, error: "Could not assemble a mix from the catalog." };
-      pushDestination(ctx, room ?? tracks[0].region);
+      if (!tracks.length) return { ok: false, error: "Search returned nothing. Try another wording." };
+      if (room) pushDestination(ctx, room);
       pushPlay(ctx, tracks, title);
       return { ok: true, title, tracks: tracks.map(card) };
     }

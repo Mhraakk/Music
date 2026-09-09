@@ -703,6 +703,19 @@ async function verifyConverse() {
   check(persian.payload.ok && Boolean(faPlay?.track?.id), "Persian play request fulfils from the catalog");
   check(/[\u0600-\u06FF]/.test(persian.payload.reply || ""), "Persian request gets a Persian reply");
 
+  const nineties = await turn("آهنگ های دهه ۹۰ میخوام");
+  const nPlay = (nineties.payload.effects ?? []).find((e) => e.type === "play");
+  const nQueue = (nineties.payload.effects ?? []).find((e) => e.type === "queue");
+  const nTracks = [nPlay?.track, ...(nQueue?.tracks ?? [])].filter(Boolean);
+  check(nineties.payload.ok && Boolean(nPlay?.track?.id), "90s request returns a real song", nPlay?.track ? `${nPlay.track.artist} — ${nPlay.track.title}` : "none");
+  check(!/کاتالوگ|in the catalog|from the catalog/i.test(nineties.payload.reply || ""), "90s reply does not hide behind the catalog", nineties.payload.reply?.slice(0, 120));
+  check(
+    nTracks.some((t) => t.foundVia || String(t.id).startsWith("w-")),
+    "90s hits come from open search (Deezer / YouTube / SoundCloud / Apple)",
+    nTracks.map((t) => t.foundVia || t.id).slice(0, 4).join(", ")
+  );
+  check(/[\u0600-\u06FF]/.test(nineties.payload.reply || ""), "90s Persian request gets a Persian reply");
+
   const home = await fetch(`${BASE}/`).then((r) => r.text());
   check(home.includes("Ask"), "Listen Now chrome includes Ask");
   check(home.includes("Listen Now"), "home is still Listen Now");

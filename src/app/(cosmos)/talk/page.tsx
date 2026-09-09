@@ -2,7 +2,8 @@ import { TalkSurface } from "@/components/cosmos/TalkSurface";
 
 export const metadata = {
   title: "Ask — Resonant",
-  description: "Talk to Resonant in Persian or English. Ask for a song, a mix, or a station — Gemini fulfils it from the living catalog.",
+  description:
+    "Talk to Resonant in Persian or English. Ask for any song or mix — Deezer, YouTube, YouTube Music, SoundCloud — Gemini goes and finds it.",
 };
 
 export default function TalkPage() {
@@ -12,8 +13,8 @@ export default function TalkPage() {
         <div>
           <h1 className="cx-display">Ask</h1>
           <p className="cx-body mt-2 max-w-[52ch]">
-            Talk the way you talk to a friend who knows the room. Ask for a song or a playlist.
-            Resonant plays it here — no skip, no genre.
+            Talk however you talk. 90s, a name, YouTube, SoundCloud — Gemini goes and brings it.
+            The Resonant shelf is optional.
           </p>
         </div>
       </header>

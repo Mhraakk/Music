@@ -54,7 +54,7 @@ export type ConverseStatus = {
   note: string;
 };
 
-/** Compact card shown to Gemini — identity and feeling, never genre. */
+/** Compact card shown to Gemini. */
 export type ConverseTrackCard = {
   id: string;
   title: string;
@@ -63,4 +63,7 @@ export type ConverseTrackCard = {
   room: string;
   feeling: string;
   duration: number;
+  source: string;
+  openUrl: string | null;
+  playable: boolean;
 };

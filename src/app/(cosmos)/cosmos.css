@@ -1186,6 +1186,24 @@ body:has(.cosmos) {
   padding-top: 8px;
 }
 
+.cx-talk-tracks li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cx-talk-tracks li > button {
+  flex: 1;
+}
+
+.cx-embed {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border: 0;
+  background: #000;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cosmos *,
   .cosmos *::before,

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { compactOverlay } from "@/lib/apple/publish";
 import { fetchConverseStatus, sendConverseTurn } from "@/lib/converse/client";
+import { sourceLabel } from "@/lib/converse/anywhere";
 import type { ConverseEffect, ConverseMessage, ConverseStatus } from "@/lib/converse/types";
 import type { LibraryTrack } from "@/lib/library";
 import { PlayIcon, SpinnerGlyph } from "./icons";
@@ -12,10 +12,10 @@ import { PlayIcon, SpinnerGlyph } from "./icons";
 const KEY_STORAGE = "resonant.gemini.key";
 
 const STARTERS = [
+  { fa: "آهنگ‌های دهه ۹۰ رو بیار", en: "Find me 90s songs" },
   { fa: "یه آهنگ گرم سینمایی بذار", en: "Play something warm and cinematic" },
-  { fa: "پلی‌لیستی برای شب تنها", en: "A playlist for a quiet night" },
-  { fa: "ایستگاه غم عمیق رو شروع کن", en: "Start the deep melancholy station" },
-  { fa: "یه چیزی شبیه این، ولی نرم‌تر", en: "Something else — softer than this" },
+  { fa: "از یوتیوب یه چیزی شبیه این", en: "Something from YouTube" },
+  { fa: "پلی‌لیستی از ساوندکلاد برای شب", en: "A SoundCloud mix for tonight" },
 ];
 
 type Line = {
@@ -239,8 +239,8 @@ export function TalkSurface() {
         {lines.length === 0 && (
           <div className="cx-talk-empty">
             <p className="cx-body">
-              Ask in Persian or English. Songs, mixes, stations — Resonant plays them here. There is no skip;
-              if you want something else, just say so.
+              Ask however you talk. Songs from Deezer, YouTube, YouTube Music and SoundCloud — decades,
+              artists, whatever you want. The Resonant shelf is optional.
             </p>
             <div className="cx-talk-starters">
               {STARTERS.map((item) => (
@@ -262,7 +262,7 @@ export function TalkSurface() {
           <article key={line.id} className={`cx-talk-bubble cx-talk-${line.role}`} dir="auto">
             <p>{line.text}</p>
             {line.role === "assistant" && line.source === "local" && !ready && (
-              <p className="cx-meta mt-2">Catalog companion — add a Gemini key for full conversation.</p>
+              <p className="cx-meta mt-2">بدون کلید جمینی هم جستجو می‌کنم. برای گفتگوی کامل کلید را بگذار.</p>
             )}
             {line.tracks.length > 0 && (
               <ul className="cx-talk-tracks">
@@ -274,15 +274,30 @@ export function TalkSurface() {
                         style={{ backgroundColor: track.tint }}
                       >
                         {track.artworkUrl && (
-                          <Image src={track.artworkUrl} alt="" fill sizes="40px" style={{ objectFit: "cover" }} />
+                          // Remote art from Deezer / YouTube / SoundCloud is not all on Apple's CDN.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={track.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         )}
                       </span>
                       <span className="min-w-0 text-left">
                         <span className="cx-truncate block text-[13px] font-semibold">{track.title}</span>
-                        <span className="cx-truncate block text-[12px] text-[var(--ink-3)]">{track.artist}</span>
+                        <span className="cx-truncate block text-[12px] text-[var(--ink-3)]">
+                          {track.artist}
+                          {sourceLabel(track.foundVia) ? ` · ${sourceLabel(track.foundVia)}` : ""}
+                        </span>
                       </span>
                       <PlayIcon size={12} />
                     </button>
+                    {(track.openUrl || track.appleUrl) && (
+                      <a
+                        href={track.openUrl || track.appleUrl || "#"}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="cx-meta px-2"
+                      >
+                        Open
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

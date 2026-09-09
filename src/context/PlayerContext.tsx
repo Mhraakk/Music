@@ -38,6 +38,7 @@ import { getNextEmotionalDrift } from "@/lib/mcp/client";
 import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
 import { compactOverlay } from "@/lib/apple/publish";
+import { isSoundcloudTrack, youtubeVideoId } from "@/lib/converse/anywhere";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
 const FADE_MS = 2200;
@@ -360,13 +361,16 @@ export function PlayerProvider({
       }));
 
       if (!track.previewUrl) {
-        // No audio for this position. Show it as current so the room still
-        // takes its colour, but do not pretend it is playing.
+        const embeddable = Boolean(youtubeVideoId(track) || isSoundcloudTrack(track));
+        pair.forEach((el) => {
+          el.pause();
+          el.removeAttribute("src");
+        });
         setState((s) => ({
           ...s,
-          playing: false,
+          playing: embeddable,
           loading: false,
-          error: "No preview available for this position.",
+          error: embeddable ? null : "No preview — open it on YouTube, SoundCloud or Deezer from the card.",
         }));
         return;
       }
@@ -503,7 +507,7 @@ export function PlayerProvider({
       trackVectorCache.set(track.id, track.vector);
     }
     const all = [...map.values()];
-    const expansions = all.filter((t) => t.origin === "expansion" || t.id.startsWith("x-"));
+    const expansions = all.filter((t) => t.origin === "expansion" || t.id.startsWith("x-") || t.id.startsWith("w-"));
     const favorites = all.filter((t) => t.origin === "favorite" || t.id.startsWith("f-")).slice(-80);
     const extras = [...expansions, ...favorites];
     extrasRef.current = extras;
