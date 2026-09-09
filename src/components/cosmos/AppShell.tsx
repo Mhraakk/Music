@@ -10,6 +10,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { MiniPlayer } from "./MiniPlayer";
 import {
   ArtistsIcon,
+  AskIcon,
   BrowseIcon,
   LibraryIcon,
   ListenIcon,
@@ -21,6 +22,7 @@ const ITEMS = [
   { href: "/", label: "Listen Now", icon: ListenIcon },
   { href: "/collections", label: "Browse", icon: BrowseIcon },
   { href: "/radio", label: "Radio", icon: RadioIcon },
+  { href: "/talk", label: "Ask", icon: AskIcon },
   { href: "/library", label: "Library", icon: LibraryIcon },
   { href: "/curators", label: "Artists", icon: ArtistsIcon, desktopOnly: true },
 ];
@@ -30,6 +32,7 @@ function activeFor(pathname: string, href: string): boolean {
   if (href === "/collections") return pathname.startsWith("/collection");
   if (href === "/curators") return pathname.startsWith("/curator");
   if (href === "/radio") return pathname.startsWith("/radio") || pathname.startsWith("/drift");
+  if (href === "/talk") return pathname.startsWith("/talk");
   return pathname.startsWith(href);
 }
 

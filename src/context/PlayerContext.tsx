@@ -75,11 +75,18 @@ export type PlayerState = {
   extras: LibraryTrack[];
   /** Vectors of heard positions, oldest first — taste for expansion. */
   tasteVectors: EmotionalVector[];
+  /** Remaining songs from an Ask mix. Empty means the engine owns what follows. */
+  queue: LibraryTrack[];
+  queueTitle: string | null;
+  /** True when the current track was started by Ask rather than a sleeve tap. */
+  fromAsk: boolean;
 };
 
 export type PlayerActions = {
   /** Play a track the listener picked. Resets the drift to start from here. */
-  play: (track: LibraryTrack) => void;
+  play: (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => void;
+  /** Start a mix Ask assembled. First song plays; the rest queue, then the engine continues. */
+  playQueue: (tracks: LibraryTrack[], title?: string) => void;
   toggle: () => void;
   setVolume: (v: number) => void;
   seek: (progress: number) => void;
@@ -111,6 +118,9 @@ const INITIAL: PlayerState = {
   error: null,
   extras: [],
   tasteVectors: [],
+  queue: [],
+  queueTitle: null,
+  fromAsk: false,
 };
 
 /**
@@ -243,6 +253,8 @@ export function PlayerProvider({
     destinationLocked: false,
     tasteVectors: [] as EmotionalVector[],
     sessionId: sessionId ?? "",
+    queue: [] as LibraryTrack[],
+    queueTitle: null as string | null,
   });
 
   useEffect(() => {
@@ -325,7 +337,7 @@ export function PlayerProvider({
 
   /** Start a track on the idle lane and fade the other one out. */
   const sound = useCallback(
-    async (track: LibraryTrack, fromEngine: boolean) => {
+    async (track: LibraryTrack, fromEngine: boolean, fromAsk = false) => {
       clearFades();
       const pair = ensureLanes();
       const incoming: 0 | 1 = activeLane.current === 0 ? 1 : 0;
@@ -342,6 +354,7 @@ export function PlayerProvider({
         current: track,
         progress: 0,
         fromEngine,
+        fromAsk,
         loading: true,
         error: null,
       }));
@@ -397,6 +410,25 @@ export function PlayerProvider({
         if (!current) return;
 
         setState((s) => ({ ...s, loading: true }));
+
+        const queued = live.current.queue[0];
+        if (queued) {
+          live.current.queue = live.current.queue.slice(1);
+          live.current.historyIds = [...live.current.historyIds, queued.id].slice(-48);
+          live.current.tasteVectors = [...live.current.tasteVectors, queued.vector].slice(-24);
+          rememberTrack(queued);
+          setState((s) => ({
+            ...s,
+            historyIds: live.current.historyIds,
+            tasteVectors: live.current.tasteVectors,
+            queue: live.current.queue,
+            queueTitle: live.current.queue.length ? live.current.queueTitle : null,
+          }));
+          await sound(queued, false, true);
+          return;
+        }
+        live.current.queueTitle = null;
+        setState((s) => ({ ...s, queue: [], queueTitle: null }));
 
         // Rolling window: a session has no end, so an unbounded exclusion list
         // would eventually exhaust the pool and force repeats.
@@ -484,10 +516,14 @@ export function PlayerProvider({
   }, []);
 
   const play = useCallback(
-    (track: LibraryTrack) => {
+    (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => {
       // Choosing something new mid-track is a statement about what was playing.
       if (live.current.current && live.current.progress < ABANDON_BEFORE) {
         recordSignal("abandon", { progress: live.current.progress });
+      }
+      if (!options?.keepQueue) {
+        live.current.queue = [];
+        live.current.queueTitle = null;
       }
       live.current.historyIds = [...live.current.historyIds, track.id].slice(-48);
       live.current.tasteVectors = [...live.current.tasteVectors, track.vector].slice(-24);
@@ -500,10 +536,23 @@ export function PlayerProvider({
         historyIds: live.current.historyIds,
         tasteVectors: live.current.tasteVectors,
         destination: live.current.destination,
+        queue: live.current.queue,
+        queueTitle: live.current.queueTitle,
       }));
-      void sound(track, false);
+      void sound(track, false, options?.fromAsk === true);
     },
     [recordSignal, rememberTrack, sound]
+  );
+
+  const playQueue = useCallback(
+    (tracks: LibraryTrack[], title?: string) => {
+      if (!tracks.length) return;
+      const [first, ...rest] = tracks;
+      live.current.queue = rest;
+      live.current.queueTitle = rest.length ? title?.trim() || "A set for you" : null;
+      play(first, { keepQueue: true, fromAsk: true });
+    },
+    [play]
   );
 
   const setDestination = useCallback((id: CoordinateId) => {
@@ -581,7 +630,13 @@ export function PlayerProvider({
       el.removeAttribute("src");
     });
     live.current.current = null;
-    setState((s) => ({ ...INITIAL, volume: s.volume, historyIds: s.historyIds }));
+    setState((s) => ({
+      ...INITIAL,
+      volume: s.volume,
+      historyIds: s.historyIds,
+      extras: s.extras,
+      sessionId: s.sessionId,
+    }));
   }, [clearFades]);
 
   /* ─────────────────────── progress + advancement ─────────────────────── */
@@ -661,8 +716,8 @@ export function PlayerProvider({
   }, [ingest]);
 
   const actions = useMemo<PlayerActions>(
-    () => ({ play, toggle, setVolume, seek, stop, ingest, setDestination }),
-    [play, toggle, setVolume, seek, stop, ingest, setDestination]
+    () => ({ play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination }),
+    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination]
   );
 
   return (

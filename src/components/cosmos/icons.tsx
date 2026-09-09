@@ -123,6 +123,14 @@ export function SpinnerGlyph() {
   );
 }
 
+export function AskIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 3.2c-4.6 0-8.2 3-8.2 6.8 0 2.2 1.2 4.2 3.2 5.5-.1.8-.5 2.1-1.6 3.4 1.8-.2 3.4-1 4.5-1.7.7.1 1.4.2 2.1.2 4.6 0 8.2-3 8.2-6.8S16.6 3.2 12 3.2z" />
+    </svg>
+  );
+}
+
 export function ResonantMark() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
