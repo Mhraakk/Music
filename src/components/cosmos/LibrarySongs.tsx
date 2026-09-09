@@ -43,7 +43,7 @@ export function LibrarySongs() {
         </div>
         <button
           type="button"
-          className="cx-pill cx-pill-primary shrink-0"
+          className="cx-pill cx-pill-ghost shrink-0"
           onClick={() => void connect()}
           disabled={syncing}
         >
@@ -90,7 +90,7 @@ export function LibrarySongs() {
       )}
 
       {error && (
-        <p className="cx-meta mb-4" style={{ color: "#ff8a90" }}>
+        <p className="cx-meta mb-4">
           {error}
         </p>
       )}

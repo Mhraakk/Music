@@ -27,7 +27,7 @@ export function LibraryConnect() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="cx-pill cx-pill-primary disabled:opacity-50"
+            className="cx-pill cx-pill-ghost disabled:opacity-50"
             onClick={() => void connect()}
             disabled={syncing}
           >
@@ -53,7 +53,7 @@ export function LibraryConnect() {
         </p>
       )}
       {error && (
-        <p className="cx-meta mt-2" style={{ color: "#ff8a90" }}>
+        <p className="cx-meta mt-2">
           {error}
         </p>
       )}

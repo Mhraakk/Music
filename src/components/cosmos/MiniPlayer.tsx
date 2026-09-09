@@ -216,7 +216,7 @@ export function MiniPlayer() {
             {windowsFor(current.vector).map((w, i) => (
               <div
                 key={i}
-                className="absolute top-1/2 h-[6px] -translate-y-1/2 rounded-full bg-[var(--ink)]"
+                className="absolute top-1/2 h-[6px] -translate-y-1/2 bg-[var(--ink)]"
                 style={{
                   left: `${w.start * 100}%`,
                   width: `${Math.max(1, (w.end - w.start) * 100)}%`,
@@ -344,7 +344,7 @@ export function MiniPlayer() {
           </div>
 
           {error && (
-            <p className="cx-meta mt-2" style={{ color: "#ff8a90" }}>
+            <p className="cx-meta mt-2">
               {error}
             </p>
           )}

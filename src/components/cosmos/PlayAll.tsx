@@ -8,7 +8,7 @@ export function PlayAll({ track, label = "Play" }: { track: LibraryTrack | null 
   const { play } = usePlayerActions();
   if (!track) return null;
   return (
-    <button type="button" className="cx-pill cx-pill-primary" onClick={() => play(track)}>
+    <button type="button" className="cx-pill cx-pill-dark" onClick={() => play(track)}>
       <PlayIcon size={12} />
       {label}
     </button>
