@@ -8,6 +8,7 @@ import { looksLikeHexColor, matchRoom } from "./rooms";
 import { findMusic, sourceLabel } from "./anywhere";
 import { findRelated } from "./kin";
 import { harvestRoom } from "./live-room";
+import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type ToolContext = {
@@ -16,6 +17,7 @@ export type ToolContext = {
   lastPlaylistTitle: string | null;
   ingest: LibraryTrack[];
   effects: ConverseEffect[];
+  lastLyrics: Awaited<ReturnType<typeof fetchLyrics>> | null;
 };
 
 export function createToolContext(session: ConverseSession): ToolContext {
@@ -25,6 +27,7 @@ export function createToolContext(session: ConverseSession): ToolContext {
     lastPlaylistTitle: null,
     ingest: [],
     effects: [],
+    lastLyrics: null,
   };
 }
 
@@ -172,6 +175,21 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
         limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
       },
       required: ["artist"],
+    },
+  },
+  {
+    name: "fetch_lyrics",
+    description:
+      "Fetch published lyrics for a named recording or whatever is playing now. " +
+      "Use when they ask for lyrics, متن آهنگ, or the words. Never invent lyrics. " +
+      "The mini-player also shows synced lines against the listen.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        artist: { type: "STRING", description: "Artist. Defaults to now playing." },
+        title: { type: "STRING", description: "Track title. Defaults to now playing." },
+        query: { type: "STRING", description: "Free-text fallback if artist/title are missing." },
+      },
     },
   },
   {
@@ -367,6 +385,23 @@ export async function executeConverseTool(
         note: tracks.length
           ? "Same person first, then kin, from Apple Music. Call play_tracks. Do not invent other names."
           : "Could not resolve that artist on Apple Music. Call find_music with the artist in English.",
+      };
+    }
+    case "fetch_lyrics": {
+      const artist = asString(args.artist) || ctx.session.currentArtist || "";
+      const title = asString(args.title) || ctx.session.currentTitle || "";
+      const query = asString(args.query);
+      const lyrics = await fetchLyrics({ artist, title, query });
+      ctx.lastLyrics = lyrics;
+      const preview = lyrics.lines.slice(0, 8).map((line) => line.text);
+      return {
+        ok: lyrics.ok,
+        artist: lyrics.artist,
+        title: lyrics.title,
+        synced: lyrics.synced,
+        lines: preview,
+        more: Math.max(0, lyrics.lines.length - preview.length),
+        note: lyrics.note,
       };
     }
     case "search_catalog": {

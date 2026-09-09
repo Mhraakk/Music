@@ -6,13 +6,15 @@
  */
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
 import { PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
 import { NuclearStage } from "./NuclearStage";
+import { LyricsStage } from "./LyricsStage";
+import type { LyricLine } from "@/lib/lyrics/lrclib";
 
 const MODE_LABEL: Record<string, string> = {
   deepen: "More like this",
@@ -25,6 +27,8 @@ export function MiniPlayer() {
     usePlayer();
   const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
+  const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
+  const [lyricsSynced, setLyricsSynced] = useState(false);
   const yt = current ? youtubeVideoId(current) : null;
   const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
@@ -37,6 +41,26 @@ export function MiniPlayer() {
         : current.duration
     : 0;
   const elapsed = progress * total;
+
+  useEffect(() => {
+    if (!current) {
+      setLyricLines([]);
+      return;
+    }
+    let cancelled = false;
+    setLyricLines([]);
+    void fetch(`/api/lyrics?artist=${encodeURIComponent(current.artist)}&title=${encodeURIComponent(current.title)}`)
+      .then((r) => r.json())
+      .then((payload: { ok?: boolean; synced?: boolean; lines?: LyricLine[] }) => {
+        if (cancelled || !payload.ok || !Array.isArray(payload.lines)) return;
+        setLyricLines(payload.lines);
+        setLyricsSynced(payload.synced === true);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [current?.id, current?.artist, current?.title]);
 
   return (
     <section className="cx-mini" aria-label="Now playing">
@@ -220,6 +244,13 @@ export function MiniPlayer() {
               ? "This is the most exposed moment in the track. Turn it up here and we’ll read it as a strong yes."
               : "Turn the volume up when a voice is at its most exposed — that’s the signal we listen for."}
           </p>
+
+          {lyricLines.length > 0 && (
+            <div className="mt-4 border-t border-[var(--hairline)] pt-3">
+              <p className="cx-meta mb-1">Lyrics</p>
+              <LyricsStage lines={lyricLines} elapsedMs={elapsed * 1000} synced={lyricsSynced} />
+            </div>
+          )}
 
           <div className="mt-4 border-t border-[var(--hairline)] pt-3">
             <p className="cx-meta mb-2">Drift toward</p>

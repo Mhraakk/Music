@@ -10,6 +10,7 @@ export type LocalIntent =
   | { kind: "expand" }
   | { kind: "alternative" }
   | { kind: "destination"; room: CoordinateId }
+  | { kind: "lyrics"; query: string }
   | { kind: "play"; query: string; room: CoordinateId | null }
   | { kind: "search"; query: string; room: CoordinateId | null }
   | { kind: "chat"; query: string };
@@ -149,7 +150,12 @@ export function detectLanguage(text: string): ListenerLanguage {
 
 const GREETING = /^(سلام|درود|هی+|hello|hi+|hey)[\s!?.]*$/i;
 
+export function wantsLyrics(text: string): boolean {
+  return /\b(lyrics?|lyric|lrc)\b/i.test(text) || /متن(\s+این)?(\s+آهنگ)?|لیریک|کلمات آهنگ|كلمات آهنگ/.test(text);
+}
+
 export function wantsPlayback(text: string): boolean {
+  if (wantsLyrics(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
   const t = text.toLowerCase();
   return (
     /\b(play|put on|start|queue|playlist|mix|station|song|track|listen|find me|bring)\b/.test(t) ||
@@ -167,6 +173,7 @@ export function interpretLocal(text: string): LocalIntent {
   const trimmed = text.trim();
   const q = trimmed.toLowerCase();
   if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
+  if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
   const named = namedArtistQuery(trimmed);
   const room = named ? null : matchRoom(trimmed);
 

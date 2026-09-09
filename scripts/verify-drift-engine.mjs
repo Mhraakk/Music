@@ -835,6 +835,35 @@ async function verifyNuclear() {
   check(skip.isError === true, "Queue.goToNext is refused — Resonant has no skip");
 }
 
+async function verifyCyreneLyrics() {
+  section("Cyrene-fit lyrics");
+
+  const listed = await callTool("list_methods", { domain: "Streaming" });
+  check(JSON.stringify(listed).includes("getLyrics"), "Streaming domain lists getLyrics");
+
+  const lyrics = await fetch(`${BASE}/api/lyrics?artist=Radiohead&title=Creep`).then((r) => r.json());
+  check(lyrics.ok === true && Array.isArray(lyrics.lines) && lyrics.lines.length > 4, "lrclib returns Creep lyrics", lyrics.note);
+  check(typeof lyrics.lines[0]?.text === "string" && lyrics.lines[0].text.length > 0, "lyric lines have text");
+
+  const asked = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "lyrics for this" }],
+      session: {
+        sessionId: "verify-lyrics",
+        destination: "cinematic_warmth",
+        historyIds: [],
+        currentArtist: "Radiohead",
+        currentTitle: "Creep",
+      },
+    }),
+  }).then((r) => r.json());
+  check(asked.ok === true, "Ask answers a lyrics request");
+  check(!asked.effects?.some((e) => e.type === "play"), "lyrics request does not start a new play");
+  check(/when you were here before|you're just like a dream|whatever makes you happy/i.test(asked.reply ?? ""), "Ask quotes published Creep lyrics, not invented ones");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -849,6 +878,7 @@ try {
   await verifyFavoriteCirculation();
   await verifyConverse();
   await verifyNuclear();
+  await verifyCyreneLyrics();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

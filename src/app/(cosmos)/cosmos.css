@@ -1218,12 +1218,25 @@ body:has(.cosmos) {
   border-color: var(--ink);
 }
 
-.cx-embed {
-  display: block;
-  width: 100%;
-  height: 132px;
-  border: 0;
-  background: #000;
+.cx-lyrics {
+  max-height: 168px;
+  overflow: auto;
+  margin-top: 4px;
+}
+.cx-lyrics ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cx-lyrics li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+  padding: 2px 0;
+}
+.cx-lyrics li[data-active="true"] {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -15,6 +15,7 @@ import type { CoordinateId } from "@/lib/drift/topography";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { textResult, errorResult, type ToolDescriptor, type ToolResult } from "@/lib/mcp/protocol";
 import { resolveNuclearStream } from "./resolve";
+import { fetchLyrics } from "@/lib/lyrics/lrclib";
 
 export const NUCLEAR_DOMAINS = [
   "Queue",
@@ -156,6 +157,14 @@ const METHODS: Record<NuclearDomain, Record<string, MethodInfo>> = {
       ],
       returns: "Stream",
     },
+    getLyrics: {
+      description: "Published lyrics for a named recording (lrclib). Never invented.",
+      params: [
+        { name: "artist", type: "string" },
+        { name: "title", type: "string" },
+      ],
+      returns: "Lyrics",
+    },
   },
 };
 
@@ -178,6 +187,7 @@ const TYPES: Record<string, unknown> = {
     source: "youtube",
   },
   StreamCandidate: { id: "string", title: "string", stream: "Stream?", failed: "boolean" },
+  Lyrics: { artist: "string", title: "string", synced: "boolean", lines: "{ timeMs: number, text: string }[]" },
   StreamResolutionResult: { ok: "boolean", query: "string", candidates: "StreamCandidate[]", stream: "Stream | null", note: "string" },
   Queue: { items: "QueueItem[]", currentIndex: "number?" },
   QueueItem: { id: "string", track: "Track" },
@@ -394,6 +404,10 @@ export async function nuclearCall(method: string, params: Record<string, unknown
     case "Streaming.getStreamUrl": {
       const resolved = await resolveNuclearStream({ videoId: candidateId, artist, title });
       return textResult(resolved.note, resolved);
+    }
+    case "Streaming.getLyrics": {
+      const lyrics = await fetchLyrics({ artist, title, query });
+      return textResult(lyrics.note, lyrics);
     }
 
     case "Queue.goToNext":

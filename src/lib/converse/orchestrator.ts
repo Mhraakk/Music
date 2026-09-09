@@ -18,6 +18,7 @@ import {
   interpretLocal,
   isGreeting,
   namedArtistQuery,
+  wantsLyrics,
   wantsPlayback,
   type ListenerLanguage,
 } from "./intent";
@@ -120,6 +121,22 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
     const where = via ? ` From ${via}.` : "";
     const room = roomLabel ? ` ${roomLabel}.` : "";
     return `Here's ${play.track.title} by ${play.track.artist}.${where}${room}${extra} Say if you want something else.`;
+  }
+
+  if (ctx.lastLyrics?.ok) {
+    const sample = ctx.lastLyrics.lines
+      .slice(0, 6)
+      .map((line) => line.text)
+      .join(" / ");
+    if (lang === "fa") {
+      return `متن «${ctx.lastLyrics.artist} — ${ctx.lastLyrics.title}»: ${sample}`;
+    }
+    return `Lyrics for ${ctx.lastLyrics.artist} — ${ctx.lastLyrics.title}: ${sample}`;
+  }
+  if (ctx.lastLyrics && !ctx.lastLyrics.ok) {
+    return lang === "fa"
+      ? "متن منتشرشده‌ای برای این ضبط پیدا نکردم."
+      : "No published lyrics for that recording yet.";
   }
 
   if (isGreeting(userText) && lang === "fa") {
@@ -229,6 +246,19 @@ export async function fulfillLocally(
       }
       break;
     }
+    case "lyrics": {
+      const named = namedArtistQuery(userText);
+      await executeConverseTool(
+        "fetch_lyrics",
+        {
+          artist: session.currentArtist || named || "",
+          title: session.currentTitle || "",
+          query: intent.query,
+        },
+        ctx
+      );
+      break;
+    }
     case "chat": {
       if (!isGreeting(userText)) {
         await executeConverseTool("find_music", { query: intent.query || userText, limit: 8 }, ctx);
@@ -240,7 +270,7 @@ export async function fulfillLocally(
     }
   }
 
-  await ensurePlayback(ctx, userText);
+  if (intent.kind !== "lyrics") await ensurePlayback(ctx, userText);
 
   return {
     ok: true,
@@ -249,7 +279,7 @@ export async function fulfillLocally(
     model: null,
     effects: ctx.effects,
     suggestions: localSuggestions(lang),
-    note: isGreeting(userText) ? undefined : "No model key this turn — Apple Music search still ran.",
+    note: isGreeting(userText) || intent.kind === "lyrics" ? undefined : "No model key this turn — Apple Music search still ran.",
   };
 }
 
@@ -364,8 +394,20 @@ export async function converse(input: {
   }
 
   const corrected = await preferNamedKin(ctx, userText);
-  await ensurePlayback(ctx, userText);
-  if (corrected) lastText = "";
+  if (wantsLyrics(userText)) {
+    await executeConverseTool(
+      "fetch_lyrics",
+      {
+        artist: ctx.session.currentArtist || namedArtistQuery(userText) || "",
+        title: ctx.session.currentTitle || "",
+        query: userText,
+      },
+      ctx
+    );
+  } else {
+    await ensurePlayback(ctx, userText);
+  }
+  if (corrected || (wantsLyrics(userText) && ctx.lastLyrics)) lastText = "";
 
   if (lastText.trim()) {
     return {
@@ -378,7 +420,7 @@ export async function converse(input: {
     };
   }
 
-  if (ctx.effects.length) {
+  if (ctx.effects.length || ctx.lastLyrics) {
     const lang = detectLanguage(userText);
     return {
       ok: true,
