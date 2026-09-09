@@ -12,6 +12,7 @@ import {
   describeVector,
 } from "@/lib/drift/ontology";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
+import { artistAgrees } from "@/lib/drift/expansion";
 import { fallbackColor, hexToRgb, overlayMedia, rgbToHsl } from "@/lib/media";
 import type { LibraryTrack } from "@/lib/library";
 import { latinCore, namedArtistQuery } from "./intent";
@@ -118,20 +119,29 @@ function searchQueries(raw: string): string[] {
 
 function looksLikeArtistName(query: string): boolean {
   const q = query.trim();
-  if (!q || q.split(/\s+/).length > 5) return false;
+  const words = q.split(/\s+/).filter(Boolean);
+  if (!q || words.length > 3) return false;
   return !/\d0s|\d{4}|hits|official|video|trailer|playlist|mix/i.test(q);
 }
 
-function preferArtistHits(hits: FoundHit[], artist: string): FoundHit[] {
-  const needle = artist.trim().toLowerCase();
-  if (needle.length < 3) return hits;
+function recordingIsBy(probe: string, artist: string): boolean {
+  if (artistAgrees(probe, artist)) return true;
+  const a = probe.trim().toLowerCase();
+  const b = artist.trim().toLowerCase();
+  if (!a || !b) return false;
+  return b === a || b.startsWith(`${a} &`) || b.startsWith(`${a} feat`) || b.startsWith(`${a},`);
+}
+
+function preferArtistHits(hits: FoundHit[], artist: string, exclusive = false): FoundHit[] {
+  const needle = artist.trim();
+  if (needle.length < 2) return hits;
   const matched: FoundHit[] = [];
   const rest: FoundHit[] = [];
   for (const hit of hits) {
-    const name = hit.artist.toLowerCase();
-    if (name.includes(needle) || needle.includes(name)) matched.push(hit);
+    if (recordingIsBy(needle, hit.artist)) matched.push(hit);
     else rest.push(hit);
   }
+  if (exclusive) return matched;
   return matched.length ? [...matched, ...rest] : hits;
 }
 
@@ -266,14 +276,10 @@ async function searchApple(query: string, limit: number, artistTerm = false): Pr
 
 async function appleSongsByArtist(artist: string, limit: number): Promise<FoundHit[]> {
   const people = (await fetchJson(
-    `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&entity=musicArtist&limit=5`
+    `https://itunes.apple.com/search?term=${encodeURIComponent(artist)}&entity=musicArtist&limit=8`
   )) as { results?: Record<string, unknown>[] } | null;
   const rows = people?.results ?? [];
-  const needle = artist.toLowerCase();
-  const match =
-    rows.find((row) => String(row.artistName ?? "").toLowerCase() === needle) ??
-    rows.find((row) => String(row.artistName ?? "").toLowerCase().includes(needle)) ??
-    rows[0];
+  const match = rows.find((row) => recordingIsBy(artist, String(row.artistName ?? "")));
   const artistId = match?.artistId != null ? String(match.artistId) : "";
   if (artistId) {
     const lookup = (await fetchJson(
@@ -283,14 +289,15 @@ async function appleSongsByArtist(artist: string, limit: number): Promise<FoundH
     for (const row of lookup?.results ?? []) {
       if (row.wrapperType === "artist") continue;
       const hit = appleHitFromRow(row);
-      if (!hit) continue;
+      if (!hit || !recordingIsBy(artist, hit.artist)) continue;
       songs.push(hit);
       if (songs.length >= limit) break;
     }
     if (songs.length) return songs;
   }
-  const focused = await searchApple(artist, limit, true);
-  return focused.length ? focused : searchApple(artist, limit);
+  const focused = (await searchApple(artist, limit * 2, true)).filter((hit) => recordingIsBy(artist, hit.artist));
+  if (focused.length) return focused.slice(0, limit);
+  return (await searchApple(artist, limit * 2)).filter((hit) => recordingIsBy(artist, hit.artist)).slice(0, limit);
 }
 
 function collectVideoIds(node: unknown, into: string[], cap = 24) {
@@ -638,7 +645,7 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
 
   const mixed = interleave(
     orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) =>
-      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "")
+      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", artistFocus)
     ),
     cap
   );

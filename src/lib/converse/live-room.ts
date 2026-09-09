@@ -24,7 +24,7 @@ export async function harvestRoom(
 
   for (const probe of probes) {
     if (out.length >= cap) break;
-    const found = await findMusic(probe, cap, { room, appleOnly: true, attachVideo: false });
+    const found = await findMusic(probe, cap, { room, appleOnly: true, attachVideo: false, artistFocus: true });
     for (const track of found) {
       const key = `${track.artist}::${track.title}`.toLowerCase();
       if (seen.has(key) || seen.has(track.id)) continue;

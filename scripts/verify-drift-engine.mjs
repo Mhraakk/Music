@@ -763,6 +763,12 @@ async function verifyConverse() {
     "live harvest includes audio trailers",
     `${(fresh.tracks ?? []).filter((t) => t.previewUrl).length} previews`
   );
+  const zeroSeven = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=1&limit=6`).then((r) => r.json());
+  check(
+    (zeroSeven.tracks ?? []).some((t) => /zero\s*7/i.test(t.artist)),
+    "Zero 7 probe does not collapse to a different Zero",
+    (zeroSeven.tracks ?? []).map((t) => t.artist).slice(0, 3).join(", ")
+  );
 
   const home = await fetch(`${BASE}/`).then((r) => r.text());
   check(home.includes("Ask"), "Listen Now chrome includes Ask");
