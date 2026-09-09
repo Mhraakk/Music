@@ -165,8 +165,8 @@ export async function geminiStructured<T>(options: GeminiCallOptions): Promise<G
 
 export type GeminiPart = {
   text?: string;
-  functionCall?: { name: string; args?: Record<string, unknown> };
-  functionResponse?: { name: string; response: Record<string, unknown> };
+  functionCall?: { name: string; args?: Record<string, unknown>; id?: string };
+  functionResponse?: { name: string; response: Record<string, unknown>; id?: string };
   thoughtSignature?: string;
 };
 
@@ -198,7 +198,7 @@ export type GeminiGenerateOutcome =
       ok: true;
       text: string;
       parts: GeminiPart[];
-      functionCalls: { name: string; args: Record<string, unknown> }[];
+      functionCalls: { name: string; args: Record<string, unknown>; id?: string }[];
       finishReason: string | null;
       model: string;
       latencyMs: number;
@@ -275,8 +275,12 @@ export async function geminiGenerate(options: GeminiGenerateOptions): Promise<Ge
     const parts = payload.candidates?.[0]?.content?.parts ?? [];
     const functionCalls = parts
       .map((part) => part.functionCall)
-      .filter((call): call is { name: string; args?: Record<string, unknown> } => Boolean(call?.name))
-      .map((call) => ({ name: call.name, args: call.args && typeof call.args === "object" ? call.args : {} }));
+      .filter((call): call is { name: string; args?: Record<string, unknown>; id?: string } => Boolean(call?.name))
+      .map((call) => ({
+        name: call.name,
+        args: call.args && typeof call.args === "object" ? call.args : {},
+        id: call.id,
+      }));
 
     const text = parts.map((part) => part.text ?? "").join("").trim();
     const finishReason = payload.candidates?.[0]?.finishReason ?? null;

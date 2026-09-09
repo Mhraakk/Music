@@ -23,10 +23,8 @@ function lastUserText(messages: ConverseMessage[]): string {
   return "";
 }
 
-function contentsFrom(messages: ConverseMessage[], session: ConverseSession): GeminiContent[] {
-  const history: GeminiContent[] = [
-    { role: "user", parts: [{ text: sessionBlock(session) }] },
-  ];
+function contentsFrom(messages: ConverseMessage[]): GeminiContent[] {
+  const history: GeminiContent[] = [];
   for (const message of messages.slice(-12)) {
     history.push({
       role: message.role === "assistant" ? "model" : "user",
@@ -188,7 +186,8 @@ export async function converse(input: {
   }
 
   const ctx = createToolContext(input.session);
-  const contents = contentsFrom(messages, input.session);
+  const contents = contentsFrom(messages);
+  const system = `${CONVERSE_SYSTEM}\n\n${sessionBlock(input.session)}`;
   let lastText = "";
   let modelName: string | null = geminiModel();
   let lastError: string | null = null;
@@ -196,7 +195,7 @@ export async function converse(input: {
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     const lastRound = round === MAX_ROUNDS - 1;
     const outcome = await geminiGenerate({
-      system: CONVERSE_SYSTEM,
+      system,
       contents,
       tools: CONVERSE_TOOLS,
       toolMode: lastRound ? "NONE" : "AUTO",
@@ -226,6 +225,7 @@ export async function converse(input: {
         functionResponse: {
           name: call.name,
           response: result,
+          ...(call.id ? { id: call.id } : {}),
         },
       });
     }

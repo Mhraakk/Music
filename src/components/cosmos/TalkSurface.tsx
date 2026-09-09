@@ -199,7 +199,7 @@ export function TalkSurface() {
       </p>
 
       <div className="cx-talk-key">
-        <button type="button" className="cx-see-all" onClick={() => setKeyOpen((v) => !v)}>
+        <button type="button" id="ask-key-toggle" className="cx-see-all" onClick={() => setKeyOpen((v) => !v)}>
           {keyOpen ? "Hide Gemini key" : deviceKey ? `Device key ${maskKey(deviceKey)}` : "Add Gemini API key"}
         </button>
         {keyOpen && (
