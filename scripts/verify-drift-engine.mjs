@@ -714,6 +714,11 @@ async function verifyConverse() {
     "90s hits come from open search (Deezer / YouTube / SoundCloud / Apple)",
     nTracks.map((t) => t.foundVia || t.id).slice(0, 4).join(", ")
   );
+  check(
+    nTracks.some((t) => t.previewUrl || t.openUrl || t.appleUrl),
+    "90s hits are openable or previewable",
+    nPlay?.track?.foundVia ?? "none"
+  );
   check(/[\u0600-\u06FF]/.test(nineties.payload.reply || ""), "90s Persian request gets a Persian reply");
 
   const home = await fetch(`${BASE}/`).then((r) => r.text());

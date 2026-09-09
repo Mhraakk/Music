@@ -189,7 +189,7 @@ export function TalkSurface() {
   const statusLabel = useMemo(() => {
     if (deviceKey.trim()) return "Using the Gemini key on this device.";
     if (status?.configured) return "Gemini is ready on the server.";
-    return "No Gemini key yet — I can still find songs from the catalog. Paste yours below; it never leaves this device except as a request header.";
+    return "No Gemini key yet — I can still find songs on Deezer, YouTube, YouTube Music and SoundCloud. Paste yours below; it never leaves this device except as a request header.";
   }, [deviceKey, status?.configured]);
 
   return (
@@ -327,7 +327,7 @@ export function TalkSurface() {
           rows={2}
           dir="auto"
           value={draft}
-          placeholder="A song, a mix, a feeling…"
+          placeholder="آهنگ‌های دهه ۹۰، از یوتیوب، هر چی بگی…"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {

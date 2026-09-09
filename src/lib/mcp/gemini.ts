@@ -9,7 +9,7 @@
  *      response schema. Never load-bearing: timeout, missing key or malformed
  *      JSON all become `ok: false` and local cognition continues.
  *   2. FUNCTION CALLING — conversation (`geminiGenerate`). The model may call
- *      catalog/play tools; the loop lives in `lib/converse`, not here.
+ *      Ask tools (find_music, play, rooms); the loop lives in `lib/converse`, not here.
  *
  * Keys are never logged. The operator key lives in `GEMINI_API_KEY`. A listener
  * may also send their own key on a converse request; cognition drift never

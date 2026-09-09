@@ -31,7 +31,7 @@ export type FoundHit = {
   externalId: string;
 };
 
-const TIMEOUT_MS = 7000;
+const TIMEOUT_MS = 4500;
 const SOURCE_PREFIX: Record<MusicSource, string> = {
   deezer: "dz",
   youtube: "yt",
@@ -72,19 +72,46 @@ function searchQueries(raw: string): string[] {
   const q = raw.trim();
   if (!q) return [];
   const extra: string[] = [];
-  if (/دهه\s*۹۰|دهه\s*90|دهه نود|آهنگ(?:‌| )?های\s*۹۰|اهنگ(?:‌| )?های\s*۹۰|نود میلادی/i.test(q) || /\b90s\b|\b1990s\b/.test(q)) {
-    extra.push("90s hits", "1990s songs");
+  const shamsiNineties = /دهه\s*۹۰\s*شمسی|دهه نود شمسی/.test(q);
+  if (shamsiNineties) {
+    extra.push("2010s pop hits", "2010s hits");
+  } else if (
+    /دهه\s*۹۰|دهه\s*90|دهه نود|آهنگ(?:‌| )?های\s*۹۰|اهنگ(?:‌| )?های\s*۹۰|نود میلادی/i.test(q) ||
+    /\b90s\b|\b1990s\b/.test(q)
+  ) {
+    extra.push("1990s pop hits", "90s hits");
   }
   if (/دهه\s*۸۰|دهه\s*80|دهه هشتاد/i.test(q) || /\b80s\b|\b1980s\b/.test(q)) {
-    extra.push("80s hits", "1980s songs");
+    extra.push("1980s pop hits", "80s hits");
   }
   if (/دهه\s*۲۰۰۰|دهه\s*2000|دهه هشتاد شمسی|دهه\s*۸۰ شمسی/i.test(q) || /\b2000s\b|\by2k\b/.test(q)) {
-    extra.push("2000s hits");
+    extra.push("2000s pop hits", "2000s hits");
   }
   if (/یوتیوب موزیک|youtube music/i.test(q)) extra.push(q.replace(/یوتیوب موزیک|youtube music/gi, "").trim() || q);
   if (/ساوندکلاد|ساوند کلاد|soundcloud/i.test(q)) extra.push(q.replace(/ساوندک?لاد|soundcloud/gi, "").trim() || q);
-  const out = [q, ...extra].map((s) => s.trim()).filter(Boolean);
+  const out = [...extra, q].map((s) => s.trim()).filter(Boolean);
   return [...new Set(out)].slice(0, 3);
+}
+
+function junkHit(hit: FoundHit): boolean {
+  const blob = `${hit.title} ${hit.artist}`.toLowerCase();
+  return /karaoke|santa style|nightcore|8d audio|slowed\s*&\s*reverb|lullaby version/i.test(blob);
+}
+
+function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      }
+    );
+  });
 }
 
 async function fetchJson(url: string, init: RequestInit = {}, timeoutMs = TIMEOUT_MS): Promise<unknown> {
@@ -276,7 +303,7 @@ async function innertubeSearch(kind: "youtube" | "youtube_music", query: string,
   if (!payload) return [];
   const hits: FoundHit[] = [];
   walkYoutubeHits(payload, hits, kind, limit);
-  if (hits.length >= Math.min(4, limit)) return hits.slice(0, limit);
+  if (hits.length >= 1) return hits.slice(0, limit);
 
   const ids: string[] = [];
   collectVideoIds(payload, ids, limit);
@@ -315,11 +342,11 @@ async function soundCloudClientId(): Promise<string | null> {
   const env = process.env.SOUNDCLOUD_CLIENT_ID?.trim();
   if (env) return env;
   if (soundCloudIdCache && Date.now() < soundCloudIdCache.until) return soundCloudIdCache.value;
-  const html = await fetchText("https://soundcloud.com", 5000);
+  const html = await fetchText("https://soundcloud.com", 2500);
   if (!html) return null;
   const scripts = [...html.matchAll(/https:\/\/a-v2\.sndcdn\.com\/assets\/[^"' ]+/g)].map((m) => m[0]);
-  for (const src of scripts.slice(0, 3)) {
-    const js = await fetchText(src, 4000);
+  for (const src of scripts.slice(0, 1)) {
+    const js = await fetchText(src, 2000);
     if (!js) continue;
     const match = js.match(/client_id:"([A-Za-z0-9]{16,})"/) ?? js.match(/client_id=([A-Za-z0-9]{16,})/);
     if (match?.[1]) {
@@ -344,13 +371,6 @@ async function searchSoundCloud(query: string, limit: number): Promise<FoundHit[
     const id = row.id != null ? String(row.id) : "";
     const permalink = typeof row.permalink_url === "string" ? row.permalink_url : "";
     if (!title || !artist || !id || !permalink) continue;
-    const media = row.media && typeof row.media === "object" ? (row.media as { transcodings?: { url?: string; format?: { protocol?: string; mime_type?: string } }[] }) : null;
-    const progressive = media?.transcodings?.find((t) => t.format?.protocol === "progressive");
-    let previewUrl: string | null = null;
-    if (progressive?.url) {
-      const stream = (await fetchJson(`${progressive.url}?client_id=${encodeURIComponent(clientId)}`, {}, 4000)) as { url?: string } | null;
-      if (typeof stream?.url === "string") previewUrl = stream.url;
-    }
     const art =
       (typeof row.artwork_url === "string" && row.artwork_url.replace("-large.", "-t500x500.")) ||
       (typeof user.avatar_url === "string" ? user.avatar_url : null);
@@ -360,7 +380,7 @@ async function searchSoundCloud(query: string, limit: number): Promise<FoundHit[
       artist,
       album: null,
       duration: typeof row.duration === "number" ? Math.round(row.duration / 1000) : 30,
-      previewUrl,
+      previewUrl: null,
       artworkUrl: art,
       openUrl: permalink,
       externalId: id,
@@ -441,23 +461,22 @@ export async function findMusic(query: string, limit = 10): Promise<LibraryTrack
   const cap = Math.max(4, Math.min(12, limit));
   const queries = searchQueries(query);
   if (!queries.length) return [];
-  const primary = queries[0];
+  const original = query.trim();
+  const catalogQueries = queries.slice(0, 2);
+  const webQuery = original || queries[0];
+  const namedQuery = queries[0];
 
-  const [deezer, apple, youtube, youtubeMusic, soundcloud] = await Promise.all([
-    searchDeezer(primary, cap).catch(() => [] as FoundHit[]),
-    searchApple(primary, cap).catch(() => [] as FoundHit[]),
-    innertubeSearch("youtube", primary, cap).catch(() => [] as FoundHit[]),
-    innertubeSearch("youtube_music", primary, cap).catch(() => [] as FoundHit[]),
-    searchSoundCloud(primary, cap).catch(() => [] as FoundHit[]),
+  const [deezerGroups, appleGroups, youtube, youtubeMusic, soundcloud] = await Promise.all([
+    Promise.all(catalogQueries.map((q) => searchDeezer(q, cap).catch(() => [] as FoundHit[]))),
+    Promise.all(catalogQueries.map((q) => searchApple(q, cap).catch(() => [] as FoundHit[]))),
+    innertubeSearch("youtube", webQuery, cap).catch(() => [] as FoundHit[]),
+    innertubeSearch("youtube_music", namedQuery, cap).catch(() => [] as FoundHit[]),
+    withBudget(searchSoundCloud(namedQuery, cap).catch(() => [] as FoundHit[]), 5000, [] as FoundHit[]),
   ]);
 
-  let mixed = interleave([deezer, youtubeMusic, soundcloud, youtube, apple], cap);
-  if (mixed.length < 4 && queries[1]) {
-    const extra = await Promise.all([
-      searchDeezer(queries[1], cap).catch(() => [] as FoundHit[]),
-      searchApple(queries[1], cap).catch(() => [] as FoundHit[]),
-    ]);
-    mixed = interleave([mixed, extra[0], extra[1]], cap);
-  }
+  const mixed = interleave(
+    [...appleGroups, ...deezerGroups, youtubeMusic, soundcloud, youtube].map((g) => g.filter((h) => !junkHit(h))),
+    cap
+  );
   return mixed.map(toLibraryTrack);
 }

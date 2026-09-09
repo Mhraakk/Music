@@ -17,17 +17,26 @@ export function detectLanguage(text: string): ListenerLanguage {
   return /[\u0600-\u06FF]/.test(text) ? "fa" : "en";
 }
 
+const GREETING = /^(سلام|درود|هی+|hello|hi+|hey)[\s!?.]*$/i;
+
 export function wantsPlayback(text: string): boolean {
   const t = text.toLowerCase();
   return (
-    /\b(play|put on|start|queue|playlist|mix|station|song|track|listen)\b/.test(t) ||
-    /پخش|بذار|بگذار|پلی\s?لیست|پلی‌لیست|میکس|آهنگ|اهنگ|ایستگاه|رادیو|گوش\s?بده|یه چیزی|یه آهنگ/.test(text)
+    /\b(play|put on|start|queue|playlist|mix|station|song|track|listen|find me|bring)\b/.test(t) ||
+    /پخش|بذار|بگذار|بیار|پیدا کن|معرفی کن|پلی\s?لیست|پلی‌لیست|میکس|آهنگ|اهنگ|ایستگاه|رادیو|گوش\s?بده|یه چیزی|یه آهنگ/.test(
+      text
+    )
   );
+}
+
+export function isGreeting(text: string): boolean {
+  return GREETING.test(text.trim());
 }
 
 export function interpretLocal(text: string): LocalIntent {
   const trimmed = text.trim();
   const q = trimmed.toLowerCase();
+  if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
   const room = matchRoom(trimmed);
 
   if (
@@ -38,8 +47,9 @@ export function interpretLocal(text: string): LocalIntent {
   }
 
   if (
-    /\b(more like this|discover|expand|new songs|generate)\b/.test(q) ||
-    /شبیه این|آهنگ جدید|اهنگ جدید|کشف|بیشتر از این/.test(trimmed)
+    (/\b(more like this|discover|expand|new songs|generate)\b/.test(q) ||
+      /شبیه این|آهنگ جدید|اهنگ جدید|کشف|بیشتر از این/.test(trimmed)) &&
+    !/youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud|دهه|\b\d0s\b/i.test(trimmed)
   ) {
     return { kind: "expand" };
   }
@@ -55,7 +65,9 @@ export function interpretLocal(text: string): LocalIntent {
   if (playlist) return { kind: "playlist", query: trimmed, room };
   if (destOnly && room) return { kind: "destination", room };
   if (play) return { kind: "play", query: trimmed, room };
-  if (room) return { kind: "station", room };
+  if (room && !/دهه|\b\d0s\b|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(trimmed)) {
+    return { kind: "station", room };
+  }
   if (trimmed.length >= 2 && (play || /[a-z\u0600-\u06FF]{2,}/i.test(trimmed))) {
     if (play) return { kind: "play", query: trimmed, room };
     return { kind: "search", query: trimmed, room };

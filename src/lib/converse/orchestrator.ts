@@ -8,10 +8,10 @@
 
 import { geminiGenerate, geminiModel, resolveGeminiApiKey, type GeminiContent } from "@/lib/mcp/gemini";
 import { CONVERSE_SYSTEM, localSuggestions, sessionBlock } from "./prompt";
-import { CONVERSE_TOOLS, createToolContext, executeConverseTool, searchTracks, type ToolContext } from "./tools";
+import { CONVERSE_TOOLS, createToolContext, executeConverseTool, type ToolContext } from "./tools";
 import { collection } from "@/lib/library";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
-import { detectLanguage, interpretLocal, wantsPlayback, type ListenerLanguage } from "./intent";
+import { detectLanguage, interpretLocal, isGreeting, wantsPlayback, type ListenerLanguage } from "./intent";
 import { sourceLabel } from "./anywhere";
 import type { ConverseMessage, ConverseResult, ConverseSession } from "./types";
 
@@ -61,10 +61,7 @@ async function ensurePlayback(ctx: ToolContext, userText: string) {
       { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8), title: userText.slice(0, 48) },
       ctx
     );
-    return;
   }
-  const tracks = searchTracks(ctx, userText, 6);
-  if (tracks[0]) await executeConverseTool("play_tracks", { ids: tracks.map((t) => t.id), title: userText.slice(0, 40) }, ctx);
 }
 
 function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: string): string {
@@ -85,6 +82,13 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
     const where = via ? ` From ${via}.` : "";
     const room = roomLabel ? ` ${roomLabel}.` : "";
     return `Here's ${play.track.title} by ${play.track.artist}.${where}${room}${extra} Say if you want something else.`;
+  }
+
+  if (isGreeting(userText) && lang === "fa") {
+    return "سلام. هر آهنگی بخواهی از یوتیوب، یوتیوب موزیک، ساوندکلاد یا دیزر پیدا می‌کنم — دهه ۹۰، یک اسم، هر چی. بگو تا بیاورم.";
+  }
+  if (isGreeting(userText)) {
+    return "Hi. Ask for any song — a decade, an artist, YouTube, SoundCloud, Deezer. I'll go get it.";
   }
 
   if (dest && lang === "fa") {
@@ -131,7 +135,11 @@ export async function fulfillLocally(
       break;
     case "play":
     case "search": {
-      if (intent.room && intent.kind === "play" && !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر/i.test(intent.query)) {
+      if (
+        intent.room &&
+        intent.kind === "play" &&
+        !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(intent.query)
+      ) {
         await executeConverseTool("start_station", { room: intent.room }, ctx);
       }
       if (!hasPlayEffect(ctx)) {
@@ -147,9 +155,11 @@ export async function fulfillLocally(
       break;
     }
     case "chat": {
-      await executeConverseTool("find_music", { query: intent.query || userText, limit: 8 }, ctx);
-      if (ctx.lastSearch.length && wantsPlayback(userText)) {
-        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      if (!isGreeting(userText)) {
+        await executeConverseTool("find_music", { query: intent.query || userText, limit: 8 }, ctx);
+        if (ctx.lastSearch.length && wantsPlayback(userText)) {
+          await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+        }
       }
       break;
     }
@@ -164,7 +174,7 @@ export async function fulfillLocally(
     model: null,
     effects: ctx.effects,
     suggestions: localSuggestions(lang),
-    note: "Gemini is not in this turn — open search still ran.",
+    note: isGreeting(userText) ? undefined : "Gemini is not in this turn — open search still ran.",
   };
 }
 
