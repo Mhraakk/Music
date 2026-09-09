@@ -32,23 +32,23 @@ export function LibrarySongs() {
 
   return (
     <main className="cx-page">
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Library</h1>
-          <p className="cx-body mt-2 max-w-[48ch]">
+      <header className="cx-section-head">
+        <h1 className="cx-display">Library</h1>
+        <div className="cx-section-side">
+          <p className="cx-body">
             {connected && synced > 0
               ? `${songsLabel(total ?? synced)} in Favorite Songs — title, artist, album, time.`
               : "Connect Apple Music to bring your Favorite Songs here as a real library."}
           </p>
+          <button
+            type="button"
+            className="cx-pill cx-pill-ghost"
+            onClick={() => void connect()}
+            disabled={syncing}
+          >
+            {syncing ? "Connecting…" : connected ? "Refresh library" : "Connect Apple Music"}
+          </button>
         </div>
-        <button
-          type="button"
-          className="cx-pill cx-pill-ghost shrink-0"
-          onClick={() => void connect()}
-          disabled={syncing}
-        >
-          {syncing ? "Connecting…" : connected ? "Refresh library" : "Connect Apple Music"}
-        </button>
       </header>
 
       {connected && songs.length > 0 && (
@@ -67,7 +67,7 @@ export function LibrarySongs() {
 
       {!connected && (
         <div className="cx-callout max-w-xl">
-          <p className="text-[15px] font-semibold">Your songs, on this device</p>
+          <p className="cx-heading">Your songs, on this device</p>
           <p className="cx-body mt-2">
             Favorite Songs stay in your browser — tens of thousands of loved tracks as catalog and
             as taste. Resonant never dumps them into a shared server library.

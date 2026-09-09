@@ -13,14 +13,12 @@ export default function ArtistsPage() {
 
   return (
     <main className="cx-page">
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Artists</h1>
-          <p className="cx-body mt-2 max-w-[52ch]">
-            Seven reference artists. What you see under each name is the music that sits closest to
-            them — not a follower count, not a pitch.
-          </p>
-        </div>
+      <header className="cx-section-head">
+        <h1 className="cx-display">Artists</h1>
+        <p className="cx-body">
+          Seven reference artists. What you see under each name is the music that sits closest to
+          them — not a follower count, not a pitch.
+        </p>
       </header>
 
       <div>
@@ -40,7 +38,7 @@ export default function ArtistsPage() {
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block text-[17px] font-semibold leading-tight">{profile.name}</span>
+              <span className="cx-heading block">{profile.name}</span>
               <span className="cx-body mt-1 block cx-truncate">{profile.bio}</span>
               <span className="cx-meta mt-1 block">{songsLabel(profile.tracks.length)} · Artist</span>
             </span>

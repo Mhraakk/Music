@@ -5,14 +5,14 @@ import "./globals.css";
 
 const sans = Inter({
   subsets: ["latin"],
-  variable: "--font-suisse-intl",
+  variable: "--font-loaded-sans",
   display: "swap",
   weight: ["400", "500"],
 });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-suisse-intl-mono",
+  variable: "--font-loaded-mono",
   display: "swap",
   weight: ["400"],
 });
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[#e5e7eb] text-[#000000]">
+      <body className="min-h-full bg-linen-gray text-carbon-black">
         {children}
         <SpeedInsights />
       </body>

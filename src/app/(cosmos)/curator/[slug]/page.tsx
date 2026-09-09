@@ -56,7 +56,7 @@ export default async function CuratorPage({ params }: { params: Promise<{ slug: 
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <PlayAll track={profile.tracks[0]} label="Play" />
             {profile.regions.slice(0, 4).map((region) => (
-              <Link key={region} href={`/collection/${region}`} className="cx-pill cx-pill-ghost h-8 px-3">
+              <Link key={region} href={`/collection/${region}`} className="cx-pill cx-pill-ghost cx-pill-compact">
                 <span className="cx-meta">{region.replace(/_/g, " ")}</span>
               </Link>
             ))}

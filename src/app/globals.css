@@ -1,23 +1,27 @@
 @import "tailwindcss";
+@import "./theme.css";
 
-:root {
-  --color-solder-orange: #ff6c2f;
-  --color-bone: #d7cdb8;
-  --color-signal-white: #ffffff;
-  --color-linen-gray: #e5e7eb;
-  --color-fog: #c2c2c2;
-  --color-soft-mist: #dddee2;
-  --color-ash: #a3a3a3;
-  --color-carbon-black: #000000;
-  --color-deep-charcoal: #191919;
+/*
+ * theme.css is the uploaded Telepathic @theme slice. Its --spacing-8..96 and
+ * --radius-full keys collide with Tailwind's default scale (p-8, h-8, w-56)
+ * and with rounded-full circles. Restore those utilities here. The 8px design
+ * grid lives on .cosmos as --s-* / --section-gap.
+ */
+@theme {
+  --spacing-8: calc(var(--spacing) * 8);
+  --spacing-16: calc(var(--spacing) * 16);
+  --spacing-24: calc(var(--spacing) * 24);
+  --spacing-40: calc(var(--spacing) * 40);
+  --spacing-56: calc(var(--spacing) * 56);
+  --spacing-64: calc(var(--spacing) * 64);
+  --spacing-80: calc(var(--spacing) * 80);
+  --spacing-96: calc(var(--spacing) * 96);
+  --radius-full: 9999px;
+}
 
-  --r-bg: #e5e7eb;
-  --r-ink: #000000;
-  --r-muted: #a3a3a3;
-  --r-accent: #ff6c2f;
-
-  --radius-card: 24px;
-  --radius-pill: 9999px;
+html {
+  --font-suisse-intl: var(--font-loaded-sans), "Suisse Intl", ui-sans-serif, system-ui, sans-serif;
+  --font-suisse-intl-mono: var(--font-loaded-mono), "Suisse Intl Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -29,7 +33,7 @@ body {
   min-height: 100%;
   background: var(--color-linen-gray);
   color: var(--color-carbon-black);
-  font-family: var(--font-suisse-intl), Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-suisse-intl);
   font-feature-settings: "tnum";
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
@@ -47,9 +51,10 @@ body {
 }
 
 .display {
+  font-size: var(--text-display);
   font-weight: 400;
-  letter-spacing: -0.03em;
-  line-height: 0.85;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
 }
 
 @media (prefers-reduced-motion: reduce) {

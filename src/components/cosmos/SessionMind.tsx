@@ -15,13 +15,16 @@ export function SessionMind() {
     <section className="cx-section">
       <div className="cx-section-head">
         <h2 className="cx-title">Made for You</h2>
-        <Link href="/radio" className="cx-see-all">
-          Open Radio
-        </Link>
+        <div className="cx-section-side">
+          <p className="cx-body">The engine keeps drifting from how you listen. There is no skip.</p>
+          <Link href="/radio" className="cx-see-all">
+            Open Radio →
+          </Link>
+        </div>
       </div>
 
       <div className="cx-callout">
-        <p className="text-[15px] font-semibold leading-snug">
+        <p className="cx-heading">
           {current
             ? fromEngine
               ? `Drifting toward ${dest?.label ?? destination}`

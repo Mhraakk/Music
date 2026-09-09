@@ -6,6 +6,7 @@ import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { LibraryConnect } from "./LibraryConnect";
 import { AlbumRow, MasonryGrid } from "./MasonryGrid";
+import { TrackTile } from "./TrackTile";
 import { RoomTint } from "./RoomTint";
 import { SearchBar, type SearchMode } from "./SearchBar";
 import { SessionMind } from "./SessionMind";
@@ -188,18 +189,20 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Emotional map</h2>
-              <button
-                type="button"
-                className="cx-pill cx-pill-dark"
-                onClick={() => void refreshLive()}
-                disabled={refreshing}
-              >
-                {refreshing ? "Harvesting…" : "Refresh live Apple Music"}
-              </button>
+              <div className="cx-section-side">
+                <p className="cx-body">
+                  Tap a room. Refresh pulls new recordings from Apple Music for that feeling — not the static shelf.
+                </p>
+                <button
+                  type="button"
+                  className="cx-pill cx-pill-ghost"
+                  onClick={() => void refreshLive()}
+                  disabled={refreshing}
+                >
+                  {refreshing ? "Harvesting…" : "Refresh live Apple Music"}
+                </button>
+              </div>
             </div>
-            <p className="cx-meta mb-3">
-              Tap a room. Refresh pulls new recordings from Apple Music for that feeling — not the static shelf.
-            </p>
             <FeelingMap
               current={destination}
               onPick={(id) => {
@@ -232,8 +235,9 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Top Picks</h2>
+              <p className="cx-body">The recordings the engine would put on first — image-led, no charts.</p>
             </div>
-            <MasonryGrid tracks={topPicks.slice(0, 3)} size="lg" />
+            <FeaturedPicks tracks={topPicks.slice(0, 3)} />
             {topPicks.length > 3 && (
               <div className="mt-6">
                 <AlbumRow tracks={topPicks.slice(3)} />
@@ -246,9 +250,12 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Stations</h2>
-              <Link href="/collections" className="cx-see-all">
-                See All
-              </Link>
+              <div className="cx-section-side">
+                <p className="cx-body">Neighbourhoods on the map. Tap one and the engine stays there.</p>
+                <Link href="/collections" className="cx-see-all">
+                  See All →
+                </Link>
+              </div>
             </div>
             <CollectionRail collections={stations} />
           </section>
@@ -256,6 +263,7 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">New Music Mix</h2>
+              <p className="cx-body">Fresh recordings in circulation — Apple first, then the shelf.</p>
             </div>
             <AlbumRow tracks={[...circulating.slice(0, 4), ...newMusic].filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i).slice(0, 16)} />
           </section>
@@ -263,9 +271,12 @@ export function DiscoverSurface({
           <section className="cx-section">
             <div className="cx-section-head">
               <h2 className="cx-title">Artists</h2>
-              <Link href="/curators" className="cx-see-all">
-                See All
-              </Link>
+              <div className="cx-section-side">
+                <p className="cx-body">People the catalog already occupies — not a genre list.</p>
+                <Link href="/curators" className="cx-see-all">
+                  See All →
+                </Link>
+              </div>
             </div>
             <div className="cx-artist-rail">
               {artists.map((artist) => (
@@ -288,5 +299,37 @@ export function DiscoverSurface({
         </>
       )}
     </>
+  );
+}
+
+function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
+  const { current, playing } = usePlayer();
+  const { play } = usePlayerActions();
+  const [lead, ...rest] = tracks;
+  if (!lead) return null;
+
+  return (
+    <div className="cx-feature-grid">
+      <TrackTile
+        track={lead}
+        size="lg"
+        active={current?.id === lead.id}
+        playing={current?.id === lead.id && playing}
+        onSelect={play}
+        priority
+      />
+      <div className="cx-feature-stack">
+        {rest.map((track) => (
+          <TrackTile
+            key={track.id}
+            track={track}
+            size="lg"
+            active={current?.id === track.id}
+            playing={current?.id === track.id && playing}
+            onSelect={play}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

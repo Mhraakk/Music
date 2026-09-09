@@ -9,15 +9,13 @@ export const metadata = {
 export default function TalkPage() {
   return (
     <main className="cx-page">
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Ask</h1>
-          <p className="cx-body mt-2 max-w-[52ch]">
-            Talk however you talk. Apple Music first. ChatGPT or Gemini if you paste a key.
-            Full songs play as YouTube listens (Nuclear-style). Official videos are the trailer.
-            Ask for lyrics and they appear on the playing track.
-          </p>
-        </div>
+      <header className="cx-section-head">
+        <h1 className="cx-display">Ask</h1>
+        <p className="cx-body">
+          Talk however you talk. Apple Music first. ChatGPT or Gemini if you paste a key.
+          Full songs play as YouTube listens (Nuclear-style). Official videos are the trailer.
+          Ask for lyrics and they appear on the playing track.
+        </p>
       </header>
       <TalkSurface />
     </main>

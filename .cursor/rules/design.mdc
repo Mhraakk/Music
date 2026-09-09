@@ -6,7 +6,7 @@ globs: src/**/*.{tsx,css}
 When building UI for this project, first run:
   designmdme --website <domain>
 
-Then reference DESIGN-telepathic-instruments.md
+Then reference DESIGN-telepathic-instruments.md and src/app/theme.css
 for colors, typography, spacing, and component patterns.
 
 Hard rules from that spec:

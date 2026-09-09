@@ -278,7 +278,7 @@ export function MiniPlayer() {
                 <button
                   key={region.id}
                   type="button"
-                  className={`cx-pill h-8 px-2.5 ${destination === region.id ? "cx-pill-dark" : "cx-pill-ghost"}`}
+                  className={`cx-pill cx-pill-compact ${destination === region.id ? "cx-pill-dark" : "cx-pill-ghost"}`}
                   aria-pressed={destination === region.id}
                   onClick={() => setDestination(region.id)}
                 >
@@ -291,7 +291,7 @@ export function MiniPlayer() {
           {(reading || cognition) && (
             <div className="mt-4 border-t border-[var(--hairline)] pt-3">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[13px] font-semibold leading-tight">
+                <p className="cx-heading">
                   {reading ? MODE_LABEL[reading.mode] ?? reading.mode : "Listening"}
                 </p>
                 <p className="cx-mono shrink-0">
@@ -322,7 +322,7 @@ export function MiniPlayer() {
                   href={current.openUrl || current.appleUrl || "#"}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
                 >
                   {via ? `Open on ${via}` : "Play the full track"}
                 </a>
@@ -332,12 +332,12 @@ export function MiniPlayer() {
                   href={current.videoUrl || `https://www.youtube.com/watch?v=${yt}`}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="cx-pill cx-pill-ghost h-8 shrink-0 px-3"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
                 >
                   Official video
                 </a>
               )}
-              <button type="button" onClick={stop} className="cx-pill cx-pill-ghost h-8 shrink-0 px-3">
+              <button type="button" onClick={stop} className="cx-pill cx-pill-ghost cx-pill-compact shrink-0">
                 Stop
               </button>
             </div>

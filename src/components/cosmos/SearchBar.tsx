@@ -107,7 +107,7 @@ export function SearchBar({
               }
             />
           ))}
-          <label className="cx-pill cx-pill-ghost h-8 cursor-pointer px-3">
+          <label className="cx-pill cx-pill-ghost cx-pill-compact cursor-pointer">
             <span className="cx-meta">Any colour</span>
             <input
               type="color"
