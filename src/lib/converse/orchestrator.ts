@@ -183,6 +183,22 @@ export async function fulfillLocally(
         ctx
       );
       break;
+    case "atlas": {
+      await executeConverseTool(
+        "browse_atlas",
+        {
+          artist: intent.artist,
+          genre: intent.artist ? undefined : intent.genre,
+          query: intent.query,
+          limit: 8,
+        },
+        ctx
+      );
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+      break;
+    }
     case "related": {
       const artist = intent.artist || session.currentArtist || "";
       if (artist) {

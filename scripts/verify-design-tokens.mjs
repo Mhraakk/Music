@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Locks the Monopo Saigon token trio: DTCG tokens.json, @theme, :root.
+ * Locks the York / New Form token trio: DTCG tokens.json, @theme, :root.
  */
 
 import { readFileSync } from "node:fs";
@@ -30,9 +30,10 @@ for (const [name, token] of Object.entries(tokens.surface)) {
 }
 
 has(vars, "variables.css", `--spacing-unit: ${tokens.spacing.unit.$value}`);
-has(vars, "variables.css", `--radius-buttons: 75px`);
-has(theme, "theme.css", `--text-display: ${tokens.typography["5xl-6"].$value.fontSize}`);
-has(vars, "variables.css", `--gradient-iridescent-fade:`);
+has(vars, "variables.css", `--radius-buttons: 5px`);
+has(theme, "theme.css", `--text-display: ${tokens.typography.display.$value.fontSize}`);
+has(vars, "variables.css", `--color-highlighter-green: #2bee4b`);
+has(vars, "variables.css", `--font-weight-w550: 550`);
 
 if (failed) {
   console.error(`\n${failed} token lock(s) failed`);

@@ -188,6 +188,21 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
+              <h2 className="cx-title">Atlas</h2>
+              <div className="cx-section-side">
+                <p className="cx-body">
+                  Thousands of electronic branches from everynoise.com. Tap DJ Krush — or trip hop — and
+                  keep walking the features.
+                </p>
+                <Link href="/atlas" className="cx-see-all">
+                  Open Every Noise →
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="cx-section">
+            <div className="cx-section-head">
               <h2 className="cx-title">Emotional map</h2>
               <div className="cx-section-side">
                 <p className="cx-body">

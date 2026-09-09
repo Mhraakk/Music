@@ -1,11 +1,9 @@
 "use client";
 
 /**
- * Transparent editorial header. Inverse over the iridescent hero.
- * Mini-player always. No skip.
+ * York editorial header. Mini-player always. No skip.
  */
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLibrary } from "@/context/LibraryContext";
@@ -13,6 +11,7 @@ import { MiniPlayer } from "./MiniPlayer";
 
 const ITEMS = [
   { href: "/", label: "Listen Now" },
+  { href: "/atlas", label: "Atlas" },
   { href: "/collections", label: "Browse" },
   { href: "/radio", label: "Radio" },
   { href: "/talk", label: "Ask" },
@@ -32,24 +31,11 @@ function activeFor(pathname: string, href: string): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { connected, syncing, connect } = useLibrary();
-  const [inverse, setInverse] = useState(pathname === "/");
-
-  useEffect(() => {
-    if (pathname !== "/") {
-      setInverse(false);
-      return;
-    }
-    const root = document.querySelector(".cx-main");
-    const onScroll = () => setInverse((root?.scrollTop ?? 0) < window.innerHeight * 0.62);
-    onScroll();
-    root?.addEventListener("scroll", onScroll, { passive: true });
-    return () => root?.removeEventListener("scroll", onScroll);
-  }, [pathname]);
 
   return (
     <div className="cx-shell">
       <div className="cx-main">
-        <header className={`cx-floatnav-wrap${inverse ? " cx-nav-inverse" : ""}`}>
+        <header className="cx-floatnav-wrap">
           <nav className="cx-floatnav" aria-label="Primary">
             <Link href="/" className="cx-brand">
               <span className="cx-brand-name">Resonant</span>
@@ -75,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {!connected && (
                 <button
                   type="button"
-                  className="cx-pill cx-pill-ghost"
+                  className="cx-pill cx-pill-primary"
                   onClick={() => void connect()}
                   disabled={syncing}
                 >

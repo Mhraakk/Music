@@ -326,8 +326,8 @@ export function TalkSurface() {
                       </span>
                       <PlayIcon size={12} />
                     </button>
-                    {(track.openUrl || track.appleUrl || track.videoUrl) && (
-                      <span className="flex shrink-0 items-center">
+                    {(track.openUrl || track.appleUrl || track.spotifyUrl || track.youtubeMusicUrl || track.soundcloudUrl || track.videoUrl) && (
+                      <span className="flex shrink-0 flex-wrap items-center justify-end">
                         {(track.openUrl || track.appleUrl) && (
                           <a
                             href={track.openUrl || track.appleUrl || "#"}
@@ -335,7 +335,22 @@ export function TalkSurface() {
                             rel="noreferrer noopener"
                             className="cx-meta px-2"
                           >
-                            Open
+                            Apple
+                          </a>
+                        )}
+                        {track.spotifyUrl && (
+                          <a href={track.spotifyUrl} target="_blank" rel="noreferrer noopener" className="cx-meta px-2">
+                            Spotify
+                          </a>
+                        )}
+                        {track.youtubeMusicUrl && (
+                          <a href={track.youtubeMusicUrl} target="_blank" rel="noreferrer noopener" className="cx-meta px-2">
+                            YT Music
+                          </a>
+                        )}
+                        {track.soundcloudUrl && (
+                          <a href={track.soundcloudUrl} target="_blank" rel="noreferrer noopener" className="cx-meta px-2">
+                            SoundCloud
                           </a>
                         )}
                         {track.videoUrl && (

@@ -3,25 +3,33 @@
 @import "./variables.css";
 
 /*
- * Monopo Saigon @theme spacing/radius names collide with Tailwind defaults.
- * Restore utilities; the 4px design grid lives on --spacing-unit and named tokens.
+ * York @theme must not crush Tailwind spacing/radius utilities.
+ * The 4px design grid lives on --spacing-unit and named :root tokens.
  */
 @theme {
+  --spacing-4: calc(var(--spacing) * 4);
   --spacing-8: calc(var(--spacing) * 8);
+  --spacing-10: calc(var(--spacing) * 10);
   --spacing-12: calc(var(--spacing) * 12);
+  --spacing-15: calc(var(--spacing) * 15);
+  --spacing-16: calc(var(--spacing) * 16);
+  --spacing-20: calc(var(--spacing) * 20);
+  --spacing-24: calc(var(--spacing) * 24);
   --spacing-28: calc(var(--spacing) * 28);
+  --spacing-32: calc(var(--spacing) * 32);
   --spacing-40: calc(var(--spacing) * 40);
   --spacing-48: calc(var(--spacing) * 48);
   --spacing-64: calc(var(--spacing) * 64);
-  --spacing-68: calc(var(--spacing) * 68);
-  --spacing-152: calc(var(--spacing) * 152);
   --radius-full: 9999px;
 }
 
 html {
-  --font-roobert: var(--font-loaded-sans), "Roobert", ui-sans-serif, system-ui, sans-serif;
-  --font-raleway: var(--font-loaded-display), "Raleway", ui-sans-serif, system-ui, sans-serif;
-  --ease-glide: cubic-bezier(0.19, 1, 0.22, 1);
+  --font-twk-lausanne: var(--font-loaded-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-pp-mondwest: var(--font-loaded-display), "Instrument Serif", ui-serif, Georgia, serif;
+  --font-editorial-new: var(--font-loaded-editorial), Newsreader, ui-serif, Georgia, serif;
+  --font-roobert: var(--font-twk-lausanne);
+  --font-raleway: var(--font-pp-mondwest);
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -31,9 +39,9 @@ html {
 html,
 body {
   min-height: 100%;
-  background: var(--surface-paper);
-  color: var(--color-obsidian);
-  font-family: var(--font-roobert);
+  background: var(--surface-canvas);
+  color: var(--color-press-black);
+  font-family: var(--font-twk-lausanne);
   font-weight: var(--font-weight-regular);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
@@ -51,9 +59,11 @@ body {
 }
 
 .display {
-  font-size: var(--text-display);
+  font-size: clamp(72px, 18vw, var(--text-heading-lg));
+  font-family: var(--font-pp-mondwest);
   font-weight: var(--font-weight-regular);
   line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
 }
 
 @media (prefers-reduced-motion: reduce) {

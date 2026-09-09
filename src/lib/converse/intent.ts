@@ -13,6 +13,7 @@ export type LocalIntent =
   | { kind: "lyrics"; query: string }
   | { kind: "play"; query: string; room: CoordinateId | null }
   | { kind: "search"; query: string; room: CoordinateId | null }
+  | { kind: "atlas"; query: string; artist?: string; genre?: string }
   | { kind: "chat"; query: string };
 
 const VERB_STOP = new Set([
@@ -172,6 +173,12 @@ export function lyricsSubject(text: string): string | null {
   return namedArtistQuery(stripped) || latinCore(stripped) || stripped;
 }
 
+export function wantsAtlas(text: string): boolean {
+  return /everynoise|every\s*noise|اطلس|شاخه|engenremap|نقشه ژانر|genre map|electronic atlas/i.test(
+    text
+  );
+}
+
 export function wantsPlayback(text: string): boolean {
   if (wantsLyrics(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
   const t = text.toLowerCase();
@@ -192,6 +199,12 @@ export function interpretLocal(text: string): LocalIntent {
   const q = trimmed.toLowerCase();
   if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
   if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
+  if (wantsAtlas(trimmed)) {
+    const named = namedArtistQuery(
+      trimmed.replace(/everynoise|every\s*noise|اطلس|شاخه(?:‌های)?|engenremap|نقشه ژانر|genre map|electronic atlas/gi, " ")
+    );
+    return { kind: "atlas", query: trimmed, artist: named ?? undefined, genre: named ? undefined : trimmed };
+  }
   const named = namedArtistQuery(trimmed);
   const room = named ? null : matchRoom(trimmed);
 
