@@ -13,13 +13,11 @@ export default function BrowsePage() {
 
   return (
     <main className="cx-page">
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Browse</h1>
-          <p className="cx-body mt-2 max-w-[48ch]">
-            Stations by feeling. Each one is a neighbourhood on the map — not a genre, not a chart.
-          </p>
-        </div>
+      <header className="cx-section-head">
+        <h1 className="cx-display">Browse</h1>
+        <p className="cx-body">
+          Stations by feeling. Each one is a neighbourhood on the map — not a genre, not a chart.
+        </p>
       </header>
 
       <div className="cx-browse-grid">

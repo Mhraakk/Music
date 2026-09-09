@@ -1,5 +1,5 @@
 /**
- * LISTEN NOW — server-rendered shelves, client island for search and playback.
+ * LISTEN NOW — atmospheric hero, then instrument-grade shelves.
  */
 
 import { collections, curators, featured, libraryStats } from "@/lib/library";
@@ -13,24 +13,21 @@ export default function ListenNowPage() {
   const stats = libraryStats();
 
   return (
-    <main className="cx-page">
-      <p className="sr-only">Favorite Songs. Connect Apple Music.</p>
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Listen Now</h1>
-          <p className="cx-body mt-2 max-w-[46ch]">
-            Music by feeling — songs, albums, artists and stations. No genres, no charts.
-          </p>
-        </div>
-      </header>
-
-      <DiscoverSurface
-        topPicks={topPicks}
-        newMusic={newMusic}
-        stations={shelves.map(({ tracks: _tracks, ...shelf }) => shelf)}
-        artists={profiles.map(({ slug, name, covers, tint }) => ({ slug, name, covers, tint }))}
-        catalogTotal={stats.admitted}
-      />
-    </main>
+    <>
+      <section className="cx-hero">
+        <p className="sr-only">Favorite Songs. Connect Apple Music.</p>
+        <h1 className="cx-display">Listen Now</h1>
+        <p className="cx-hero-tag">Music by feeling — songs, albums, artists and stations. No genres, no charts.</p>
+      </section>
+      <main className="cx-page">
+        <DiscoverSurface
+          topPicks={topPicks}
+          newMusic={newMusic}
+          stations={shelves.map(({ tracks: _tracks, ...shelf }) => shelf)}
+          artists={profiles.map(({ slug, name, covers, tint }) => ({ slug, name, covers, tint }))}
+          catalogTotal={stats.admitted}
+        />
+      </main>
+    </>
   );
 }

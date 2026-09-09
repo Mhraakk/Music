@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * App chrome: 244px sidebar on desktop, bottom tabs on mobile, mini-player always.
+ * Floating charcoal control pill on desktop, instrument tabbar on mobile.
+ * Mini-player always. No skip.
  */
 
 import Link from "next/link";
@@ -15,7 +16,6 @@ import {
   LibraryIcon,
   ListenIcon,
   RadioIcon,
-  ResonantMark,
 } from "./icons";
 
 const ITEMS = [
@@ -42,50 +42,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="cx-shell">
-      <aside className="cx-sidebar" aria-label="Primary">
-        <Link href="/" className="cx-brand">
-          <span className="cx-brand-mark">
-            <ResonantMark />
-          </span>
-          <span className="cx-brand-name">Resonant</span>
-        </Link>
+      <div className="cx-main">
+        <header className="cx-floatnav-wrap">
+          <nav className="cx-floatnav" aria-label="Primary">
+            <Link href="/" className="cx-brand">
+              <span className="cx-brand-mark" aria-hidden>
+                ///
+              </span>
+              <span className="cx-brand-name">Resonant</span>
+            </Link>
 
-        <nav className="cx-side-nav">
-          {ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = activeFor(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="cx-side-link"
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon />
-                {item.label}
+            <div className="cx-floatnav-links">
+              {ITEMS.map((item) => {
+                const active = activeFor(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="cx-floatnav-link"
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="cx-floatnav-end">
+              {!connected && (
+                <button
+                  type="button"
+                  className="cx-pill cx-pill-primary"
+                  onClick={() => void connect()}
+                  disabled={syncing}
+                >
+                  {syncing ? "Connecting…" : "Connect Apple Music"}
+                </button>
+              )}
+              <Link href="/signature" className="cx-floatnav-meta">
+                About
               </Link>
-            );
-          })}
-        </nav>
-
-        <div className="cx-side-foot">
-          {!connected && (
-            <button
-              type="button"
-              className="cx-pill cx-pill-primary w-full"
-              onClick={() => void connect()}
-              disabled={syncing}
-            >
-              {syncing ? "Connecting…" : "Connect Apple Music"}
-            </button>
-          )}
-          <Link href="/signature" className="cx-label px-2 hover:underline">
-            About Resonant
-          </Link>
-        </div>
-      </aside>
-
-      <div className="cx-main">{children}</div>
+            </div>
+          </nav>
+        </header>
+        {children}
+      </div>
 
       <div className="cx-player">
         <MiniPlayer />

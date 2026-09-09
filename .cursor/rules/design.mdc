@@ -1,0 +1,20 @@
+---
+description: Telepathic Instruments visual system for all Resonant UI
+globs: src/**/*.{tsx,css}
+---
+
+When building UI for this project, first run:
+  designmdme --website <domain>
+
+Then reference DESIGN-telepathic-instruments.md, src/app/theme.css,
+src/app/variables.css, and src/app/tokens.json for colors, typography,
+spacing, and component patterns.
+
+Hard rules from that spec:
+- Canvas `#e5e7eb`, cards `#ffffff`, text `#000000` / `#a3a3a3`
+- One accent only: Solder Orange `#ff6c2f` — the single most important action
+- Floating Deep Charcoal `#191919` pill nav, 64px radius
+- Buttons and pills 9999px; cards 24px; inputs 2px
+- No drop shadows. Flat surfaces.
+- Suisse Intl → Inter. Suisse Intl Mono → JetBrains Mono, uppercase on chrome.
+- Brand stays Resonant. No skip / next control.

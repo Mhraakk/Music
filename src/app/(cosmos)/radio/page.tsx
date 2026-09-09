@@ -12,17 +12,17 @@ export default function RadioPage() {
 
   return (
     <main className="cx-page">
-      <header className="cx-page-head">
-        <div>
-          <h1 className="cx-display">Radio</h1>
-          <p className="cx-body mt-2 max-w-[50ch]">
+      <header className="cx-section-head">
+        <h1 className="cx-display">Radio</h1>
+        <div className="cx-section-side">
+          <p className="cx-body">
             Nine stations. Tap one to start — Resonant drifts from there. There is no skip button
             and no shuffle.
           </p>
+          <Link href="/drift" className="cx-see-all">
+            Open the map →
+          </Link>
         </div>
-        <Link href="/drift" className="cx-see-all shrink-0">
-          Open the map
-        </Link>
       </header>
 
       <RadioSurface

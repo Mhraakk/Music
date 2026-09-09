@@ -24,18 +24,22 @@ export default function SignaturePage() {
         <BackGlyph />
       </Link>
 
-      <header className="mb-8 max-w-[52ch]">
-        <p className="cx-meta">Resonant</p>
-        <h1 className="cx-display mt-2">Signature</h1>
-        <p className="cx-body mt-4">
-          Three photographs the work is signed with. They sit on the same emotional map as the
-          music, because an engine that claims to read feeling should be able to read the things
-          its author chose to be judged by.
-        </p>
-        <p className="cx-meta mt-3">
-          The readings below are authored, not computed. There is no honest way to derive emotional
-          structure from pixels, so what you are reading is a claim, stated as one.
-        </p>
+      <header className="cx-section-head">
+        <div>
+          <p className="cx-meta">Resonant</p>
+          <h1 className="cx-display mt-2">Signature</h1>
+        </div>
+        <div className="cx-section-side">
+          <p className="cx-body">
+            Three photographs the work is signed with. They sit on the same emotional map as the
+            music, because an engine that claims to read feeling should be able to read the things
+            its author chose to be judged by.
+          </p>
+          <p className="cx-meta">
+            The readings below are authored, not computed. There is no honest way to derive emotional
+            structure from pixels, so what you are reading is a claim, stated as one.
+          </p>
+        </div>
       </header>
 
       <SignatureGallery plates={plates} />
@@ -50,7 +54,7 @@ export default function SignaturePage() {
           Built with Next.js and a Model Context Protocol server that is shown emotional
           coordinates and never told what the music is.
         </p>
-        {SIGNATURE_AUTHOR && <p className="mt-8 text-[17px] font-semibold">{SIGNATURE_AUTHOR}</p>}
+        {SIGNATURE_AUTHOR && <p className="cx-heading mt-8">{SIGNATURE_AUTHOR}</p>}
         <div className="mt-8 flex flex-wrap gap-2">
           <Link href="/" className="cx-pill cx-pill-ghost h-9 px-4">
             Listen Now

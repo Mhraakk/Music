@@ -16,31 +16,26 @@ export function LibraryConnect() {
   return (
     <section className="cx-section">
       <div className="cx-section-head">
-        <div>
-          <h2 className="cx-title">Favorite Songs</h2>
-          <p className="cx-meta mt-1">
+        <h2 className="cx-title">Favorite Songs</h2>
+        <div className="cx-section-side">
+          <p className="cx-body">
             {connected && synced > 0
               ? `${count} from your Apple Music library, circulating here.`
               : "Your Apple Music Favorite Songs become the catalog the engine drifts through."}
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="cx-pill cx-pill-primary disabled:opacity-50"
-            onClick={() => void connect()}
-            disabled={syncing}
-          >
-            {syncing ? "Connecting…" : connected ? "Refresh library" : "Connect Apple Music"}
-          </button>
-          <a
-            href={FAVORITE_SONGS_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="cx-see-all hidden sm:inline"
-          >
-            Open on Apple Music
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="cx-pill cx-pill-ghost disabled:opacity-50"
+              onClick={() => void connect()}
+              disabled={syncing}
+            >
+              {syncing ? "Connecting…" : connected ? "Refresh library" : "Connect Apple Music"}
+            </button>
+            <a href={FAVORITE_SONGS_URL} target="_blank" rel="noreferrer noopener" className="cx-see-all">
+              Open on Apple Music →
+            </a>
+          </div>
         </div>
       </div>
 
@@ -53,7 +48,7 @@ export function LibraryConnect() {
         </p>
       )}
       {error && (
-        <p className="cx-meta mt-2" style={{ color: "#ff8a90" }}>
+        <p className="cx-meta mt-2">
           {error}
         </p>
       )}
