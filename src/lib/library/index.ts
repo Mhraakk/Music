@@ -180,7 +180,7 @@ export function searchByText(query: string, limit = 48): LibraryTrack[] {
         [track.artist.toLowerCase(), 4],
         [(track.album ?? "").toLowerCase(), 2],
         [track.region.replace(/_/g, " "), 2.5],
-        [track.shape, 2],
+        [track.shape.toLowerCase(), 2],
         [track.note.toLowerCase(), 1],
       ];
       let score = 0;
@@ -324,9 +324,61 @@ export function curator(slug: string): Curator | null {
  * of popularity, which the ontology does not store — the most audibly human
  * material surfaces first.
  */
-export function featured(limit = 48): LibraryTrack[] {
+export function featured(limit = 48, offset = 0): LibraryTrack[] {
   return library()
     .slice()
     .sort((a, b) => b.avi - a.avi)
-    .slice(0, limit);
+    .slice(offset, offset + limit);
+}
+
+export type CatalogQuery = {
+  q?: string;
+  color?: string;
+  ids?: string[];
+  limit?: number;
+  offset?: number;
+};
+
+export type CatalogPage = {
+  tracks: LibraryTrack[];
+  total: number;
+  mode: "featured" | "text" | "color" | "ids";
+};
+
+/**
+ * One read model for the catalog API and the discover surface. Search ranks
+ * the living catalog; featured is vulnerability-first, never popularity.
+ */
+export function queryCatalog(input: CatalogQuery): CatalogPage {
+  const limit = Math.max(1, Math.min(120, input.limit ?? 72));
+  const offset = Math.max(0, input.offset ?? 0);
+
+  if (input.ids?.length) {
+    const tracks = input.ids
+      .slice(0, 40)
+      .map((id) => libraryTrack(id))
+      .filter((t): t is LibraryTrack => Boolean(t));
+    return { tracks, total: tracks.length, mode: "ids" };
+  }
+
+  if (input.color) {
+    const ranked = searchByColor(input.color, 240).map((x) => x.track);
+    return {
+      tracks: ranked.slice(offset, offset + limit),
+      total: ranked.length,
+      mode: "color",
+    };
+  }
+
+  if (input.q?.trim()) {
+    const ranked = searchByText(input.q, 240);
+    return {
+      tracks: ranked.slice(offset, offset + limit),
+      total: ranked.length,
+      mode: "text",
+    };
+  }
+
+  const all = library().length;
+  return { tracks: featured(limit, offset), total: all, mode: "featured" };
 }

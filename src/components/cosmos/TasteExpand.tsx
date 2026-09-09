@@ -10,12 +10,11 @@
  */
 
 import { useState } from "react";
-import type { LibraryTrack } from "@/lib/library";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { generateTasteExpansion } from "@/lib/mcp/client";
 
-export function TasteExpand({ tracks }: { tracks: LibraryTrack[] }) {
-  const { historyIds, extras, current, sessionId } = usePlayer();
+export function TasteExpand() {
+  const { historyIds, extras, current, sessionId, tasteVectors } = usePlayer();
   const { ingest, play } = usePlayerActions();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -26,14 +25,6 @@ export function TasteExpand({ tracks }: { tracks: LibraryTrack[] }) {
     setBusy(true);
     setError(null);
     setNote(null);
-
-    const known = new Map(tracks.map((t) => [t.id, t]));
-    for (const extra of extras) known.set(extra.id, extra);
-    if (current) known.set(current.id, current);
-
-    const tasteVectors = historyIds
-      .map((id) => known.get(id)?.vector)
-      .filter((v): v is NonNullable<typeof v> => Boolean(v));
 
     const outcome = await generateTasteExpansion({
       sessionId,

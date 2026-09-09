@@ -3,88 +3,109 @@
 /**
  * DISCOVER SURFACE
  *
- * The client island on the home page: search state, the grid it drives, and the
- * room tint. Everything above it — the masthead, the collection rail, the
- * counts — stays server-rendered.
- *
- * Search runs entirely in the browser against the library passed down from the
- * server. That is a deliberate tradeoff: it costs one payload of catalog
- * metadata up front (no artwork, just fields) and buys instant ranking with no
- * request per keystroke. The living catalog is hundreds of positions; the
- * default wall shows the most vulnerable seventy-two plus anything just
- * generated. Past a few thousand this would move behind an endpoint.
+ * Search and the wall. The living catalog stays on the server; this island
+ * asks `/api/catalog` when the listener searches or asks for more, and only
+ * the featured wall is rendered into the first HTML.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer } from "@/context/PlayerContext";
-import { colorDistance, hexToRgb, rgbToHsl } from "@/lib/media";
 import { MasonryGrid } from "./MasonryGrid";
 import { NowPlayingSheet } from "./NowPlayingSheet";
 import { RoomTint } from "./RoomTint";
 import { SearchBar, type SearchMode } from "./SearchBar";
+import { SessionMind } from "./SessionMind";
 import { TasteExpand } from "./TasteExpand";
 
-const DEFAULT_WALL = 72;
+const PAGE = 72;
 
-export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
+export function DiscoverSurface({ wall, total: catalogTotal }: { wall: LibraryTrack[]; total: number }) {
   const { extras } = usePlayer();
   const [mode, setMode] = useState<SearchMode>({ kind: "none" });
+  const [remote, setRemote] = useState<LibraryTrack[] | null>(null);
+  const [total, setTotal] = useState(catalogTotal);
+  const [offset, setOffset] = useState(wall.length);
+  const [more, setMore] = useState<LibraryTrack[]>([]);
+  const [busy, setBusy] = useState(false);
 
-  const catalog = useMemo(() => {
-    const map = new Map(tracks.map((t) => [t.id, t]));
-    for (const extra of extras) map.set(extra.id, extra);
-    return [...map.values()];
-  }, [tracks, extras]);
+  useEffect(() => {
+    if (mode.kind === "none") {
+      setRemote(null);
+      setTotal(catalogTotal);
+      setOffset(wall.length + more.length);
+      return;
+    }
+
+    const controller = new AbortController();
+    setBusy(true);
+
+    const params = new URLSearchParams({ limit: String(PAGE), offset: "0" });
+    if (mode.kind === "text") params.set("q", mode.query);
+    if (mode.kind === "color") params.set("color", mode.hex);
+
+    void fetch(`/api/catalog?${params}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`catalog ${response.status}`);
+        return response.json() as Promise<{ tracks: LibraryTrack[]; total: number }>;
+      })
+      .then((payload) => {
+        setRemote(payload.tracks);
+        setTotal(payload.total);
+        setOffset(payload.tracks.length);
+        setBusy(false);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setBusy(false);
+      });
+
+    return () => controller.abort();
+  }, [mode, catalogTotal]);
+
+  const fresh = extras.filter((t) => t.origin === "expansion");
 
   const results = useMemo(() => {
-    if (mode.kind === "color") {
-      const target = rgbToHsl(hexToRgb(mode.hex));
-      return catalog
-        .map((track) => ({ track, d: colorDistance(target, track.searchHsl) }))
-        .sort((a, b) => a.d - b.d)
-        .map((x) => x.track);
+    if (mode.kind !== "none") {
+      const remoteIds = new Set((remote ?? []).map((t) => t.id));
+      const extraHits = fresh.filter((t) => !remoteIds.has(t.id));
+      return [...extraHits, ...(remote ?? [])];
     }
+    const rest = [...wall, ...more].filter((t) => !fresh.some((e) => e.id === t.id));
+    return [...fresh, ...rest];
+  }, [mode.kind, remote, wall, more, fresh]);
 
-    if (mode.kind === "text") {
-      const terms = mode.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-      if (terms.length === 0) return catalog;
-
-      return catalog
-        .map((track) => {
-          // Weighted so an artist or title match outranks an incidental hit in
-          // the engine's prose description of the emotional shape.
-          const fields: [string, number][] = [
-            [track.title.toLowerCase(), 4],
-            [track.artist.toLowerCase(), 4],
-            [(track.album ?? "").toLowerCase(), 2],
-            [track.region.replace(/_/g, " "), 2.5],
-            [track.shape.toLowerCase(), 2],
-            [track.note.toLowerCase(), 1],
-          ];
-          let score = 0;
-          for (const term of terms) {
-            for (const [text, weight] of fields) {
-              if (!text) continue;
-              if (text === term) score += weight * 2;
-              else if (text.startsWith(term)) score += weight * 1.4;
-              else if (text.includes(term)) score += weight;
-            }
-          }
-          return { track, score };
-        })
-        .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((x) => x.track);
+  async function showMore() {
+    if (busy) return;
+    setBusy(true);
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
+    if (mode.kind === "text") params.set("q", mode.query);
+    if (mode.kind === "color") params.set("color", mode.hex);
+    try {
+      const response = await fetch(`/api/catalog?${params}`);
+      if (!response.ok) throw new Error(`catalog ${response.status}`);
+      const payload = (await response.json()) as { tracks: LibraryTrack[]; total: number };
+      if (mode.kind === "none") {
+        setMore((prev) => {
+          const seen = new Set([...wall, ...prev].map((t) => t.id));
+          return [...prev, ...payload.tracks.filter((t) => !seen.has(t.id))];
+        });
+      } else {
+        setRemote((prev) => {
+          const seen = new Set((prev ?? []).map((t) => t.id));
+          return [...(prev ?? []), ...payload.tracks.filter((t) => !seen.has(t.id))];
+        });
+      }
+      setTotal(payload.total);
+      setOffset(offset + payload.tracks.length);
+    } catch {
+      /* keep the wall that already rendered */
+    } finally {
+      setBusy(false);
     }
+  }
 
-    const fresh = catalog.filter((t) => t.origin === "expansion");
-    const rest = catalog
-      .filter((t) => t.origin !== "expansion")
-      .slice()
-      .sort((a, b) => b.avi - a.avi);
-    return [...fresh, ...rest.slice(0, DEFAULT_WALL)];
-  }, [mode, catalog]);
+  const canShowMore = results.length < total;
 
   return (
     <>
@@ -94,16 +115,30 @@ export function DiscoverSurface({ tracks }: { tracks: LibraryTrack[] }) {
         <SearchBar
           mode={mode}
           onChange={setMode}
-          resultCount={mode.kind === "none" ? null : results.length}
+          resultCount={mode.kind === "none" ? null : busy && !remote ? null : results.length}
         />
         <div className="mt-3">
-          <TasteExpand tracks={catalog} />
+          <TasteExpand />
         </div>
       </div>
 
+      <SessionMind />
+
       <MasonryGrid tracks={results} />
 
-      {/* Clearance so the last row is never trapped behind the sheet and nav. */}
+      {canShowMore && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            className="cx-pill cx-pill-ghost h-10 px-4 disabled:opacity-50"
+            onClick={() => void showMore()}
+            disabled={busy}
+          >
+            {busy ? "Loading…" : "Show more of the map"}
+          </button>
+        </div>
+      )}
+
       <div className="h-40" aria-hidden />
 
       <NowPlayingSheet />

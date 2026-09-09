@@ -33,7 +33,9 @@ import type { LibraryTrack } from "@/lib/library";
 import type { BranchState } from "@/lib/drift/algorithm";
 import type { ResonanceReading, ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
 import type { EmotionalVector } from "@/lib/drift/ontology";
+import { adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
 import { getNextEmotionalDrift } from "@/lib/mcp/client";
+import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
@@ -57,6 +59,12 @@ export type PlayerState = {
   /** Positions played this session, oldest first. */
   historyIds: string[];
   reading: ResonanceReading | null;
+  /** How the last drift decision was made — local cognition or verified Gemini. */
+  cognition: CognitionTrace | null;
+  /** Named region the engine is drifting toward. */
+  destination: CoordinateId;
+  /** True once the listener names a destination; otherwise the engine infers one. */
+  destinationLocked: boolean;
   branches: BranchState;
   loading: boolean;
   /** Set when the engine, not the listener, chose the current track. */
@@ -64,6 +72,8 @@ export type PlayerState = {
   error: string | null;
   /** Session-generated positions, merged on top of the server library. */
   extras: LibraryTrack[];
+  /** Vectors of heard positions, oldest first — taste for expansion. */
+  tasteVectors: EmotionalVector[];
 };
 
 export type PlayerActions = {
@@ -75,6 +85,8 @@ export type PlayerActions = {
   stop: () => void;
   /** Admit newly generated positions into the client library. */
   ingest: (tracks: LibraryTrack[]) => void;
+  /** Name a destination on the emotional map. The engine drifts toward it. */
+  setDestination: (id: CoordinateId) => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -89,11 +101,15 @@ const INITIAL: PlayerState = {
   fragilityNow: 0,
   historyIds: [],
   reading: null,
+  cognition: null,
+  destination: "cinematic_warmth",
+  destinationLocked: false,
   branches: {},
   loading: false,
   fromEngine: false,
   error: null,
   extras: [],
+  tasteVectors: [],
 };
 
 /**
@@ -119,19 +135,24 @@ function windowsFor(vector: EmotionalVector): FragilityWindow[] {
   return windows;
 }
 
+function inferDestination(origin: CoordinateId): CoordinateId {
+  const next = adjacentCoordinates(origin, 1)[0];
+  return next?.id ?? "cinematic_warmth";
+}
+
 export function PlayerProvider({
   children,
   sessionId,
-  tracks,
+  tracks = [],
 }: {
   children: ReactNode;
   sessionId: string;
   /**
-   * The library, so an engine-chosen track id can be resolved to a full record.
-   * Passed in rather than imported: the surface already has it server-side, and
-   * this keeps the provider free of any dependency on how it was assembled.
+   * Optional seed of already-rendered sleeves. Engine-chosen ids that are not
+   * in this list are resolved through `/api/catalog` so the homepage does not
+   * have to inline the living catalog.
    */
-  tracks: LibraryTrack[];
+  tracks?: LibraryTrack[];
 }) {
   const [state, setState] = useState<PlayerState>({ ...INITIAL, sessionId });
 
@@ -140,10 +161,37 @@ export function PlayerProvider({
     for (const extra of state.extras) map.set(extra.id, extra);
     return map;
   }, [tracks, state.extras]);
-  const lookup = useCallback((id: string) => byId.get(id) ?? null, [byId]);
-
   const extrasRef = useRef<LibraryTrack[]>([]);
   extrasRef.current = state.extras;
+
+  const lookup = useCallback((id: string) => byId.get(id) ?? null, [byId]);
+
+  const rememberTrack = useCallback((track: LibraryTrack) => {
+    trackVectorCache.set(track.id, track.vector);
+  }, []);
+
+  const resolveTrack = useCallback(
+    async (id: string): Promise<LibraryTrack | null> => {
+      const local = lookup(id);
+      if (local) return local;
+      try {
+        const response = await fetch(`/api/catalog?ids=${encodeURIComponent(id)}`);
+        if (!response.ok) return null;
+        const payload = (await response.json()) as { tracks?: LibraryTrack[] };
+        const track = payload.tracks?.[0] ?? null;
+        if (track) {
+          rememberTrack(track);
+          const extras = [...extrasRef.current.filter((t) => t.id !== track.id), track];
+          extrasRef.current = extras;
+          setState((s) => ({ ...s, extras }));
+        }
+        return track;
+      } catch {
+        return null;
+      }
+    },
+    [lookup, rememberTrack]
+  );
 
   /**
    * Two audio elements so a track can fade into the next while the outgoing one
@@ -155,6 +203,7 @@ export function PlayerProvider({
   const gestureTimer = useRef<number | null>(null);
   const gestureFrom = useRef<number | null>(null);
   const advancing = useRef(false);
+  const handover = useRef(false);
 
   /** Async advancement reads these rather than the render's closed-over state. */
   const live = useRef({
@@ -166,6 +215,9 @@ export function PlayerProvider({
     branches: {} as BranchState,
     volume: 0.8,
     windows: [] as FragilityWindow[],
+    destination: "cinematic_warmth" as CoordinateId,
+    destinationLocked: false,
+    tasteVectors: [] as EmotionalVector[],
   });
 
   const ensureLanes = useCallback((): [HTMLAudioElement, HTMLAudioElement] => {
@@ -238,6 +290,7 @@ export function PlayerProvider({
       const incoming: 0 | 1 = activeLane.current === 0 ? 1 : 0;
       const outgoing = activeLane.current;
 
+      handover.current = false;
       live.current.current = track;
       live.current.windows = windowsFor(track.vector);
       live.current.progress = 0;
@@ -307,10 +360,11 @@ export function PlayerProvider({
         // Rolling window: a session has no end, so an unbounded exclusion list
         // would eventually exhaust the pool and force repeats.
         const recentIds = live.current.historyIds.slice(-24);
+        const destination = live.current.destination;
         const outcome = await getNextEmotionalDrift({
           sessionId,
           origin: current.region,
-          destination: current.region,
+          destination,
           history: recentIds,
           trajectory: recentIds
             .map((id) => trackVectorCache.get(id))
@@ -320,31 +374,38 @@ export function PlayerProvider({
         });
 
         if (!outcome.ok) {
+          handover.current = false;
           setState((s) => ({ ...s, loading: false, playing: false, error: outcome.error }));
           return;
         }
 
-        const { phase, branches, reading } = outcome.value;
-        const next = lookup(phase.trackId);
+        const { phase, branches, reading, cognition } = outcome.value;
+        const next = await resolveTrack(phase.trackId);
 
         live.current.branches = branches;
-        setState((s) => ({ ...s, branches, reading }));
+        setState((s) => ({ ...s, branches, reading, cognition }));
 
         if (!next) {
+          handover.current = false;
           setState((s) => ({ ...s, loading: false, playing: false, error: "Engine returned an unknown position." }));
           return;
         }
 
         live.current.historyIds = [...live.current.historyIds, next.id];
-        trackVectorCache.set(next.id, next.vector);
-        setState((s) => ({ ...s, historyIds: live.current.historyIds }));
+        live.current.tasteVectors = [...live.current.tasteVectors, next.vector].slice(-24);
+        rememberTrack(next);
+        setState((s) => ({
+          ...s,
+          historyIds: live.current.historyIds,
+          tasteVectors: live.current.tasteVectors,
+        }));
 
         await sound(next, true);
       } finally {
         advancing.current = false;
       }
     },
-    [lookup, recordSignal, sessionId, sound]
+    [recordSignal, rememberTrack, resolveTrack, sessionId, sound]
   );
 
   /**
@@ -384,12 +445,27 @@ export function PlayerProvider({
         recordSignal("abandon", { progress: live.current.progress });
       }
       live.current.historyIds = [...live.current.historyIds, track.id].slice(-48);
-      trackVectorCache.set(track.id, track.vector);
-      setState((s) => ({ ...s, historyIds: live.current.historyIds }));
+      live.current.tasteVectors = [...live.current.tasteVectors, track.vector].slice(-24);
+      rememberTrack(track);
+      if (!live.current.destinationLocked) {
+        live.current.destination = inferDestination(track.region);
+      }
+      setState((s) => ({
+        ...s,
+        historyIds: live.current.historyIds,
+        tasteVectors: live.current.tasteVectors,
+        destination: live.current.destination,
+      }));
       void sound(track, false);
     },
-    [recordSignal, sound]
+    [recordSignal, rememberTrack, sound]
   );
+
+  const setDestination = useCallback((id: CoordinateId) => {
+    live.current.destination = id;
+    live.current.destinationLocked = true;
+    setState((s) => ({ ...s, destination: id, destinationLocked: true }));
+  }, []);
 
   const toggle = useCallback(() => {
     const pair = lanes.current;
@@ -484,7 +560,8 @@ export function PlayerProvider({
       // Begin the handover before the outgoing track ends, so the two overlap
       // rather than abutting.
       const remaining = el.duration - el.currentTime;
-      if (!el.paused && remaining <= FADE_MS / 1000 + 0.25) {
+      if (!handover.current && !el.paused && remaining <= FADE_MS / 1000 + 0.25) {
+        handover.current = true;
         void advanceRef.current("dwell_complete");
       }
     }, 250);
@@ -495,7 +572,11 @@ export function PlayerProvider({
   /** A track that ends without the timer catching it must still advance. */
   useEffect(() => {
     const pair = ensureLanes();
-    const onEnded = () => void advanceRef.current("dwell_complete");
+    const onEnded = () => {
+      if (handover.current) return;
+      handover.current = true;
+      void advanceRef.current("dwell_complete");
+    };
     pair.forEach((el) => el.addEventListener("ended", onEnded));
     return () => pair.forEach((el) => el.removeEventListener("ended", onEnded));
   }, [ensureLanes]);
@@ -535,8 +616,8 @@ export function PlayerProvider({
   }, [ingest]);
 
   const actions = useMemo<PlayerActions>(
-    () => ({ play, toggle, setVolume, seek, stop, ingest }),
-    [play, toggle, setVolume, seek, stop, ingest]
+    () => ({ play, toggle, setVolume, seek, stop, ingest, setDestination }),
+    [play, toggle, setVolume, seek, stop, ingest, setDestination]
   );
 
   return (

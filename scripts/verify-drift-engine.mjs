@@ -486,6 +486,54 @@ async function verifyExpansion() {
   }
 }
 
+async function verifyProductSurface() {
+  section("Product surface");
+
+  const healthRes = await fetch(`${BASE}/api/health`);
+  const health = await healthRes.json();
+  check(healthRes.ok && health.status === "ok", "health reports the living engine", health.status);
+  check(
+    health.engine?.admitted > 100 && health.engine?.genreFields === 0,
+    "health catalog is the living substrate",
+    `${health.engine?.admitted} admitted`
+  );
+  check(health.media?.playable > 40, "health sees playable previews", `${health.media?.playable} playable`);
+
+  const featured = await fetch(`${BASE}/api/catalog?limit=72`).then((r) => r.json());
+  check(Array.isArray(featured.tracks) && featured.tracks.length === 72, "featured wall is 72 positions", `${featured.tracks?.length}`);
+  check(
+    featured.tracks.every((t) => t.id && t.title && t.artist && t.vector),
+    "featured positions carry identity and a vector"
+  );
+  check(
+    featured.tracks.filter((t) => t.previewUrl).length > 50,
+    "most featured positions are playable",
+    `${featured.tracks.filter((t) => t.previewUrl).length}/72`
+  );
+
+  const feeling = await fetch(`${BASE}/api/catalog?q=fragile`).then((r) => r.json());
+  check(feeling.tracks?.length > 0, "feeling search returns positions", `${feeling.tracks?.length}`);
+
+  const color = await fetch(`${BASE}/api/catalog?color=%23e76f3b`).then((r) => r.json());
+  check(color.tracks?.length > 0, "colour search ranks sleeves", `${color.tracks?.length}`);
+
+  const knownId = featured.tracks[0].id;
+  const byId = await fetch(`${BASE}/api/catalog?ids=${encodeURIComponent(knownId)}`).then((r) => r.json());
+  check(byId.tracks?.[0]?.id === knownId, "catalog resolves an engine-chosen id");
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(!home.includes("Classic view"), "discover no longer leaks the retired classic app");
+  check(home.includes("Cognitive engine") || home.includes("Listen by feeling"), "discover speaks as the cognition app");
+  check(home.length < 900_000, "homepage is no longer a 1.5MB catalog dump", `${Math.round(home.length / 1024)} KB`);
+
+  const classic = await fetch(`${BASE}/classic`, { redirect: "manual" });
+  check(
+    classic.status === 307 || classic.status === 308 || classic.status === 200,
+    "classic route no longer serves the 60-track demo",
+    `status ${classic.status}`
+  );
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -496,6 +544,7 @@ try {
   await verifySilentSessionRestraint();
   await verifyArrival();
   await verifyExpansion();
+  await verifyProductSurface();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

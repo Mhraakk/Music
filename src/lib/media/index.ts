@@ -68,9 +68,18 @@ export function overlayMedia(id: string, media: TrackMedia): void {
 
 export function trackMedia(id: string): TrackMedia | null {
   const live = overlay.get(id);
-  if (live?.artworkUrl) return live;
   const entry = FILE.media[id];
-  return entry?.artworkUrl ? entry : null;
+  if (!live && !entry) return null;
+  const artworkUrl = live?.artworkUrl ?? entry?.artworkUrl ?? null;
+  const previewUrl = live?.previewUrl ?? entry?.previewUrl ?? null;
+  if (!artworkUrl && !previewUrl) return live ?? entry ?? null;
+  return {
+    ...entry,
+    ...live,
+    artworkUrl,
+    previewUrl,
+    thumbUrl: live?.thumbUrl ?? entry?.thumbUrl ?? artworkUrl,
+  };
 }
 
 export function hasArtwork(id: string): boolean {
