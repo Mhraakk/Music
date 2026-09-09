@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  async redirects() {
+    return [{ source: "/classic", destination: "/", permanent: true }];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "is1-ssl.mzstatic.com" },

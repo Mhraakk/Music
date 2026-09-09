@@ -3,8 +3,10 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RESONANT — Emotional Taste Graph",
-  description: "Cinematic music intelligence. Artwork-driven. Liquid glass. Rejection memory.",
+  title: "Resonant — discover music by feeling",
+  description:
+    "A cognition-first music app. No genres, no BPM, no popularity ranking. " +
+    "The engine drifts from how you listen.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

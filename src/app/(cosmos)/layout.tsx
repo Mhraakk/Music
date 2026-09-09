@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { FloatingNav } from "@/components/cosmos/FloatingNav";
-import { library } from "@/lib/library";
-import { randomUUID } from "node:crypto";
 import "./cosmos.css";
 
 /**
@@ -23,25 +21,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Resonant — discover music by feeling",
   description:
-    "An image-led music discovery surface with no genres, no BPM and no popularity ranking. " +
-    "Browse by sleeve, search by colour, and let the engine drift from how you listen.",
+    "A cognition-first music app. No genres, no BPM, no popularity ranking. " +
+    "Browse by sleeve, search by feeling, and let the engine drift from how you listen.",
 };
 
 export default function CosmosLayout({ children }: { children: React.ReactNode }) {
-  /**
-   * The library is assembled once on the server and handed to the player so it
-   * can resolve the track ids the cognitive engine answers with. It carries no
-   * artwork bytes — only URLs and metadata.
-   */
-  const tracks = library();
-
-  // One session per navigation. Seeds the engine's deterministic tie-breaking,
-  // so two listeners never share an identical drift.
-  const sessionId = randomUUID();
-
   return (
     <div className={`cosmos ${inter.variable}`}>
-      <PlayerProvider sessionId={sessionId} tracks={tracks}>
+      <PlayerProvider>
         {children}
         <FloatingNav />
       </PlayerProvider>

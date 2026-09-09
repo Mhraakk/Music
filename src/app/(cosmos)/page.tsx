@@ -11,7 +11,7 @@
  */
 
 import Link from "next/link";
-import { collections, library, libraryStats } from "@/lib/library";
+import { collections, featured, library, libraryStats } from "@/lib/library";
 import { signaturePlates } from "@/lib/signature";
 import { CollectionRail } from "@/components/cosmos/CollectionRail";
 import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
@@ -20,9 +20,10 @@ import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
 const SIGNATURE_TINTS = signaturePlates().map((plate) => plate.tint);
 
 export default function DiscoverPage() {
-  const tracks = library();
+  const wall = featured(72);
   const shelves = collections();
   const stats = libraryStats();
+  const catalog = library();
 
   /**
    * Counted over the library rather than the media file. The media map covers
@@ -30,8 +31,8 @@ export default function DiscoverPage() {
    * quoting it here printed "64 sleeves" beside "63 positions" — a discrepancy
    * with no meaning to a reader.
    */
-  const sleeves = tracks.filter((t) => t.artworkUrl).length;
-  const playable = tracks.filter((t) => t.previewUrl).length;
+  const sleeves = catalog.filter((t) => t.artworkUrl).length;
+  const playable = catalog.filter((t) => t.previewUrl).length;
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 pt-8 md:px-8 md:pt-14">
@@ -39,8 +40,8 @@ export default function DiscoverPage() {
       <header className="mb-10 md:mb-14">
         <div className="flex items-start justify-between gap-6">
           <h1 className="cx-display max-w-[15ch]">Listen by feeling, not by genre.</h1>
-          <Link href="/classic" className="cx-meta mt-2 hidden shrink-0 hover:text-[var(--ink)] md:block">
-            Classic view →
+          <Link href="/drift" className="cx-meta mt-2 hidden shrink-0 hover:text-[var(--ink)] md:block">
+            Emotional map →
           </Link>
         </div>
 
@@ -66,7 +67,7 @@ export default function DiscoverPage() {
             All {shelves.length} →
           </Link>
         </div>
-        <CollectionRail collections={shelves} />
+        <CollectionRail collections={shelves.map(({ tracks: _tracks, ...shelf }) => shelf)} />
       </section>
 
       {/* ── The wall ── */}
@@ -75,7 +76,7 @@ export default function DiscoverPage() {
           Everything
           <span className="cx-meta ml-3 font-normal">most audibly human first</span>
         </h2>
-        <DiscoverSurface tracks={tracks} />
+        <DiscoverSurface wall={wall} total={stats.admitted} />
       </section>
 
       {/*

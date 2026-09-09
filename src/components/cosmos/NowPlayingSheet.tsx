@@ -17,6 +17,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { TOPOGRAPHY } from "@/lib/drift/topography";
 
 const MODE_LABEL: Record<string, string> = {
   deepen: "More like this",
@@ -32,8 +33,8 @@ function clock(seconds: number): string {
 }
 
 export function NowPlayingSheet() {
-  const { current, playing, progress, volume, fragilityNow, reading, loading, error, fromEngine } = usePlayer();
-  const { toggle, setVolume, seek, stop } = usePlayerActions();
+  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine } = usePlayer();
+  const { toggle, setVolume, seek, stop, setDestination } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
 
   if (!current) return null;
@@ -165,21 +166,45 @@ export function NowPlayingSheet() {
               : "Turn the volume up when a voice is at its most exposed — that’s the signal we listen for."}
           </p>
 
-          {reading && (
+          <div className="mt-3 border-t border-[var(--hairline)] pt-3">
+            <p className="cx-meta mb-2">Drift toward</p>
+            <div className="flex flex-wrap gap-1.5">
+              {TOPOGRAPHY.map((region) => (
+                <button
+                  key={region.id}
+                  type="button"
+                  className={`cx-pill h-8 px-2.5 ${
+                    destination === region.id ? "cx-pill-dark" : "cx-pill-ghost"
+                  }`}
+                  aria-pressed={destination === region.id}
+                  onClick={() => setDestination(region.id)}
+                >
+                  <span className="cx-meta whitespace-nowrap">{region.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {(reading || cognition) && (
             <div className="mt-3 border-t border-[var(--hairline)] pt-3">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-[13px] font-medium leading-tight">
-                  {MODE_LABEL[reading.mode] ?? reading.mode}
+                  {reading ? MODE_LABEL[reading.mode] ?? reading.mode : "Listening"}
                 </p>
                 <p className="cx-mono shrink-0">
-                  {reading.confidence < 0.3
-                    ? "still learning"
-                    : reading.confidence < 0.6
-                      ? "fairly sure"
-                      : "confident"}
+                  {cognition?.source === "gemini-mcp"
+                    ? "verified"
+                    : reading
+                      ? reading.confidence < 0.3
+                        ? "still learning"
+                        : reading.confidence < 0.6
+                          ? "fairly sure"
+                          : "confident"
+                      : "local"}
                 </p>
               </div>
-              <p className="cx-meta mt-1">{reading.rationale}</p>
+              {reading && <p className="cx-meta mt-1">{reading.rationale}</p>}
+              {cognition && <p className="cx-meta mt-1">{cognition.note}</p>}
             </div>
           )}
 

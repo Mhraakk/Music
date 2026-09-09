@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Discover", icon: GridIcon },
   { href: "/collections", label: "Collections", icon: MapIcon },
+  { href: "/drift", label: "Drift", icon: ArcIcon },
   { href: "/curators", label: "Curators", icon: PeopleIcon },
 ];
 
@@ -35,7 +36,8 @@ export function FloatingNav() {
             ? pathname === "/"
             : pathname.startsWith(item.href) ||
               (item.href === "/collections" && pathname.startsWith("/collection/")) ||
-              (item.href === "/curators" && pathname.startsWith("/curator/"));
+              (item.href === "/curators" && pathname.startsWith("/curator/")) ||
+              (item.href === "/drift" && pathname.startsWith("/drift"));
         const Icon = item.icon;
         return (
           <Link
@@ -76,6 +78,21 @@ function MapIcon() {
         strokeLinecap="round"
         strokeDasharray="2 2.6"
       />
+    </svg>
+  );
+}
+
+function ArcIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 17c3.2-7 6.4-10 16-12"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="5.2" cy="16.4" r="2.1" fill="currentColor" />
+      <circle cx="19.4" cy="5.4" r="2.1" fill="currentColor" />
     </svg>
   );
 }

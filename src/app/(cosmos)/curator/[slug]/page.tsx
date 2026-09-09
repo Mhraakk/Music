@@ -85,7 +85,7 @@ export default async function CuratorPage({ params }: { params: Promise<{ slug: 
         </div>
       </header>
 
-      <CollectionSurface tracks={profile.tracks} />
+      <CollectionSurface tracks={profile.tracks.slice(0, 72)} />
     </main>
   );
 }
