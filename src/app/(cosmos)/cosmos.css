@@ -1019,9 +1019,14 @@
 .cosmos button.cx-pill-ghost,
 .cosmos a.cx-pill-ghost {
   background: var(--color-bone);
-  border: 0;
+  border: 1px solid var(--color-stone);
   color: var(--color-ink-black);
   box-shadow: none;
+}
+
+.cosmos button.cx-pill:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .cosmos button.cx-pill-dark,
@@ -1501,7 +1506,7 @@
 
 .cosmos button.cx-feeling-chip {
   border-radius: 0;
-  border: 0;
+  border: 1px solid var(--color-stone);
   background: var(--color-bone);
   color: var(--color-ink-black);
   padding: 12px 16px;
