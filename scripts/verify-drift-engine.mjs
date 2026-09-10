@@ -976,6 +976,18 @@ async function verifyMetingListen() {
   check(/music\.163\.com/i.test(sample?.metingUrl ?? ""), "Apple hit carries a public NetEase search page");
   check(!/163\.com|qq\.com|kugou\.com|kuwo\.cn/i.test(sample?.previewUrl ?? ""), "preview URL is not a Meting play stream");
 
+  const plain = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "Radiohead Creep" }],
+      session: { sessionId: "verify-meting-plain", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  const plainPlay = plain.effects?.find((e) => e.type === "play");
+  check(plain.ok === true && /creep/i.test(plain.reply ?? ""), "plain artist+title still finds Creep on Apple");
+  check(!plainPlay?.track?.metingUrl, "plain query does not attach a NetEase page");
+
   const lyrics = await fetch(`${BASE}/api/converse`, {
     method: "POST",
     headers: { "content-type": "application/json" },

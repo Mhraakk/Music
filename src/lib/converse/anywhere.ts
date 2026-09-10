@@ -611,6 +611,14 @@ export async function officialVideo(artist: string, title: string): Promise<stri
   return official?.externalId ?? hits[0]?.externalId ?? null;
 }
 
+async function appleCatalog(query: string, limit: number, preferArtist: boolean): Promise<FoundHit[]> {
+  if (preferArtist && looksLikeArtistName(query)) {
+    const byArtist = await appleSongsByArtist(query, limit).catch(() => [] as FoundHit[]);
+    if (byArtist.length) return byArtist;
+  }
+  return searchApple(query, limit).catch(() => [] as FoundHit[]);
+}
+
 async function attachTrailers(tracks: LibraryTrack[], cap = 4): Promise<LibraryTrack[]> {
   const targets = tracks.filter((t) => t.foundVia === "apple" && !t.videoId).slice(0, cap);
   await Promise.all(
@@ -650,11 +658,7 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
 
   const [apple, deezer, youtube, youtubeMusic, soundcloud] = await Promise.all([
     Promise.all(
-      catalogQueries.map((q) =>
-        (artistFocus && looksLikeArtistName(q) ? appleSongsByArtist(q, cap) : searchApple(q, cap)).catch(
-          () => [] as FoundHit[]
-        )
-      )
+      catalogQueries.map((q) => appleCatalog(q, cap, artistFocus))
     ).then((groups) => groups.flat()),
     skipWeb
       ? Promise.resolve([] as FoundHit[])
@@ -680,7 +684,7 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
 
   const mixed = interleave(
     orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) =>
-      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", artistFocus)
+      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", options.artistFocus === true)
     ),
     cap
   );
