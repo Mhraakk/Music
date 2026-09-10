@@ -38,12 +38,15 @@ html {
 html,
 body {
   min-height: 100%;
-  background: var(--surface-page-canvas);
+  background-color: var(--surface-page-canvas);
+  background-image: radial-gradient(120% 90% at 78% 88%, #251e16 0%, #0a0908 48%, #050403 100%);
+  background-attachment: fixed;
   color: var(--color-ink-black);
   font-family: var(--font-inter);
   font-weight: 400;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 }
 
 body {

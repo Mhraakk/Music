@@ -2,37 +2,37 @@
   /* Colors */
   --color-hot-pink: #4a242c;
   --color-sun-yellow: #ffda40;
-  --color-signal-blue: #292c33;
+  --color-signal-blue: #11100e;
   --color-ember-orange: #ff6138;
   --color-leaf-green: #5ad363;
-  --color-ink-black: #000000;
-  --color-charcoal: #292c33;
-  --color-slate: #60605e;
-  --color-bone: #f1f0eb;
-  --color-paper-white: #ffffff;
-  --color-mist: #efefef;
-  --color-stone: #c1c0bc;
-  --color-sand: #e4d9cf;
-  --color-frost: #cfd6e5;
+  --color-ink-black: #f4f1ea;
+  --color-charcoal: #11100e;
+  --color-slate: #9a9084;
+  --color-bone: #161310;
+  --color-paper-white: #0a0908;
+  --color-mist: #1c1814;
+  --color-stone: #3d2e1c;
+  --color-sand: #c4a574;
+  --color-frost: #2a241c;
 
   /* Compatibility aliases for cosmos rules */
-  --color-obsidian: #000000;
-  --color-paper: #ffffff;
-  --color-inkstone: #292c33;
-  --color-felt-gray: #60605e;
-  --color-ash-mist: #efefef;
-  --color-pewter: #c1c0bc;
+  --color-obsidian: #0a0908;
+  --color-paper: #0a0908;
+  --color-inkstone: #11100e;
+  --color-felt-gray: #9a9084;
+  --color-ash-mist: #1c1814;
+  --color-pewter: #3d2e1c;
   --color-slate-pill: #4a242c;
   --color-iridescent-fade: #4a242c;
-  --color-press-black: #000000;
-  --color-bone-white: #f1f0eb;
-  --color-typesetter-ink: #000000;
-  --color-newsprint-gray: #60605e;
-  --color-muted-sage: #c1c0bc;
+  --color-press-black: #f4f1ea;
+  --color-bone-white: #161310;
+  --color-typesetter-ink: #f4f1ea;
+  --color-newsprint-gray: #9a9084;
+  --color-muted-sage: #3d2e1c;
   --color-highlighter-green: #4a242c;
-  --color-shadow-moss: #c1c0bc;
-  --color-echo-green: #e4d9cf;
-  --color-slate-verdant: #292c33;
+  --color-shadow-moss: #3d2e1c;
+  --color-echo-green: #c4a574;
+  --color-slate-verdant: #11100e;
 
   /* Typography — Font Families */
   --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
@@ -134,16 +134,16 @@
   --shadow-lg-2: none;
 
   /* Surfaces */
-  --surface-page-canvas: #ffffff;
-  --surface-bone-surface: #f1f0eb;
-  --surface-mist-surface: #efefef;
+  --surface-page-canvas: #0a0908;
+  --surface-bone-surface: #161310;
+  --surface-mist-surface: #1c1814;
   --surface-hot-pink-block: #4a242c;
-  --surface-signal-blue-block: #292c33;
-  --surface-canvas: #ffffff;
-  --surface-dark-section: #292c33;
+  --surface-signal-blue-block: #11100e;
+  --surface-canvas: #0a0908;
+  --surface-dark-section: #11100e;
   --surface-accent-band: #4a242c;
-  --surface-paper: #ffffff;
-  --surface-obsidian: #000000;
+  --surface-paper: #0a0908;
+  --surface-obsidian: #0a0908;
   --surface-slate-pill: #4a242c;
-  --surface-ash-mist: #efefef;
+  --surface-ash-mist: #1c1814;
 }
