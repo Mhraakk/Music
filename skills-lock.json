@@ -7,6 +7,12 @@
       "skillPath": "skills/cyrene-listen/SKILL.md",
       "computedHash": "local-cyrene-listen-contract"
     },
+    "meting-listen": {
+      "source": "ELDment/Meting-Agent",
+      "sourceType": "github",
+      "skillPath": "skills/meting-listen/SKILL.md",
+      "computedHash": "local-meting-listen-contract"
+    },
     "brandkit": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

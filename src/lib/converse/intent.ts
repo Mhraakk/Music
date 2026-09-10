@@ -1,5 +1,6 @@
 import { ROOM_ALIASES, matchRoom } from "./rooms";
 import type { CoordinateId } from "@/lib/drift/topography";
+import { hasCatalogScript, stripMetingTokens } from "@/lib/meting/platforms";
 
 export type ListenerLanguage = "fa" | "en";
 
@@ -110,10 +111,10 @@ const FEELING_STOP = (() => {
 })();
 
 export function latinCore(raw: string): string {
-  return raw
+  return stripMetingTokens(raw)
     .replace(/[\u0600-\u06FF]+/g, " ")
     .replace(/youtube music|youtube|youtu\.be|soundcloud|deezer|itunes|apple music/gi, " ")
-    .replace(/[^\w\s'&.-]+/g, " ")
+    .replace(/[^\w\s'&.\-\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -157,7 +158,11 @@ export function detectLanguage(text: string): ListenerLanguage {
 const GREETING = /^(سلام|درود|هی+|hello|hi+|hey)[\s!?.]*$/i;
 
 export function wantsLyrics(text: string): boolean {
-  return /\b(lyrics?|lyric|lrc)\b/i.test(text) || /متن(\s+این)?(\s+آهنگ)?|لیریک|کلمات آهنگ|كلمات آهنگ/.test(text);
+  return (
+    /\b(lyrics?|lyric|lrc)\b/i.test(text) ||
+    /متن(\s+این)?(\s+آهنگ)?|لیریک|کلمات آهنگ|كلمات آهنگ/.test(text) ||
+    /歌词|歌詞/.test(text)
+  );
 }
 
 /** Cyrene-fit: ask what is sounding now. Not a play request. */
@@ -172,10 +177,11 @@ export function wantsNowPlaying(text: string): boolean {
 
 /** Named recording inside a lyrics ask, or null to use whatever is playing. */
 export function lyricsSubject(text: string): string | null {
-  const stripped = text
+  const stripped = stripMetingTokens(text)
     .replace(/\b(lyrics?|lyric|lrc)\b/gi, " ")
     .replace(/متن(\s+این)?(\s+آهنگ)?/g, " ")
     .replace(/لیریک|کلمات آهنگ|كلمات آهنگ/g, " ")
+    .replace(/歌词|歌詞/g, " ")
     .replace(/این آهنگ|همین آهنگ/g, " ")
     .replace(/\b(please|show|me|the|for|this|that|song|track|words|of)\b/gi, " ")
     .replace(/\s+/g, " ")
@@ -197,7 +203,8 @@ export function wantsPlayback(text: string): boolean {
     /\b(play|put on|start|queue|playlist|mix|station|song|track|listen|find me|bring)\b/.test(t) ||
     /پخش|بذار|بگذار|بیار|پیدا کن|معرفی کن|پلی\s?لیست|پلی‌لیست|میکس|آهنگ|اهنگ|ایستگاه|رادیو|گوش\s?بده|یه چیزی|یه آهنگ/.test(
       text
-    )
+    ) ||
+    /播放|来一首|放一首|听一下/.test(text)
   );
 }
 
@@ -255,7 +262,7 @@ export function interpretLocal(text: string): LocalIntent {
   if (room && !/دهه|\b\d0s\b|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(trimmed)) {
     return { kind: "station", room };
   }
-  if (trimmed.length >= 2 && (play || /[a-z\u0600-\u06FF]{2,}/i.test(trimmed))) {
+  if (trimmed.length >= 2 && (play || /[a-z\u0600-\u06FF]{2,}/i.test(trimmed) || hasCatalogScript(trimmed))) {
     if (play) return { kind: "play", query: trimmed, room };
     return { kind: "search", query: trimmed, room };
   }

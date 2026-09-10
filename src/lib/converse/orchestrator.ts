@@ -95,7 +95,7 @@ async function ensurePlayback(ctx: ToolContext, userText: string) {
     }
     if (hasPlayEffect(ctx)) return;
   }
-  await executeConverseTool("find_music", { query: namedArtistQuery(userText) || userText, limit: 8 }, ctx);
+  await executeConverseTool("find_music", { query: userText, limit: 8 }, ctx);
   if (ctx.lastSearch[0]) {
     await executeConverseTool(
       "play_tracks",
@@ -255,12 +255,14 @@ export async function fulfillLocally(
         intent.room &&
         intent.kind === "play" &&
         !namedArtistQuery(intent.query) &&
-        !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(intent.query)
+        !/دهه|\b\d0s\b|\b19\d\d|\b20\d\d|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud|netease|kugou|kuwo|网易|qq music|酷狗|酷我/i.test(
+          intent.query
+        )
       ) {
         await executeConverseTool("start_station", { room: intent.room }, ctx);
       }
       if (!hasPlayEffect(ctx)) {
-        const query = namedArtistQuery(intent.query) || intent.query;
+        const query = intent.query;
         await executeConverseTool("find_music", { query, limit: 8 }, ctx);
         if (ctx.lastSearch.length) {
           await executeConverseTool(

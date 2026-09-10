@@ -10,6 +10,7 @@ import { findRelated } from "./kin";
 import { harvestAtlas } from "@/lib/everynoise";
 import { harvestRoom } from "./live-room";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
+import { wantsMetingPlatform } from "@/lib/meting/platforms";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type PlaybackStatus = {
@@ -56,6 +57,8 @@ export function card(track: LibraryTrack): ConverseTrackCard {
     openUrl: track.openUrl ?? track.appleUrl ?? null,
     playable: Boolean(track.previewUrl) || Boolean(track.openUrl),
     videoUrl: track.videoUrl ?? null,
+    catalogUrl: track.metingUrl ?? null,
+    catalogLabel: track.metingLabel ?? null,
   };
 }
 
@@ -397,7 +400,9 @@ export async function executeConverseTool(
         count: tracks.length,
         tracks: tracks.map(card),
         note: tracks.length
-          ? "Real Apple Music recordings first. Name artist, title, and Apple. If videoUrl is set, mention the official video. Call play_tracks. Do not refuse."
+          ? wantsMetingPlatform(query)
+            ? "Apple Music recordings for that title. catalogUrl is a public NetEase/QQ/KuGou/Kuwo search page — mention it, do not play it in-app."
+            : "Real Apple Music recordings first. Name artist, title, and Apple. If videoUrl is set, mention the official video. Call play_tracks. Do not refuse."
           : "No hits yet — try the artist name in English, or a song title.",
       };
     }

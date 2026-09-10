@@ -6,6 +6,8 @@
  * original — public LRC timestamps plus `[offset:±ms]`, not Cyrene source.
  */
 
+import { stripMetingTokens } from "@/lib/meting/platforms";
+
 export type LyricLine = {
   timeMs: number;
   text: string;
@@ -117,10 +119,11 @@ function fromHit(hit: LrclibHit | null, artist: string, title: string): LyricsRe
 }
 
 function cleanQuery(raw: string): string {
-  return raw
+  return stripMetingTokens(raw)
     .replace(/\b(lyrics?|lyric|lrc)\b/gi, " ")
     .replace(/متن(\s+این)?(\s+آهنگ)?/g, " ")
     .replace(/لیریک|کلمات آهنگ|كلمات آهنگ/g, " ")
+    .replace(/歌词|歌詞/g, " ")
     .replace(/این آهنگ|همین آهنگ/g, " ")
     .replace(/\b(please|show|me|for|this|that|song|track|words)\b/gi, " ")
     .replace(/\s+/g, " ")

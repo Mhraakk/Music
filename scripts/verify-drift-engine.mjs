@@ -922,6 +922,73 @@ async function verifyCyreneLyrics() {
   check(!empty.effects?.some((e) => e.type === "play"), "empty now-playing does not invent a play");
 }
 
+async function verifyMetingListen() {
+  section("Meting-fit catalog");
+
+  const { readFileSync } = await import("node:fs");
+  const skill = readFileSync(new URL("../.agents/skills/meting-listen/SKILL.md", import.meta.url), "utf8");
+  const platforms = readFileSync(new URL("../src/lib/meting/platforms.ts", import.meta.url), "utf8");
+  const pkg = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+  const player = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  const intent = readFileSync(new URL("../src/lib/converse/intent.ts", import.meta.url), "utf8");
+
+  check(/Do not/.test(skill) && /unofficial/i.test(skill), "meting-listen skill refuses the unofficial client");
+  check(!/@eldment\/meting-agent/.test(pkg), "package.json does not vendor @eldment/meting-agent");
+  check(!/createCipheriv|eapi|EAPI_KEY/.test(platforms), "platforms.ts has no NetEase EAPI crypto");
+  check(/歌词\|歌詞/.test(intent), "歌词 is a lyrics ask");
+  check(/el\.src = hydrated\.previewUrl/.test(player), "player still feeds previewUrl, not a Meting stream");
+
+  const rows = [...platforms.matchAll(/platform: "(\w+)", pattern: String\.raw`([^`]+)`/g)].map((m) => ({
+    platform: m[1],
+    pattern: m[2],
+  }));
+  check(rows.length === 4, "four Meting platforms are declared", String(rows.length));
+  const strip = (text) => {
+    let out = text;
+    for (const row of rows) out = out.replace(new RegExp(row.pattern, "gi"), " ");
+    return out.replace(/\s+/g, " ").trim();
+  };
+  const named = (text) => {
+    for (const row of rows) {
+      if (new RegExp(row.pattern, "i").test(text)) return row.platform;
+    }
+    return null;
+  };
+  check(strip("网易云 我怀念的") === "我怀念的", "strip 网易云 from a CJK title");
+  check(named("play this on QQ音乐") === "tencent", "QQ音乐 names tencent");
+  check(named("KuGou 晴天") === "kugou" && named("Radiohead Creep") === null, "KuGou is named, plain Apple queries are not");
+  check(strip("netease cloud music Radiohead Creep") === "Radiohead Creep", "strip English NetEase tokens");
+
+  const asked = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "网易云 Radiohead Creep" }],
+      session: { sessionId: "verify-meting-netease", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  const play = asked.effects?.find((e) => e.type === "play");
+  const ingest = asked.effects?.find((e) => e.type === "ingest");
+  const sample = play?.track ?? ingest?.tracks?.[0];
+  check(asked.ok === true, "Ask answers a named NetEase query");
+  check(/creep/i.test(asked.reply ?? "") || /creep/i.test(sample?.title ?? ""), "NetEase-named query still finds Creep on Apple");
+  check(sample?.foundVia === "apple" || /apple\.com/i.test(sample?.appleUrl ?? sample?.openUrl ?? ""), "playback source stays Apple");
+  check(/music\.163\.com/i.test(sample?.metingUrl ?? ""), "Apple hit carries a public NetEase search page");
+  check(!/163\.com|qq\.com|kugou\.com|kuwo\.cn/i.test(sample?.previewUrl ?? ""), "preview URL is not a Meting play stream");
+
+  const lyrics = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "歌词 Radiohead Creep" }],
+      session: { sessionId: "verify-meting-lyrics", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(lyrics.ok === true, "Ask answers a 歌词 request");
+  check(!lyrics.effects?.some((e) => e.type === "play"), "歌词 does not start a new play");
+  check(/when you were here before|i'm a creep|whatever makes you happy/i.test(lyrics.reply ?? ""), "歌词 still quotes published Creep lyrics");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -937,6 +1004,7 @@ try {
   await verifyConverse();
   await verifyNuclear();
   await verifyCyreneLyrics();
+  await verifyMetingListen();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

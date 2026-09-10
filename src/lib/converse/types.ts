@@ -71,4 +71,6 @@ export type ConverseTrackCard = {
   openUrl: string | null;
   playable: boolean;
   videoUrl?: string | null;
+  catalogUrl?: string | null;
+  catalogLabel?: string | null;
 };
