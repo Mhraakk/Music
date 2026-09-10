@@ -1285,15 +1285,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 20px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--hairline);
+  padding: 10px 16px 0;
+}
+
+@media (min-width: 900px) {
+  .cx-window-bar {
+    padding: 10px 24px 0;
+  }
 }
 
 .cx-window-name {
   font-size: 12px;
   letter-spacing: 0.04em;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .cx-window-chrome {
@@ -1425,7 +1429,7 @@
   padding: 12px 16px;
   background: var(--color-mist);
   color: var(--color-ink-black);
-  border: 1px solid var(--color-stone);
+  border: 1px solid rgba(196, 165, 116, 0.4);
   font: inherit;
   font-size: 14px;
   resize: vertical;

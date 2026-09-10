@@ -335,19 +335,21 @@ export function MiniPlayer() {
       )}
 
       {expanded && !docked && (
-        <div className="cx-panel">
-          <div className="cx-window-bar">
-            <p className="cx-window-name">Now playing</p>
-            <div className="cx-window-chrome">
-              <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
-                <MinimizeGlyph />
-              </button>
-              <button type="button" className="cx-window-ctrl" aria-label="Close" onClick={closeWindow}>
-                <CloseGlyph />
-              </button>
-            </div>
+        <div className="cx-window-bar">
+          <p className="cx-window-name">Now playing</p>
+          <div className="cx-window-chrome">
+            <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
+              <MinimizeGlyph />
+            </button>
+            <button type="button" className="cx-window-ctrl" aria-label="Close" onClick={closeWindow}>
+              <CloseGlyph />
+            </button>
           </div>
+        </div>
+      )}
 
+      {expanded && !docked && (
+        <div className="cx-panel">
           <div className="cx-window-stage">
             <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
               {current.artworkUrl &&
