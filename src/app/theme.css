@@ -1,54 +1,44 @@
 @theme {
   /* Colors */
-  --color-bone-white: #fafffa;
-  --color-press-black: #121613;
-  --color-typesetter-ink: #000000;
-  --color-slate-verdant: #232924;
-  --color-newsprint-gray: #516254;
-  --color-muted-sage: #c8d2c8;
-  --color-highlighter-green: #2bee4b;
-  --color-shadow-moss: #93b799;
-  --color-echo-green: #c4e4c9;
+  --color-hot-pink: #4a242c;
+  --color-sun-yellow: #ffda40;
+  --color-signal-blue: #292c33;
+  --color-ember-orange: #ff6138;
+  --color-leaf-green: #5ad363;
+  --color-ink-black: #000000;
+  --color-charcoal: #292c33;
+  --color-slate: #60605e;
+  --color-bone: #f1f0eb;
+  --color-paper-white: #ffffff;
+  --color-mist: #efefef;
+  --color-stone: #c1c0bc;
+  --color-sand: #e4d9cf;
+  --color-frost: #cfd6e5;
 
-  /* Typography — Geist is the public substitute for TWK / Mondwest */
-  --font-twk-lausanne: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-pp-mondwest: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-editorial-new: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-times: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Typography */
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-display), ui-serif, Georgia, "Times New Roman", serif;
 
   /* Typography — Scale */
-  --text-caption: 11px;
-  --leading-caption: 1.1;
-  --tracking-caption: 0.11px;
-  --text-body-sm: 14px;
-  --leading-body-sm: 1.1;
-  --tracking-body-sm: 0.14px;
-  --text-body: 18px;
-  --leading-body: 1;
-  --tracking-body: -0.36px;
-  --text-subheading: 60px;
-  --leading-subheading: 0.9;
-  --tracking-subheading: -1.2px;
-  --text-heading-sm: 72px;
-  --leading-heading-sm: 1;
-  --tracking-heading-sm: -1.44px;
-  --text-heading: 96px;
-  --leading-heading: 1;
-  --tracking-heading: -1.92px;
-  --text-heading-lg: 155px;
-  --leading-heading-lg: 1;
-  --tracking-heading-lg: -6.2px;
-  --text-display: 295px;
-  --leading-display: 0.9;
-  --tracking-display: -11.8px;
-
-  /* Border Radius */
-  --radius-md: 4.9968px;
-  --radius-lg: 9.9936px;
-  --radius-xl: 14px;
-  --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-lg: rgba(16, 94, 29, 0.45) 1px 8px 20px 0px;
-  --shadow-lg-2: rgba(18, 146, 39, 0.25) 1px 8px 20px 0px;
+  --text-caption: 10px;
+  --leading-caption: 1;
+  --tracking-caption: 1px;
+  --text-body: 16px;
+  --leading-body: 1.56;
+  --text-subheading: 18px;
+  --leading-subheading: 1.6;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.33;
+  --text-heading: 40px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.8px;
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.13;
+  --tracking-heading-lg: -1.44px;
+  --text-display: 64px;
+  --leading-display: 1.06;
+  --tracking-display: -2.56px;
+  --text-display-xl: 80px;
+  --leading-display-xl: 1;
+  --tracking-display-xl: -3.2px;
 }

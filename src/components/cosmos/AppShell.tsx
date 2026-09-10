@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * York header. Mini-player always. No skip.
+ * Editorial header. Mini-player always. No skip.
  */
 
 import Link from "next/link";

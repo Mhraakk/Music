@@ -259,7 +259,7 @@ export function TalkSurface() {
               placeholder="AIza…"
             />
             <div className="flex flex-wrap gap-2">
-              <button type="submit" className="cx-pill cx-pill-dark">
+              <button type="submit" className="cx-pill cx-pill-primary">
                 Save on this device
               </button>
               <button type="button" className="cx-pill cx-pill-ghost" onClick={clearKeys}>
@@ -398,7 +398,7 @@ export function TalkSurface() {
             }
           }}
         />
-        <button type="submit" className="cx-pill cx-pill-dark" disabled={busy || !draft.trim()}>
+        <button type="submit" className="cx-pill cx-pill-primary" disabled={busy || !draft.trim()}>
           Send
         </button>
       </form>

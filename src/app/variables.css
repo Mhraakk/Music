@@ -1,119 +1,149 @@
 :root {
   /* Colors */
-  --color-bone-white: #fafffa;
-  --color-press-black: #121613;
+  --color-hot-pink: #4a242c;
+  --color-sun-yellow: #ffda40;
+  --color-signal-blue: #292c33;
+  --color-ember-orange: #ff6138;
+  --color-leaf-green: #5ad363;
+  --color-ink-black: #000000;
+  --color-charcoal: #292c33;
+  --color-slate: #60605e;
+  --color-bone: #f1f0eb;
+  --color-paper-white: #ffffff;
+  --color-mist: #efefef;
+  --color-stone: #c1c0bc;
+  --color-sand: #e4d9cf;
+  --color-frost: #cfd6e5;
+
+  /* Compatibility aliases for cosmos rules */
+  --color-obsidian: #000000;
+  --color-paper: #ffffff;
+  --color-inkstone: #292c33;
+  --color-felt-gray: #60605e;
+  --color-ash-mist: #efefef;
+  --color-pewter: #c1c0bc;
+  --color-slate-pill: #4a242c;
+  --color-iridescent-fade: #4a242c;
+  --color-press-black: #000000;
+  --color-bone-white: #f1f0eb;
   --color-typesetter-ink: #000000;
-  --color-slate-verdant: #232924;
-  --color-newsprint-gray: #516254;
-  --color-muted-sage: #c8d2c8;
-  --color-highlighter-green: #2bee4b;
-  --color-shadow-moss: #93b799;
-  --color-echo-green: #c4e4c9;
+  --color-newsprint-gray: #60605e;
+  --color-muted-sage: #c1c0bc;
+  --color-highlighter-green: #4a242c;
+  --color-shadow-moss: #c1c0bc;
+  --color-echo-green: #e4d9cf;
+  --color-slate-verdant: #292c33;
 
-  /* Compatibility aliases for existing cosmos rules */
-  --color-obsidian: #121613;
-  --color-paper: #fafffa;
-  --color-inkstone: #232924;
-  --color-felt-gray: #516254;
-  --color-ash-mist: #c8d2c8;
-  --color-pewter: #93b799;
-  --color-slate-pill: #2bee4b;
-  --color-iridescent-fade: #2bee4b;
-
-  /* Typography — Font Families (Geist stands in for the York licensed faces) */
-  --font-twk-lausanne: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-pp-mondwest: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-editorial-new: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-times: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-roobert: var(--font-twk-lausanne);
-  --font-raleway: var(--font-twk-lausanne);
-  --font-system-ui: var(--font-loaded-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Typography — Font Families */
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-display), ui-serif, Georgia, "Times New Roman", serif;
+  --font-twk-lausanne: var(--font-inter);
+  --font-pp-mondwest: var(--font-sebentafont-custom-editorial-serif);
+  --font-editorial-new: var(--font-sebentafont-custom-editorial-serif);
+  --font-times: var(--font-sebentafont-custom-editorial-serif);
+  --font-roobert: var(--font-inter);
+  --font-raleway: var(--font-sebentafont-custom-editorial-serif);
+  --font-system-ui: var(--font-inter);
 
   /* Typography — Scale */
-  --text-caption: 11px;
-  --leading-caption: 1.1;
-  --tracking-caption: 0.11px;
-  --text-body-sm: 14px;
-  --leading-body-sm: 1.1;
-  --tracking-body-sm: 0.14px;
-  --text-body: 18px;
-  --leading-body: 1;
-  --tracking-body: -0.36px;
-  --text-subheading: 60px;
-  --leading-subheading: 0.9;
-  --tracking-subheading: -1.2px;
-  --text-heading-sm: 72px;
-  --leading-heading-sm: 1;
-  --tracking-heading-sm: -1.44px;
-  --text-heading: 96px;
-  --leading-heading: 1;
-  --tracking-heading: -1.92px;
-  --text-heading-lg: 155px;
-  --leading-heading-lg: 1;
-  --tracking-heading-lg: -6.2px;
-  --text-display: 295px;
-  --leading-display: 0.9;
-  --tracking-display: -11.8px;
+  --text-caption: 10px;
+  --leading-caption: 1;
+  --tracking-caption: 1px;
+  --text-body: 16px;
+  --leading-body: 1.56;
+  --text-subheading: 18px;
+  --leading-subheading: 1.6;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.33;
+  --text-heading: 40px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.8px;
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.13;
+  --tracking-heading-lg: -1.44px;
+  --text-display: 64px;
+  --leading-display: 1.06;
+  --tracking-display: -2.56px;
+  --text-display-xl: 80px;
+  --leading-display-xl: 1;
+  --tracking-display-xl: -3.2px;
 
   /* Typography — Weights */
-  --font-weight-extralight: 200;
-  --font-weight-light: 300;
-  --font-weight-w350: 350;
   --font-weight-regular: 400;
-  --font-weight-w550: 550;
-  --font-weight-semibold: 550;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extralight: 400;
+  --font-weight-light: 400;
+  --font-weight-w350: 400;
+  --font-weight-w550: 500;
 
   /* Spacing */
-  --spacing-unit: 4px;
-  --spacing-4: 4px;
+  --spacing-unit: 8px;
   --spacing-8: 8px;
-  --spacing-10: 10px;
-  --spacing-15: 15px;
-  --spacing-20: 20px;
-  --spacing-25: 25px;
-  --spacing-30: 30px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
   --spacing-32: 32px;
-  --spacing-35: 35px;
-  --spacing-40: 40px;
-  --spacing-45: 45px;
-  --spacing-50: 50px;
-  --spacing-55: 55px;
-  --spacing-60: 60px;
-  --spacing-120: 120px;
-  --spacing-190: 190px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-72: 72px;
+  --spacing-80: 80px;
+  --spacing-128: 128px;
+  --spacing-144: 144px;
+  --spacing-240: 240px;
+  --spacing-4: 8px;
+  --spacing-10: 8px;
+  --spacing-15: 16px;
+  --spacing-20: 24px;
+  --spacing-25: 24px;
+  --spacing-30: 32px;
+  --spacing-35: 32px;
+  --spacing-40: 48px;
+  --spacing-45: 48px;
+  --spacing-50: 48px;
+  --spacing-55: 56px;
+  --spacing-60: 64px;
+  --spacing-120: 128px;
+  --spacing-190: 144px;
 
   /* Layout */
-  --page-max-width: 1400px;
-  --section-gap: 80px;
-  --card-padding: 0px;
-  --element-gap: 20px;
-
-  /* Border Radius */
-  --radius-md: 4.9968px;
-  --radius-lg: 9.9936px;
-  --radius-xl: 14px;
-  --radius-full: 9999px;
+  --page-max-width: 1200px;
+  --section-gap: 64px;
+  --card-padding: 24px;
+  --element-gap: 16px;
 
   /* Named Radii */
-  --radius-pills: 10px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 9999px;
+  --radius-pills: 0px;
   --radius-round: 9999px;
-  --radius-images: 14px;
-  --radius-buttons: 5px;
-  --radius-tags: 10px;
-  --radius-cards: 10px;
-  --radius-inputs: 5px;
+  --radius-images: 0px;
+  --radius-buttons: 0px;
+  --radius-tags: 9999px;
+  --radius-cards: 0px;
+  --radius-inputs: 0px;
   --radius-nav: 0px;
+  --radius-badges: 9999px;
+  --radius-accordion-rows: 0px;
 
-  /* Shadows */
-  --shadow-lg: rgba(16, 94, 29, 0.45) 1px 8px 20px 0px;
-  --shadow-lg-2: rgba(18, 146, 39, 0.25) 1px 8px 20px 0px;
+  /* Shadows: none. Depth is a surface shift. */
+  --shadow-lg: none;
+  --shadow-lg-2: none;
 
   /* Surfaces */
-  --surface-canvas: #fafffa;
-  --surface-dark-section: #121613;
-  --surface-accent-band: #2bee4b;
-  --surface-paper: #fafffa;
-  --surface-obsidian: #121613;
-  --surface-slate-pill: #2bee4b;
-  --surface-ash-mist: #c8d2c8;
+  --surface-page-canvas: #ffffff;
+  --surface-bone-surface: #f1f0eb;
+  --surface-mist-surface: #efefef;
+  --surface-hot-pink-block: #4a242c;
+  --surface-signal-blue-block: #292c33;
+  --surface-canvas: #ffffff;
+  --surface-dark-section: #292c33;
+  --surface-accent-band: #4a242c;
+  --surface-paper: #ffffff;
+  --surface-obsidian: #000000;
+  --surface-slate-pill: #4a242c;
+  --surface-ash-mist: #efefef;
 }

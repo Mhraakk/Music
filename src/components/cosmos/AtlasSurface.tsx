@@ -105,7 +105,9 @@ export function AtlasSurface() {
   return (
     <div className="cx-atlas">
       <header className="cx-atlas-hero">
-        <h1 className="cx-atlas-display">Every branch.</h1>
+        <h1 className="cx-atlas-display">
+          Every <em>branch.</em>
+        </h1>
         <p className="cx-body cx-atlas-lede">
           Six thousand rooms from everynoise.com. Navigation only. Tap a branch, then an artist on Apple, Spotify, YouTube Music, and SoundCloud.
         </p>

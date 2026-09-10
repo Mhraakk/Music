@@ -91,7 +91,7 @@ export function MiniPlayer() {
         >
           <span
             className="relative h-12 w-12 shrink-0 overflow-hidden"
-            style={{ borderRadius: 6, backgroundColor: current?.tint ?? "var(--paper-sunken)" }}
+            style={{ borderRadius: 0, backgroundColor: current?.tint ?? "var(--paper-sunken)" }}
           >
             {current?.artworkUrl &&
               (current.foundVia ? (

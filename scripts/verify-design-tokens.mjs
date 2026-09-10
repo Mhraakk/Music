@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Locks the York / New Form token trio: DTCG tokens.json, @theme, :root.
+ * Locks the Epidemic Sound token trio (oxblood substituting hot pink).
  */
 
 import { readFileSync } from "node:fs";
@@ -30,10 +30,11 @@ for (const [name, token] of Object.entries(tokens.surface)) {
 }
 
 has(vars, "variables.css", `--spacing-unit: ${tokens.spacing.unit.$value}`);
-has(vars, "variables.css", `--radius-buttons: 5px`);
+has(vars, "variables.css", `--radius-buttons: 0px`);
 has(theme, "theme.css", `--text-display: ${tokens.typography.display.$value.fontSize}`);
-has(vars, "variables.css", `--color-highlighter-green: #2bee4b`);
-has(vars, "variables.css", `--font-weight-w550: 550`);
+has(vars, "variables.css", `--color-hot-pink: #4a242c`);
+has(vars, "variables.css", `--font-weight-medium: 500`);
+has(vars, "variables.css", `--page-max-width: 1200px`);
 
 if (failed) {
   console.error(`\n${failed} token lock(s) failed`);

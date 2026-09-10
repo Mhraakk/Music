@@ -14,7 +14,9 @@ export default function BrowsePage() {
   return (
     <main className="cx-page">
       <header className="cx-section-head">
-        <h1 className="cx-display">Browse</h1>
+        <h1 className="cx-display">
+          <em>Browse.</em>
+        </h1>
         <p className="cx-body">
           Stations by feeling. Neighbourhoods on the map, not a chart.
         </p>

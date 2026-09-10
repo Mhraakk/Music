@@ -10,7 +10,9 @@ export default function TalkPage() {
   return (
     <main className="cx-page">
       <header className="cx-section-head">
-        <h1 className="cx-display">Ask</h1>
+        <h1 className="cx-display">
+          <em>Ask.</em>
+        </h1>
         <p className="cx-body">
           Talk however you talk. Apple Music first. Paste a ChatGPT or Gemini key if you want a model.
         </p>

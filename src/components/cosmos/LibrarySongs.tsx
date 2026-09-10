@@ -33,7 +33,9 @@ export function LibrarySongs() {
   return (
     <main className="cx-page">
       <header className="cx-section-head">
-        <h1 className="cx-display">Library</h1>
+        <h1 className="cx-display">
+          <em>Library.</em>
+        </h1>
         <p className="cx-body">
           {connected && synced > 0
             ? `${songsLabel(total ?? synced)} in Favorite Songs: title, artist, album, time.`
