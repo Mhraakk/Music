@@ -12,6 +12,13 @@ import { harvestRoom } from "./live-room";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
+export type PlaybackStatus = {
+  playing: boolean;
+  id: string | null;
+  title: string | null;
+  artist: string | null;
+};
+
 export type ToolContext = {
   session: ConverseSession;
   lastSearch: LibraryTrack[];
@@ -19,6 +26,7 @@ export type ToolContext = {
   ingest: LibraryTrack[];
   effects: ConverseEffect[];
   lastLyrics: Awaited<ReturnType<typeof fetchLyrics>> | null;
+  lastStatus: PlaybackStatus | null;
 };
 
 export function createToolContext(session: ConverseSession): ToolContext {
@@ -29,6 +37,7 @@ export function createToolContext(session: ConverseSession): ToolContext {
     ingest: [],
     effects: [],
     lastLyrics: null,
+    lastStatus: null,
   };
 }
 
@@ -192,6 +201,13 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
       },
       required: ["artist"],
     },
+  },
+  {
+    name: "playback_status",
+    description:
+      "Report what is sounding now: title, artist, and whether anything is loaded. " +
+      "Use when they ask what is playing, الان چی پخش میشه, or now playing. Does not start a new song.",
+    parameters: { type: "OBJECT", properties: {} },
   },
   {
     name: "fetch_lyrics",
@@ -426,6 +442,23 @@ export async function executeConverseTool(
         note: tracks.length
           ? "Same person first, then kin, from Apple Music. Call play_tracks. Do not invent other names."
           : "Could not resolve that artist on Apple Music. Call find_music with the artist in English.",
+      };
+    }
+    case "playback_status": {
+      const title = ctx.session.currentTitle?.trim() || null;
+      const artist = ctx.session.currentArtist?.trim() || null;
+      const id = ctx.session.currentTrackId;
+      const playing = Boolean(title || artist || id);
+      ctx.lastStatus = { playing, id: id ?? null, title, artist };
+      return {
+        kind: "playback_status",
+        playing,
+        id: id ?? null,
+        title,
+        artist,
+        note: playing
+          ? "This is what is loaded now. Do not start another song unless they ask."
+          : "Nothing is loaded. If they want music, call find_music.",
       };
     }
     case "fetch_lyrics": {

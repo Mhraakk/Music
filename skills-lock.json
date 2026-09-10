@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "cyrene-listen": {
+      "source": "Playa-0v0/Cyrene-Agent",
+      "sourceType": "github",
+      "skillPath": "skills/cyrene-listen/SKILL.md",
+      "computedHash": "local-cyrene-listen-contract"
+    },
     "brandkit": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

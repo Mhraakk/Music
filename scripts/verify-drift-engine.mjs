@@ -839,6 +839,13 @@ async function verifyNuclear() {
 async function verifyCyreneLyrics() {
   section("Cyrene-fit lyrics");
 
+  const { readFileSync } = await import("node:fs");
+  const lrc = readFileSync(new URL("../src/lib/lyrics/lrclib.ts", import.meta.url), "utf8");
+  check(lrc.includes("OFFSET_TAG"), "LRC parser honours [offset:±ms]");
+  const player = readFileSync(new URL("../src/components/cosmos/MiniPlayer.tsx", import.meta.url), "utf8");
+  check(player.includes('event.code === "Space"'), "mini-player Space pauses");
+  check(!/SkipForward|goToNext|aria-label=\"Skip/.test(player), "mini-player still has no skip");
+
   const listed = await callTool("list_methods", { domain: "Streaming" });
   check(JSON.stringify(listed).includes("getLyrics"), "Streaming domain lists getLyrics");
 
@@ -883,6 +890,36 @@ async function verifyCyreneLyrics() {
   check(/when you were here before|i'm a creep|whatever makes you happy/i.test(named.reply ?? ""), "named lyrics request quotes Creep");
   check(/radiohead/i.test(named.reply ?? "") && /\bcreep\b/i.test(named.reply ?? ""), "named lyrics reply names the recording");
   check(!/radiohead\s+creep\s+[—-]\s+radiohead\s+creep/i.test(named.reply ?? ""), "named lyrics reply is not a duplicated query string");
+
+  const now = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "what's playing" }],
+      session: {
+        sessionId: "verify-now-playing",
+        destination: "cinematic_warmth",
+        historyIds: [],
+        currentArtist: "Radiohead",
+        currentTitle: "Creep",
+        currentTrackId: "verify-creep",
+      },
+    }),
+  }).then((r) => r.json());
+  check(now.ok === true, "Ask answers a now-playing request");
+  check(!now.effects?.some((e) => e.type === "play"), "now-playing does not start a new song");
+  check(/radiohead/i.test(now.reply ?? "") && /\bcreep\b/i.test(now.reply ?? ""), "now-playing names the current recording");
+
+  const empty = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "الان چی پخش می‌شه" }],
+      session: { sessionId: "verify-now-empty", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(empty.ok === true && /[\u0600-\u06FF]/.test(empty.reply ?? ""), "empty now-playing gets a Persian reply");
+  check(!empty.effects?.some((e) => e.type === "play"), "empty now-playing does not invent a play");
 }
 
 try {

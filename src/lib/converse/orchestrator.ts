@@ -20,6 +20,7 @@ import {
   lyricsSubject,
   namedArtistQuery,
   wantsLyrics,
+  wantsNowPlaying,
   wantsPlayback,
   type ListenerLanguage,
 } from "./intent";
@@ -138,6 +139,14 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
     return lang === "fa"
       ? "متن منتشرشده‌ای برای این ضبط پیدا نکردم."
       : "No published lyrics for that recording yet.";
+  }
+
+  if (ctx.lastStatus) {
+    if (!ctx.lastStatus.playing) {
+      return lang === "fa" ? "الان چیزی پخش نمی‌شود. یک آهنگ یا خواننده بگو." : "Nothing is playing. Name a song or an artist.";
+    }
+    const who = [ctx.lastStatus.artist, ctx.lastStatus.title].filter(Boolean).join(" — ");
+    return lang === "fa" ? `الان ${who} پخش می‌شود.` : `Now playing ${who}.`;
   }
 
   if (isGreeting(userText) && lang === "fa") {
@@ -276,6 +285,10 @@ export async function fulfillLocally(
       );
       break;
     }
+    case "nowPlaying": {
+      await executeConverseTool("playback_status", {}, ctx);
+      break;
+    }
     case "chat": {
       if (!isGreeting(userText)) {
         await executeConverseTool("find_music", { query: intent.query || userText, limit: 8 }, ctx);
@@ -287,7 +300,7 @@ export async function fulfillLocally(
     }
   }
 
-  if (intent.kind !== "lyrics") await ensurePlayback(ctx, userText);
+  if (intent.kind !== "lyrics" && intent.kind !== "nowPlaying") await ensurePlayback(ctx, userText);
 
   return {
     ok: true,
@@ -296,7 +309,7 @@ export async function fulfillLocally(
     model: null,
     effects: ctx.effects,
     suggestions: localSuggestions(lang),
-    note: isGreeting(userText) || intent.kind === "lyrics" ? undefined : "No model key this turn — Apple Music search still ran.",
+    note: isGreeting(userText) || intent.kind === "lyrics" || intent.kind === "nowPlaying" ? undefined : "No model key this turn — Apple Music search still ran.",
   };
 }
 
@@ -411,7 +424,10 @@ export async function converse(input: {
   }
 
   const corrected = await preferNamedKin(ctx, userText);
-  if (wantsLyrics(userText)) {
+  if (wantsNowPlaying(userText)) {
+    await executeConverseTool("playback_status", {}, ctx);
+    lastText = "";
+  } else if (wantsLyrics(userText)) {
     const named = lyricsSubject(userText);
     await executeConverseTool(
       "fetch_lyrics",
@@ -425,7 +441,7 @@ export async function converse(input: {
   } else {
     await ensurePlayback(ctx, userText);
   }
-  if (corrected || (wantsLyrics(userText) && ctx.lastLyrics)) lastText = "";
+  if (corrected || (wantsLyrics(userText) && ctx.lastLyrics) || wantsNowPlaying(userText)) lastText = "";
 
   if (lastText.trim()) {
     return {

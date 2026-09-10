@@ -11,6 +11,7 @@ export type LocalIntent =
   | { kind: "alternative" }
   | { kind: "destination"; room: CoordinateId }
   | { kind: "lyrics"; query: string }
+  | { kind: "nowPlaying" }
   | { kind: "play"; query: string; room: CoordinateId | null }
   | { kind: "search"; query: string; room: CoordinateId | null }
   | { kind: "atlas"; query: string; artist?: string; genre?: string }
@@ -159,6 +160,16 @@ export function wantsLyrics(text: string): boolean {
   return /\b(lyrics?|lyric|lrc)\b/i.test(text) || /متن(\s+این)?(\s+آهنگ)?|لیریک|کلمات آهنگ|كلمات آهنگ/.test(text);
 }
 
+/** Cyrene-fit: ask what is sounding now. Not a play request. */
+export function wantsNowPlaying(text: string): boolean {
+  const t = text.trim();
+  if (/\b(what(?:'s| is) (?:this|playing|on)|now playing|currently playing|what song is (?:this|playing))\b/i.test(t)) {
+    return true;
+  }
+  if (/بذار|بگذار|پخش کن|پیدا کن/.test(t)) return false;
+  return /الان چ[یا]|الآن چ[یا]|چی داره پخش|داره پخش میش|چی میخونه|چی میاد/.test(t);
+}
+
 /** Named recording inside a lyrics ask, or null to use whatever is playing. */
 export function lyricsSubject(text: string): string | null {
   const stripped = text
@@ -198,6 +209,7 @@ export function interpretLocal(text: string): LocalIntent {
   const trimmed = text.trim();
   const q = trimmed.toLowerCase();
   if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
+  if (wantsNowPlaying(trimmed)) return { kind: "nowPlaying" };
   if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
   if (wantsAtlas(trimmed)) {
     const named = namedArtistQuery(
