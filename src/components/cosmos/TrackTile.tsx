@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer } from "@/context/PlayerContext";
 import { PauseIcon, PlayIcon } from "./icons";
+import { Artwork } from "./Artwork";
 
 const SIZES =
   "(min-width: 1440px) 16vw, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 46vw";
@@ -25,13 +25,8 @@ export function TrackTile({
   size?: "md" | "lg";
 }) {
   const [loaded, setLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
   const { likedIds } = usePlayer();
   const liked = likedIds.includes(track.id);
-
-  useEffect(() => {
-    if (imgRef.current?.complete) setLoaded(true);
-  }, []);
 
   return (
     <button
@@ -44,17 +39,12 @@ export function TrackTile({
     >
       <span className="cx-album-art" style={{ backgroundColor: track.tint }}>
         {track.artworkUrl ? (
-          <Image
-            ref={imgRef}
+          <Artwork
             src={track.artworkUrl}
-            alt=""
-            fill
             sizes={size === "lg" ? "(min-width: 700px) 28vw, 90vw" : SIZES}
+            loaded={loaded}
             priority={priority}
-            data-loaded={loaded ? "true" : "false"}
             onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
-            style={{ objectFit: "cover" }}
           />
         ) : (
           <span className="absolute inset-0 flex items-end p-3">

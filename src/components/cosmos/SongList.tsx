@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { clock } from "@/lib/format";
 import { LoveControl } from "./LoveControl";
+import { Artwork } from "./Artwork";
 
 export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[]; showAlbum?: boolean }) {
   const { current, playing } = usePlayer();
@@ -50,9 +50,7 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
                 <td>
                   <span className="cx-song-title">
                     <span className="cx-song-art" style={{ backgroundColor: track.tint }}>
-                      {track.artworkUrl && (
-                        <Image src={track.artworkUrl} alt="" fill sizes="40px" style={{ objectFit: "cover" }} />
-                      )}
+                      <Artwork src={track.artworkUrl} sizes="40px" />
                     </span>
                     <span className="min-w-0">
                       <span className="cx-truncate block font-medium">{track.title}</span>
