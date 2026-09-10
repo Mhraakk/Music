@@ -1,9 +1,7 @@
 /**
- * Pull recording hints from a Telegram music channel caption.
- *
- * @wheat1 has no public /s/ preview from this environment, so the working
- * path is: paste a post, or harvest if Telegram later exposes the widget.
- * Hints become Apple-first searches. Never treated as a stream URL.
+ * Pull recording hints from a Telegram music channel caption or a whole night
+ * of artist – title lines. wheat1 has no public /s/ preview here, so paste is
+ * the working path. Hints become Apple-first searches, never stream URLs.
  */
 
 export type WheatHint = {
@@ -12,6 +10,15 @@ export type WheatHint = {
 };
 
 const STOP = /^(https?:\/\/|t\.me\/|telegram|join|channel|wheat1|www\.)/i;
+const MAX_HINTS = 24;
+
+/** A real night of artist – title lines, used when the public channel is closed. */
+export const SAMPLE_NIGHT = `Boards of Canada - Roygbiv
+Burial - Archangel
+Massive Attack - Teardrop
+Aphex Twin - Xtal
+Portishead - Glory Box
+Four Tet - Baby`;
 
 export function extractWheatHints(raw: string): WheatHint[] {
   const text = raw.replace(/\u00a0/g, " ").trim();
@@ -33,9 +40,7 @@ export function extractWheatHints(raw: string): WheatHint[] {
   )) {
     remember(surroundingTitle(text, match.index ?? 0) || match[0], "link");
   }
-  for (const match of text.matchAll(
-    /https?:\/\/music\.apple\.com\/[^\s)]+/gi
-  )) {
+  for (const match of text.matchAll(/https?:\/\/music\.apple\.com\/[^\s)]+/gi)) {
     remember(surroundingTitle(text, match.index ?? 0) || "apple music", "link");
   }
   for (const match of text.matchAll(
@@ -49,14 +54,27 @@ export function extractWheatHints(raw: string): WheatHint[] {
     .replace(/t\.me\/\S+/gi, " ")
     .replace(/#[\w\u0600-\u06FF]+/g, " ");
 
-  for (const line of stripped.split(/\n+| \| | \u2013 | \u2014 /)) {
-    const dash = line.match(/^\s*(.{2,80}?)\s[-–—]\s(.{2,80}?)\s*$/);
+  const lines = stripped
+    .split(/\n+/)
+    .flatMap((line) => line.split(/\s*\|\s*/))
+    .map((line) => line.replace(/^\s*[\d۰-۹]+[.)\-–—]\s+/, "").trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const dash = line.match(/^(.{2,80}?)\s[-–—]\s(.{2,80}?)$/);
     if (dash) {
       remember(`${dash[1]} ${dash[2]}`, "title");
       continue;
     }
-    const fa = line.match(/^\s*(.{2,80}?)\s+[-–—]\s+(.{2,80}?)\s*$/);
-    if (fa) remember(`${fa[1]} ${fa[2]}`, "title");
+    const colon = line.match(/^(.{2,80}?)\s*[:：]\s+(.{2,80}?)$/);
+    if (colon) {
+      remember(`${colon[1]} ${colon[2]}`, "title");
+      continue;
+    }
+    const by = line.match(/^(.{2,80}?)\s+by\s+(.{2,80}?)$/i);
+    if (by) {
+      remember(`${by[2]} ${by[1]}`, "title");
+    }
   }
 
   if (!hints.length) {
@@ -64,7 +82,7 @@ export function extractWheatHints(raw: string): WheatHint[] {
     if (compact && compact.split(/\s+/).length >= 2) remember(compact, "title");
   }
 
-  return hints.slice(0, 12);
+  return hints.slice(0, MAX_HINTS);
 }
 
 function surroundingTitle(text: string, index: number): string {

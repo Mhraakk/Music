@@ -59,12 +59,12 @@ export async function harvestWheat(input: {
     }
   }
 
-  const hints = captions.flatMap((caption) => extractWheatHints(caption)).slice(0, 8);
-  const limit = Math.max(4, Math.min(12, input.limit ?? 8));
+  const hints = captions.flatMap((caption) => extractWheatHints(caption)).slice(0, 16);
+  const limit = Math.max(4, Math.min(16, input.limit ?? Math.max(8, hints.length)));
   const tracks: LibraryTrack[] = [];
   const seen = new Set<string>();
   for (const hint of hints) {
-    const found = await findMusic(hint.query, 2);
+    const found = await findMusic(hint.query, 1);
     for (const track of found) {
       if (seen.has(track.id)) continue;
       seen.add(track.id);
@@ -84,7 +84,7 @@ export async function harvestWheat(input: {
 
   return {
     tracks: capped,
-    title: "wheat1",
+    title: pasted && pasted.includes("\n") ? "Tonight" : "wheat1",
     publicPreview,
     hints: hints.map((h) => h.query),
     durationSeconds,

@@ -198,11 +198,11 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "browse_wheat",
     description:
-      "Harvest the Telegram channel wheat1 (t.me/wheat1). Pass pasted post text when available. Resolves on Apple Music. Then play_tracks.",
+      "Harvest wheat1 (t.me/wheat1) or a pasted night of artist – title lines. Resolves on Apple Music. Then play_tracks.",
     parameters: {
       type: "OBJECT",
       properties: {
-        text: { type: "STRING", description: "Pasted wheat1 caption or artist – title list." },
+        text: { type: "STRING", description: "Pasted wheat1 caption or a whole night of artist – title lines." },
         duration_minutes: { type: "INTEGER", description: "Listening length in minutes. Default 30." },
       },
     },
