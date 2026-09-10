@@ -99,7 +99,6 @@ export function TalkSurface() {
     setOpenaiDraft(openai);
     void fetchConverseStatus().then((next) => {
       setStatus(next);
-      if (!next.configured && !gemini && !openai) setKeyOpen(true);
     });
   }, []);
 
