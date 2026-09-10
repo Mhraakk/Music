@@ -1334,8 +1334,8 @@
 }
 
 .cx-window-ctrl {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   background: transparent;
@@ -1358,7 +1358,7 @@
   color: var(--color-sand);
 }
 
-.cx-mini[data-mode="stage"] .cx-mini-bar .cx-window-chrome {
+.cx-mini[data-mode="stage"] .cx-mini-bar {
   display: none;
 }
 
@@ -1413,8 +1413,9 @@
 
 .cx-poster {
   position: relative;
-  width: min(72vw, 340px);
-  aspect-ratio: 1;
+  width: min(72vw, 400px);
+  aspect-ratio: 1 / 1;
+  min-height: min(72vw, 400px);
 }
 
 .cx-poster-glow {
@@ -1427,21 +1428,13 @@
 }
 
 .cx-window-art {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 1;
   display: block;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
   border-radius: 0;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-}
-
-@media (min-width: 700px) {
-  .cx-window-art {
-    width: 100%;
-    height: 100%;
-  }
 }
 
 .cx-window-art img {
@@ -1476,9 +1469,9 @@
 
 .cx-wheat-paste {
   width: min(100%, 520px);
-  min-height: 88px;
-  padding: 12px 16px;
-  background: var(--color-mist);
+  min-height: 120px;
+  padding: 16px;
+  background: var(--color-bone);
   color: var(--color-ink-black);
   border: 1px solid var(--color-stone);
   font: inherit;
