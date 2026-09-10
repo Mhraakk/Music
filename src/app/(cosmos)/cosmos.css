@@ -1331,6 +1331,10 @@
   color: var(--color-sand);
 }
 
+.cx-mini[data-mode="stage"] .cx-mini-bar .cx-window-chrome {
+  display: none;
+}
+
 .cx-dock {
   display: flex;
   align-items: center;

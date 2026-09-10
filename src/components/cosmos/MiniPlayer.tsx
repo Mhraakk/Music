@@ -338,6 +338,7 @@ export function MiniPlayer() {
         <div className="cx-window-bar">
           <p className="cx-window-name">Now playing</p>
           <div className="cx-window-chrome">
+            <LoveControl track={current} />
             <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
               <MinimizeGlyph />
             </button>
