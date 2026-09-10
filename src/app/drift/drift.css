@@ -5,10 +5,8 @@
  * rather than trusted to reviewers: no radius, no shadow, no gradient, nothing
  * skeuomorphic, and all spacing on an 8px grid.
  *
- * SCOPING. Everything is nested under `.sonic-drift`. The rest of this codebase
- * runs a liquid-glass system built on blur, elevation and 22px corners, which is
- * the exact opposite of this surface. Scoping lets both live in one application
- * without either one leaking into the other.
+ * SCOPING. Everything is nested under `.sonic-drift`. Listen Now is the Tidal
+ * surface (black, cyan, album glow). This map stays flat: no radius, no shadow.
  *
  * WHY `!important`. Normally a smell. Here the ban is the specification: "0px
  * border-radius on every single element. No exceptions." A future component
@@ -27,16 +25,16 @@
   --s-8: 64px;
 
   /* Ink. Flat, opaque, no translucency games standing in for elevation. */
-  --ink: #f2efea;
-  --ink-2: #a8a29a;
-  --ink-3: #6e6a64;
-  --rule: #2a2724;
-  --rule-strong: #45403a;
+  --ink: #ffffff;
+  --ink-2: #a3a3a3;
+  --ink-3: #737373;
+  --rule: #2e2e2e;
+  --rule-strong: #3a3a3a;
 
   /* Signal colours, one per drift mode. */
-  --deepen: #d8a05c;
-  --prune: #b4524a;
-  --explore: #6f8fa6;
+  --deepen: #00ffff;
+  --prune: #ff6138;
+  --explore: #5ad363;
 
   /*
    * THE ROOM. Set inline by the player from the sounding phase's emotional
@@ -44,13 +42,13 @@
    * transition is deliberately slower than any track change, so the room is
    * always still catching up with the music rather than snapping to it.
    */
-  --field: 12 11 10;
+  --field: 0 0 0;
 
   background-color: rgb(var(--field));
   color: var(--ink);
   transition: background-color 2400ms linear;
   min-height: 100vh;
-  font-family: var(--font-poppins), system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "kern" 1;
   -webkit-font-smoothing: antialiased;
 }
@@ -74,7 +72,7 @@
   -webkit-backdrop-filter: none !important;
 }
 
-/* Poppins everywhere, including form controls, which inherit nothing by default. */
+/* Outfit everywhere, including form controls, which inherit nothing by default. */
 .sonic-drift button,
 .sonic-drift input,
 .sonic-drift select,

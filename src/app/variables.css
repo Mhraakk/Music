@@ -1,42 +1,42 @@
 :root {
   /* Colors */
-  --color-hot-pink: #4a242c;
-  --color-sun-yellow: #ffda40;
-  --color-signal-blue: #11100e;
+  --color-hot-pink: #121212;
+  --color-sun-yellow: #00ffff;
+  --color-signal-blue: #000000;
   --color-ember-orange: #ff6138;
   --color-leaf-green: #5ad363;
-  --color-ink-black: #f4f1ea;
-  --color-charcoal: #11100e;
-  --color-slate: #9a9084;
-  --color-bone: #161310;
-  --color-paper-white: #0a0908;
-  --color-mist: #1c1814;
-  --color-stone: #3d2e1c;
-  --color-sand: #c4a574;
-  --color-frost: #2a241c;
+  --color-ink-black: #ffffff;
+  --color-charcoal: #121212;
+  --color-slate: #a3a3a3;
+  --color-bone: #1a1a1a;
+  --color-paper-white: #000000;
+  --color-mist: #161616;
+  --color-stone: #2e2e2e;
+  --color-sand: #00ffff;
+  --color-frost: #242424;
 
   /* Compatibility aliases for cosmos rules */
-  --color-obsidian: #0a0908;
-  --color-paper: #0a0908;
-  --color-inkstone: #11100e;
-  --color-felt-gray: #9a9084;
-  --color-ash-mist: #1c1814;
-  --color-pewter: #3d2e1c;
-  --color-slate-pill: #4a242c;
-  --color-iridescent-fade: #4a242c;
-  --color-press-black: #f4f1ea;
-  --color-bone-white: #161310;
-  --color-typesetter-ink: #f4f1ea;
-  --color-newsprint-gray: #9a9084;
-  --color-muted-sage: #3d2e1c;
-  --color-highlighter-green: #4a242c;
-  --color-shadow-moss: #3d2e1c;
-  --color-echo-green: #c4a574;
-  --color-slate-verdant: #11100e;
+  --color-obsidian: #000000;
+  --color-paper: #000000;
+  --color-inkstone: #121212;
+  --color-felt-gray: #a3a3a3;
+  --color-ash-mist: #161616;
+  --color-pewter: #2e2e2e;
+  --color-slate-pill: #121212;
+  --color-iridescent-fade: #121212;
+  --color-press-black: #ffffff;
+  --color-bone-white: #1a1a1a;
+  --color-typesetter-ink: #ffffff;
+  --color-newsprint-gray: #a3a3a3;
+  --color-muted-sage: #2e2e2e;
+  --color-highlighter-green: #121212;
+  --color-shadow-moss: #2e2e2e;
+  --color-echo-green: #00ffff;
+  --color-slate-verdant: #000000;
 
   /* Typography — Font Families */
   --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-sebentafont-custom-editorial-serif: var(--font-loaded-display), ui-serif, Georgia, "Times New Roman", serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
   --font-twk-lausanne: var(--font-inter);
   --font-pp-mondwest: var(--font-sebentafont-custom-editorial-serif);
   --font-editorial-new: var(--font-sebentafont-custom-editorial-serif);
@@ -134,16 +134,16 @@
   --shadow-lg-2: none;
 
   /* Surfaces */
-  --surface-page-canvas: #0a0908;
-  --surface-bone-surface: #161310;
-  --surface-mist-surface: #1c1814;
-  --surface-hot-pink-block: #4a242c;
-  --surface-signal-blue-block: #11100e;
-  --surface-canvas: #0a0908;
-  --surface-dark-section: #11100e;
-  --surface-accent-band: #4a242c;
-  --surface-paper: #0a0908;
-  --surface-obsidian: #0a0908;
-  --surface-slate-pill: #4a242c;
-  --surface-ash-mist: #1c1814;
+  --surface-page-canvas: #000000;
+  --surface-bone-surface: #1a1a1a;
+  --surface-mist-surface: #161616;
+  --surface-hot-pink-block: #121212;
+  --surface-signal-blue-block: #000000;
+  --surface-canvas: #000000;
+  --surface-dark-section: #121212;
+  --surface-accent-band: #121212;
+  --surface-paper: #000000;
+  --surface-obsidian: #000000;
+  --surface-slate-pill: #121212;
+  --surface-ash-mist: #161616;
 }

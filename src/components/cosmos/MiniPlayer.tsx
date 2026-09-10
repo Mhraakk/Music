@@ -6,7 +6,7 @@
  */
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
@@ -166,7 +166,12 @@ export function MiniPlayer() {
   if (!current) return null;
 
   return (
-    <section className="cx-mini" data-mode={mode} aria-label="Now playing">
+    <section
+      className="cx-mini"
+      data-mode={mode}
+      aria-label="Now playing"
+      style={current.tint ? ({ ["--poster-tint"]: current.tint } as CSSProperties) : undefined}
+    >
       <div className="cx-progress">
         <span style={{ width: `${Math.round(progress * 100)}%` }} />
       </div>
@@ -352,19 +357,22 @@ export function MiniPlayer() {
       {expanded && !docked && (
         <div className="cx-panel">
           <div className="cx-window-stage">
-            <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
-              {current.artworkUrl &&
-                (current.foundVia ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={current.artworkUrl} alt="" />
-                ) : (
-                  <Image src={current.artworkUrl} alt="" fill sizes="200px" style={{ objectFit: "cover" }} />
-                ))}
-            </span>
-            <div className="min-w-0">
+            <div className="cx-poster">
+              <span className="cx-poster-glow" aria-hidden />
+              <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
+                {current.artworkUrl &&
+                  (current.foundVia ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={current.artworkUrl} alt="" />
+                  ) : (
+                    <Image src={current.artworkUrl} alt="" fill sizes="340px" style={{ objectFit: "cover" }} />
+                  ))}
+              </span>
+            </div>
+            <div className="min-w-0 w-full">
               <p className="cx-window-track">{current.title}</p>
-              <p className="cx-meta mt-1">{current.artist}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="mt-1 text-[15px] text-[var(--ink-3)]">{current.artist}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   className="cx-icon-button"
