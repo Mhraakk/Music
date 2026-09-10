@@ -60,20 +60,18 @@ export async function harvestWheat(input: {
   }
 
   const hints = captions.flatMap((caption) => extractWheatHints(caption)).slice(0, 16);
-  const limit = Math.max(4, Math.min(16, input.limit ?? Math.max(8, hints.length)));
+  const limit = Math.max(1, Math.min(16, input.limit ?? (hints.length || 8)));
   const tracks: LibraryTrack[] = [];
   const seen = new Set<string>();
   for (const hint of hints) {
-    const found = await findMusic(hint.query, 1);
-    for (const track of found) {
-      if (seen.has(track.id)) continue;
-      seen.add(track.id);
-      tracks.push({
-        ...track,
-        note: track.note ? `${track.note} · From wheat1` : "From wheat1",
-      });
-      if (tracks.length >= limit) break;
-    }
+    const found = await findMusic(hint.query, 4);
+    const track = pickForHint(hint.query, found);
+    if (!track || seen.has(track.id)) continue;
+    seen.add(track.id);
+    tracks.push({
+      ...track,
+      note: track.note ? `${track.note} · From wheat1` : "From wheat1",
+    });
     if (tracks.length >= limit) break;
   }
 
@@ -89,4 +87,15 @@ export async function harvestWheat(input: {
     hints: hints.map((h) => h.query),
     durationSeconds,
   };
+}
+
+function pickForHint(query: string, found: LibraryTrack[]): LibraryTrack | undefined {
+  const q = query.toLowerCase();
+  return (
+    found.find((track) => {
+      const artist = track.artist.toLowerCase();
+      const title = track.title.toLowerCase();
+      return q.includes(artist.slice(0, 12)) || q.includes(title.slice(0, 12));
+    }) ?? found[0]
+  );
 }

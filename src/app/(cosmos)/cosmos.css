@@ -2019,6 +2019,7 @@
 
 .cx-atlas-art,
 .cx-atlas-art-empty {
+  position: relative;
   display: block;
   width: 56px;
   height: 56px;
