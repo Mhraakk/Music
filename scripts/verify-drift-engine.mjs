@@ -1026,6 +1026,7 @@ async function verifySoftListen() {
   check(/15 to 60 minutes/.test(home), "home mentions duration-aware atlas listening");
   const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
   check(/wheat1/.test(radio), "radio names wheat1");
+  check(/land on this page/.test(radio), "radio puts the night on the page");
   const wheat = await fetch(`${BASE}/api/wheat`).then((r) => r.json());
   check(wheat.ok === true && wheat.channel === "wheat1", "GET /api/wheat is wired");
   let wheatPost = { ok: false, hints: [], tracks: [] };
@@ -1042,6 +1043,27 @@ async function verifySoftListen() {
   check(wheatPost.ok === true, "POST /api/wheat accepts a pasted caption");
   check((wheatPost.hints ?? []).some((h) => /roygbiv|boards of canada/i.test(h)), "wheat parser reads artist – title", JSON.stringify(wheatPost.hints ?? []));
   check((wheatPost.tracks ?? []).length > 0, "wheat caption resolves on Apple Music");
+  let wheatNight = { ok: false, hints: [], tracks: [] };
+  try {
+    wheatNight = await fetch(`${BASE}/api/wheat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: "Boards of Canada - Roygbiv\nBurial - Archangel\nAphex Twin - Xtal",
+        durationMinutes: 45,
+      }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "wheat night timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(wheatNight.ok === true, "POST /api/wheat accepts a pasted night");
+  check((wheatNight.hints ?? []).length >= 2, "night parser keeps more than one line", JSON.stringify(wheatNight.hints ?? []));
+  check((wheatNight.tracks ?? []).length >= 2, "a pasted night resolves more than one recording");
+  check(
+    !((wheatNight.tracks ?? [])[0] && "genre" in wheatNight.tracks[0] && wheatNight.tracks[0].genre),
+    "wheat night still has no genre field"
+  );
   let harvest = { ok: false, tracks: [] };
   try {
     harvest = await fetch(`${BASE}/api/atlas/harvest`, {
