@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AtlasArtistRef, AtlasOutbound, AtlasTrackCard } from "@/lib/everynoise/types";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayerActions } from "@/context/PlayerContext";
 import { AtlasTrackRow } from "./AtlasTrackRow";
+import { AtlasPlay } from "./AtlasPlay";
 import { OutboundLinks, outboundFromAtlas } from "./OutboundLinks";
 
 type Payload = {
@@ -23,7 +23,6 @@ type Payload = {
 };
 
 export function AtlasArtistView({ name }: { name: string }) {
-  const { ingest, playQueue } = usePlayerActions();
   const [page, setPage] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +42,6 @@ export function AtlasArtistView({ name }: { name: string }) {
       });
     return () => controller.abort();
   }, [name]);
-
-  const playAll = () => {
-    if (!page?.libraryTracks.length) return;
-    ingest(page.libraryTracks);
-    playQueue(page.libraryTracks, page.artist.name);
-  };
 
   if (error) {
     return (
@@ -76,14 +69,11 @@ export function AtlasArtistView({ name }: { name: string }) {
       </p>
       <h1 className="cx-atlas-display">{page.artist.name}</h1>
       <p className="cx-body cx-atlas-lede">
-        Features from Every Noise, recordings from Apple Music. Tap a branch or a neighbour
-        and the next map opens. Links below are this person on each service.
+        Features from Every Noise, recordings from Apple Music. Choose a length. Tap a branch and the next map opens.
       </p>
 
+      <AtlasPlay artist={page.artist.name} fallbackTracks={page.libraryTracks} title={page.artist.name} label="Play this artist" />
       <div className="cx-atlas-toolbar">
-        <button type="button" className="cx-pill cx-pill-primary" onClick={playAll} disabled={!page.libraryTracks.length}>
-          Play this artist
-        </button>
         <OutboundLinks links={outboundFromAtlas(page.artist.outbound)} artist />
       </div>
 

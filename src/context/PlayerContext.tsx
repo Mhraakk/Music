@@ -37,8 +37,9 @@ import { adjacentCoordinates, type CoordinateId } from "@/lib/drift/topography";
 import { getNextEmotionalDrift } from "@/lib/mcp/client";
 import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
-import { compactOverlay } from "@/lib/apple/publish";
+import { compactOverlay, publishLoved } from "@/lib/apple/publish";
 import { isSoundcloudTrack, youtubeVideoId } from "@/lib/converse/anywhere";
+import { loadLoved, toggleLoved } from "@/lib/likes/store";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
 const FADE_MS = 2200;
@@ -87,6 +88,8 @@ export type PlayerState = {
   nuclearDuration: number | null;
   /** Seek request for the YouTube player, 0–1. */
   nuclearSeekAt: number | null;
+  /** Recordings the listener marked on Resonant. Feeds the next drift. */
+  likedIds: string[];
 };
 
 export type PlayerActions = {
@@ -107,6 +110,8 @@ export type PlayerActions = {
   nuclearEnded: () => void;
   /** YouTube embed blocked — fall back to the Apple preview if we have one. */
   nuclearFailed: () => void;
+  /** Heart the current recording, or a specific one. Does not skip. */
+  toggleLike: (track?: LibraryTrack) => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -136,6 +141,7 @@ const INITIAL: PlayerState = {
   listenVia: null,
   nuclearDuration: null,
   nuclearSeekAt: null,
+  likedIds: [],
 };
 
 /**
@@ -608,6 +614,35 @@ export function PlayerProvider({
     }
   }, []);
 
+  const toggleLike = useCallback(
+    (track?: LibraryTrack) => {
+      const target = track ?? live.current.current;
+      if (!target) return;
+      void toggleLoved(target).then(({ tracks, liked }) => {
+        publishLoved(tracks);
+        setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
+        ingest(tracks);
+        if (liked && live.current.current?.id === target.id) {
+          recordSignal("explicit_like", { magnitude: 1 });
+        }
+      });
+    },
+    [ingest, recordSignal]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadLoved().then((tracks) => {
+      if (cancelled) return;
+      publishLoved(tracks);
+      ingest(tracks);
+      setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ingest]);
+
   const play = useCallback(
     (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => {
       // Choosing something new mid-track is a statement about what was playing.
@@ -853,8 +888,21 @@ export function PlayerProvider({
   }, [ingest]);
 
   const actions = useMemo<PlayerActions>(
-    () => ({ play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed }),
-    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed]
+    () => ({
+      play,
+      playQueue,
+      toggle,
+      setVolume,
+      seek,
+      stop,
+      ingest,
+      setDestination,
+      nuclearTick,
+      nuclearEnded,
+      nuclearFailed,
+      toggleLike,
+    }),
+    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike]
   );
 
   return (

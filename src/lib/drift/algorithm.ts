@@ -220,7 +220,9 @@ export function scoreCandidate(track: DriftTrack, ctx: SelectionContext): Scored
    * When the circulating Favorite Songs window is in the pool, a nearby loved
    * position wins a close call against the calibration catalog.
    */
-  if (track.id.startsWith("f-")) breakdown.loved = 1.15;
+  if (track.id.startsWith("f-") || (typeof track.note === "string" && track.note.includes("Loved on Resonant"))) {
+    breakdown.loved = 1.15;
+  }
 
   /**
    * RADIAL FIT

@@ -188,7 +188,12 @@ export async function fulfillLocally(
     case "playlist":
       await executeConverseTool(
         "make_playlist",
-        { query: intent.query, room: intent.room ?? undefined, title: lang === "fa" ? "میکس تو" : "Your mix" },
+        {
+          query: intent.query,
+          room: intent.room ?? undefined,
+          title: lang === "fa" ? "میکس تو" : "Your mix",
+          duration_minutes: intent.durationMinutes,
+        },
         ctx
       );
       break;
@@ -200,7 +205,19 @@ export async function fulfillLocally(
           genre: intent.artist ? undefined : intent.genre,
           query: intent.query,
           limit: 8,
+          duration_minutes: intent.durationMinutes,
         },
+        ctx
+      );
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+      break;
+    }
+    case "wheat": {
+      await executeConverseTool(
+        "browse_wheat",
+        { text: intent.query, duration_minutes: intent.durationMinutes ?? 30 },
         ctx
       );
       if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {

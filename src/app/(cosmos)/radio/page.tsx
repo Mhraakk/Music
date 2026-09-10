@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { collections } from "@/lib/library";
 import { RadioSurface } from "@/components/cosmos/RadioSurface";
+import { WheatSurface } from "@/components/cosmos/WheatSurface";
 
 export const metadata = {
   title: "Radio - Resonant",
@@ -17,12 +18,14 @@ export default function RadioPage() {
           <em>Radio.</em>
         </h1>
         <p className="cx-body">
-          Nine stations. Tap one and Resonant drifts from there. No skip, no shuffle.
+          Nine stations, plus wheat1. Tap a room or paste a Telegram post. No skip, no shuffle.
         </p>
         <Link href="/drift" className="cx-see-all">
           Open the map
         </Link>
       </header>
+
+      <WheatSurface />
 
       <RadioSurface
         stations={shelves.flatMap(({ tracks, ...shelf }) =>

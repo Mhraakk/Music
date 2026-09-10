@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AtlasArtistRef, AtlasGenre, AtlasPlaylist, AtlasTrackCard } from "@/lib/everynoise/types";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayerActions } from "@/context/PlayerContext";
 import { AtlasTrackRow } from "./AtlasTrackRow";
+import { AtlasPlay } from "./AtlasPlay";
 
 type Payload = {
   ok: boolean;
@@ -18,7 +18,6 @@ type Payload = {
 };
 
 export function AtlasGenreView({ id }: { id: string }) {
-  const { ingest, playQueue } = usePlayerActions();
   const [page, setPage] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,12 +37,6 @@ export function AtlasGenreView({ id }: { id: string }) {
       });
     return () => controller.abort();
   }, [id]);
-
-  const playAll = () => {
-    if (!page?.libraryTracks.length) return;
-    ingest(page.libraryTracks);
-    playQueue(page.libraryTracks, page.genre.label);
-  };
 
   if (error) {
     return (
@@ -71,20 +64,20 @@ export function AtlasGenreView({ id }: { id: string }) {
       </p>
       <h1 className="cx-atlas-display">{page.genre.label}</h1>
       <p className="cx-body cx-atlas-lede">
-        Artists on this Every Noise map. Play uses Apple Music first. Each row keeps the Spotify recording
-        plus Apple, YouTube Music, and SoundCloud for that same piece.
+        Artists on this Every Noise map. Choose a length, then play. Apple Music first. Each row keeps the same
+        recording on Spotify, YouTube Music, and SoundCloud. Genre never lands on the catalog.
       </p>
 
-      <div className="cx-atlas-toolbar">
-        <button type="button" className="cx-pill cx-pill-primary" onClick={playAll} disabled={!page.libraryTracks.length}>
-          Play this branch
-        </button>
-        {page.playlists.map((playlist) => (
-          <a key={playlist.id} href={playlist.url} target="_blank" rel="noreferrer noopener" className="cx-pill cx-pill-ghost">
-            Spotify {playlist.kind}
-          </a>
-        ))}
-      </div>
+      <AtlasPlay genre={page.genre.id} fallbackTracks={page.libraryTracks} title={page.genre.label} label="Play this branch" />
+      {page.playlists.length > 0 && (
+        <div className="cx-atlas-toolbar">
+          {page.playlists.map((playlist) => (
+            <a key={playlist.id} href={playlist.url} target="_blank" rel="noreferrer noopener" className="cx-pill cx-pill-ghost">
+              Spotify {playlist.kind}
+            </a>
+          ))}
+        </div>
+      )}
 
       {page.nearby.length > 0 && (
         <section className="cx-section">

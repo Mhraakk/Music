@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AtlasFamily, AtlasGenre } from "@/lib/everynoise/types";
-import { usePlayerActions } from "@/context/PlayerContext";
-import type { LibraryTrack } from "@/lib/library";
+import { AtlasPlay } from "./AtlasPlay";
 
 const FAMILIES: { id: AtlasFamily; label: string }[] = [
   { id: "electronic", label: "Electronic" },
@@ -16,7 +15,6 @@ const FAMILIES: { id: AtlasFamily; label: string }[] = [
 
 export function AtlasSurface() {
   const router = useRouter();
-  const { ingest, playQueue } = usePlayerActions();
   const [family, setFamily] = useState<AtlasFamily>("electronic");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -25,7 +23,6 @@ export function AtlasSurface() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [artistDraft, setArtistDraft] = useState("");
-  const [harvesting, setHarvesting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 220);
@@ -83,25 +80,6 @@ export function AtlasSurface() {
     router.push(`/atlas/artist?name=${encodeURIComponent(trimmed)}`);
   };
 
-  const harvestFamily = async () => {
-    setHarvesting(true);
-    try {
-      const response = await fetch("/api/atlas/harvest", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: debounced || family, limit: 10 }),
-      });
-      const payload = (await response.json()) as { tracks?: LibraryTrack[]; title?: string };
-      const tracks = payload.tracks ?? [];
-      if (tracks.length) {
-        ingest(tracks);
-        playQueue(tracks, payload.title ?? "Atlas");
-      }
-    } finally {
-      setHarvesting(false);
-    }
-  };
-
   return (
     <div className="cx-atlas">
       <header className="cx-atlas-hero">
@@ -109,7 +87,8 @@ export function AtlasSurface() {
           Every <em>branch.</em>
         </h1>
         <p className="cx-body cx-atlas-lede">
-          Six thousand rooms from everynoise.com. Navigation only. Tap a branch, then an artist on Apple, Spotify, YouTube Music, and SoundCloud.
+          Six thousand rooms from everynoise.com. Tap a branch or an artist, pick how long you want to listen,
+          and the engine continues after that. Navigation only: genre never lands on the catalog.
         </p>
       </header>
 
@@ -152,9 +131,7 @@ export function AtlasSurface() {
             placeholder="Open DJ Krush"
           />
         </form>
-        <button type="button" className="cx-pill cx-pill-primary" onClick={() => void harvestFamily()} disabled={harvesting}>
-          {harvesting ? "Gathering…" : "Play this family"}
-        </button>
+        <AtlasPlay query={debounced || family} fallbackTracks={[]} title="Atlas" label="Play this family" />
       </div>
 
       <p className="cx-meta">

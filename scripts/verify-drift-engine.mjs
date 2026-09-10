@@ -13,6 +13,8 @@
  *   node scripts/verify-drift-engine.mjs [baseUrl]
  */
 
+import { readFileSync } from "node:fs";
+
 const BASE = process.argv[2] ?? "http://localhost:3000";
 const ENDPOINT = `${BASE}/api/mcp`;
 
@@ -1001,6 +1003,63 @@ async function verifyMetingListen() {
   check(/when you were here before|i'm a creep|whatever makes you happy/i.test(lyrics.reply ?? ""), "歌词 still quotes published Creep lyrics");
 }
 
+async function verifySoftListen() {
+  section("Soft listen window");
+  const player = readFileSync(new URL("../src/components/cosmos/MiniPlayer.tsx", import.meta.url), "utf8");
+  check(/aria-label="Minimize"/.test(player), "mini-player has minimize");
+  check(/aria-label="Close"/.test(player), "mini-player has close");
+  check(/Love this recording/.test(player), "mini-player has a like control");
+  check(/setDocked\(true\)/.test(player), "minimize docks the listening window");
+  check(!/SkipForward|goToNext|aria-label=\"Skip/.test(player), "mini-player still has no skip");
+  const love = readFileSync(new URL("../src/components/cosmos/LoveControl.tsx", import.meta.url), "utf8");
+  check(/toggleLike/.test(love), "like control teaches without skipping");
+  const duration = readFileSync(new URL("../src/lib/listen/duration.ts", import.meta.url), "utf8");
+  check(/LISTEN_MINUTES = \[15, 30, 45, 60\]/.test(duration), "atlas listen lengths are 15–60 minutes");
+  const resonance = readFileSync(new URL("../src/lib/drift/resonance.ts", import.meta.url), "utf8");
+  check(/explicit_like/.test(resonance), "resonance records an explicit like");
+  const overlay = readFileSync(new URL("../src/lib/apple/overlay.ts", import.meta.url), "utf8");
+  check(/f-\|l-\|w-/.test(overlay) || /\^\(f-\|l-\|w-\)/.test(overlay), "overlay admits loved web recordings");
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Listen Now"), "home is still Listen Now");
+  check(home.includes("Favorite Songs"), "home still names Favorite Songs");
+  check(home.includes("Connect Apple Music"), "home still names Connect Apple Music");
+  check(/15 to 60 minutes/.test(home), "home mentions duration-aware atlas listening");
+  const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
+  check(/wheat1/.test(radio), "radio names wheat1");
+  const wheat = await fetch(`${BASE}/api/wheat`).then((r) => r.json());
+  check(wheat.ok === true && wheat.channel === "wheat1", "GET /api/wheat is wired");
+  let wheatPost = { ok: false, hints: [], tracks: [] };
+  try {
+    wheatPost = await fetch(`${BASE}/api/wheat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Boards of Canada - Roygbiv", durationMinutes: 15 }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "POST /api/wheat timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(wheatPost.ok === true, "POST /api/wheat accepts a pasted caption");
+  check((wheatPost.hints ?? []).some((h) => /roygbiv|boards of canada/i.test(h)), "wheat parser reads artist – title", JSON.stringify(wheatPost.hints ?? []));
+  check((wheatPost.tracks ?? []).length > 0, "wheat caption resolves on Apple Music");
+  let harvest = { ok: false, tracks: [] };
+  try {
+    harvest = await fetch(`${BASE}/api/atlas/harvest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ genre: "trip hop", durationMinutes: 15 }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "atlas harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(harvest.ok === true, "atlas harvest accepts a duration budget");
+  check((harvest.tracks ?? []).length > 0, "duration harvest returns recordings");
+  check(!((harvest.tracks ?? [])[0] && "genre" in harvest.tracks[0] && harvest.tracks[0].genre), "duration harvest still has no genre field");
+  const skip = await rpc("tools/call", { name: "call", arguments: { method: "Queue.goToNext" } });
+  check(skip.isError === true, "Queue.goToNext is still refused");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -1017,6 +1076,7 @@ try {
   await verifyNuclear();
   await verifyCyreneLyrics();
   await verifyMetingListen();
+  await verifySoftListen();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

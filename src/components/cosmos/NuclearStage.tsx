@@ -163,7 +163,7 @@ export function NuclearStage({
   }, [onTick]);
 
   return (
-    <div className="cx-embed overflow-hidden bg-black">
+    <div className="cx-embed" aria-hidden>
       <div ref={host} className="h-full w-full" />
     </div>
   );

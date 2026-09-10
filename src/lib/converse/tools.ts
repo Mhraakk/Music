@@ -11,6 +11,8 @@ import { harvestAtlas } from "@/lib/everynoise";
 import { harvestRoom } from "./live-room";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import { wantsMetingPlatform } from "@/lib/meting/platforms";
+import { harvestWheat } from "@/lib/wheat/service";
+import { capToDuration } from "@/lib/listen/duration";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type PlaybackStatus = {
@@ -186,6 +188,22 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
         artist: { type: "STRING", description: "Named artist to expand, e.g. DJ Krush." },
         genre: { type: "STRING", description: "Every Noise branch slug or label, e.g. trip hop." },
         limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+        duration_minutes: {
+          type: "INTEGER",
+          description: "Listening length in minutes (15, 30, 45, 60). Caps the set by duration, not genre.",
+        },
+      },
+    },
+  },
+  {
+    name: "browse_wheat",
+    description:
+      "Harvest the Telegram channel wheat1 (t.me/wheat1). Pass pasted post text when available. Resolves on Apple Music. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        text: { type: "STRING", description: "Pasted wheat1 caption or artist – title list." },
+        duration_minutes: { type: "INTEGER", description: "Listening length in minutes. Default 30." },
       },
     },
   },
@@ -253,7 +271,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from find_music, find_related, browse_atlas, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, find_related, browse_atlas, browse_wheat, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -299,6 +317,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
         },
         title: { type: "STRING", description: "Human name for the mix." },
         count: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+        duration_minutes: { type: "INTEGER", description: "Optional listening length in minutes." },
       },
       required: ["query"],
     },
@@ -410,11 +429,13 @@ export async function executeConverseTool(
       const artist = asString(args.artist);
       const genre = asString(args.genre);
       const query = asString(args.query);
+      const minutes = asNumber(args.duration_minutes, 0);
       const harvested = await harvestAtlas({
         artist: artist || undefined,
         genre: genre || undefined,
         query: !artist && !genre ? query || "electronic" : undefined,
         limit: asNumber(args.limit, 8),
+        durationMinutes: minutes >= 8 ? minutes : undefined,
       });
       const tracks = harvested.tracks;
       rememberSearch(ctx, tracks);
@@ -429,6 +450,31 @@ export async function executeConverseTool(
         note: tracks.length
           ? "Every Noise branches resolved to real Apple recordings. Mention Apple / Spotify / YouTube Music / SoundCloud links on each card. Call play_tracks."
           : "Atlas is quiet — name DJ Krush, trip hop, or another branch.",
+      };
+    }
+    case "browse_wheat": {
+      const minutes = asNumber(args.duration_minutes, 30);
+      const harvested = await harvestWheat({
+        text: asString(args.text) || undefined,
+        durationMinutes: minutes >= 8 ? minutes : 30,
+      });
+      const tracks = harvested.tracks;
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        title: harvested.title,
+        count: tracks.length,
+        publicPreview: harvested.publicPreview,
+        hints: harvested.hints,
+        tracks: tracks.map(card),
+        note: tracks.length
+          ? "wheat1 captions resolved on Apple Music. Call play_tracks."
+          : harvested.publicPreview
+            ? "wheat1 had no resolvable titles."
+            : "Ask them to paste a wheat1 caption. The public preview is closed.",
       };
     }
     case "find_related": {
@@ -563,6 +609,8 @@ export async function executeConverseTool(
         tracks = mergeTracks(tracks, searchTracks(ctx, query || room || "warm", count));
       }
       tracks = tracks.slice(0, count);
+      const minutes = asNumber(args.duration_minutes, 0);
+      if (minutes >= 8) tracks = capToDuration(tracks, minutes);
       rememberSearch(ctx, tracks);
       if (!tracks.length) return { ok: false, error: "Search returned nothing. Try another wording." };
       if (room) pushDestination(ctx, room);
