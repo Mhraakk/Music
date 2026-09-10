@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Editorial header. Mini-player always. No skip.
+ * Tidal header. Mini-player when something is playing. No skip.
  */
 
 import Link from "next/link";

@@ -1,5 +1,5 @@
 /**
- * LISTEN NOW — Epidemic liner notes, oxblood chapters.
+ * LISTEN NOW — Tidal black canvas, cyan Now.
  */
 
 import Link from "next/link";

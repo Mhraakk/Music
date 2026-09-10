@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer } from "@/context/PlayerContext";
 import { PauseIcon, PlayIcon } from "./icons";
@@ -34,6 +34,7 @@ export function TrackTile({
       className="cx-album"
       data-active={active ? "true" : undefined}
       data-size={size}
+      style={{ ["--tile-tint"]: track.tint } as CSSProperties}
       onClick={() => onSelect(track)}
       aria-label={`${track.title} by ${track.artist}`}
     >

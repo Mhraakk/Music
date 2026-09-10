@@ -1,23 +1,23 @@
 @theme {
   /* Colors */
-  --color-hot-pink: #4a242c;
-  --color-sun-yellow: #ffda40;
-  --color-signal-blue: #11100e;
+  --color-hot-pink: #121212;
+  --color-sun-yellow: #00ffff;
+  --color-signal-blue: #000000;
   --color-ember-orange: #ff6138;
   --color-leaf-green: #5ad363;
-  --color-ink-black: #f4f1ea;
-  --color-charcoal: #11100e;
-  --color-slate: #9a9084;
-  --color-bone: #161310;
-  --color-paper-white: #0a0908;
-  --color-mist: #1c1814;
-  --color-stone: #3d2e1c;
-  --color-sand: #c4a574;
-  --color-frost: #2a241c;
+  --color-ink-black: #ffffff;
+  --color-charcoal: #121212;
+  --color-slate: #a3a3a3;
+  --color-bone: #1a1a1a;
+  --color-paper-white: #000000;
+  --color-mist: #161616;
+  --color-stone: #2e2e2e;
+  --color-sand: #00ffff;
+  --color-frost: #242424;
 
   /* Typography */
   --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-sebentafont-custom-editorial-serif: var(--font-loaded-display), ui-serif, Georgia, "Times New Roman", serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
 
   /* Typography — Scale */
   --text-caption: 10px;
