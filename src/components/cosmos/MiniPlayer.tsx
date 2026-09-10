@@ -213,7 +213,7 @@ export function MiniPlayer() {
             </button>
           </div>
         </div>
-      ) : (
+      ) : !expanded ? (
         <div className="cx-mini-bar">
           <button
             type="button"
@@ -317,7 +317,7 @@ export function MiniPlayer() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {listenVia === "youtube" && yt && (
         <NuclearStage
