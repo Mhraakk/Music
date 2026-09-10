@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
+import { usePlayer } from "@/context/PlayerContext";
 import { PauseIcon, PlayIcon } from "./icons";
 
 const SIZES =
@@ -25,6 +26,8 @@ export function TrackTile({
 }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { likedIds } = usePlayer();
+  const liked = likedIds.includes(track.id);
 
   useEffect(() => {
     if (imgRef.current?.complete) setLoaded(true);
@@ -67,8 +70,9 @@ export function TrackTile({
             Playing
           </span>
         )}
-        {!playing && track.origin === "expansion" && <span className="cx-tile-badge">New</span>}
-        {!playing && track.origin === "favorite" && <span className="cx-tile-badge">Yours</span>}
+        {!playing && liked && <span className="cx-tile-badge">Loved</span>}
+        {!playing && !liked && track.origin === "expansion" && <span className="cx-tile-badge">New</span>}
+        {!playing && !liked && track.origin === "favorite" && <span className="cx-tile-badge">Yours</span>}
 
         <span className="cx-play-fab" aria-hidden>
           {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}

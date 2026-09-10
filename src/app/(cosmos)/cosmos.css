@@ -1307,28 +1307,67 @@
 .cx-window-chrome {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
 }
 
 .cx-window-ctrl {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
   color: var(--ink-3);
   cursor: pointer;
 }
 
 .cx-window-ctrl:hover:not(:disabled) {
   color: var(--ink);
-  background: rgba(244, 241, 234, 0.06);
+  border-color: var(--hairline-strong);
 }
 
 .cx-window-ctrl:disabled {
   opacity: 0.28;
   cursor: default;
+}
+
+.cx-window-ctrl[aria-pressed="true"] {
+  color: var(--color-sand);
+}
+
+.cx-dock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 16px;
+}
+
+.cx-dock-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cx-mini[data-mode="dock"] .cx-mini-art {
+  width: 40px;
+  height: 40px;
+}
+
+.cx-songs .cx-window-ctrl {
+  color: var(--ink-3);
+}
+
+.cx-atlas-row .cx-window-ctrl {
+  color: var(--ink-3);
+  flex-shrink: 0;
 }
 
 .cx-window-stage {
@@ -1892,6 +1931,13 @@
   gap: 10px;
   padding: 16px 0;
   border-bottom: 1px solid var(--color-stone);
+}
+
+.cx-atlas-row-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .cx-atlas-row-main {

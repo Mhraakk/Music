@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { clock } from "@/lib/format";
+import { LoveControl } from "./LoveControl";
 
 export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[]; showAlbum?: boolean }) {
   const { current, playing } = usePlayer();
@@ -29,6 +30,9 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
             {showAlbum && <th className="hidden md:table-cell">Album</th>}
             <th className="text-right" style={{ width: 64 }}>
               Time
+            </th>
+            <th style={{ width: 36 }}>
+              <span className="sr-only">Love</span>
             </th>
           </tr>
         </thead>
@@ -69,6 +73,9 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
                   </td>
                 )}
                 <td className="cx-mono text-right">{clock(track.duration)}</td>
+                <td onClick={(event) => event.stopPropagation()}>
+                  <LoveControl track={track} />
+                </td>
               </tr>
             );
           })}

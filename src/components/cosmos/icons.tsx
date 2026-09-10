@@ -96,6 +96,14 @@ export function MinimizeGlyph() {
   );
 }
 
+export function RestoreGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="6" y="7" width="12" height="11" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 export function CloseGlyph() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

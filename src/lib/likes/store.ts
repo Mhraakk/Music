@@ -62,7 +62,9 @@ export async function saveLoved(tracks: LibraryTrack[]): Promise<LibraryTrack[]>
 export async function toggleLoved(track: LibraryTrack): Promise<{ tracks: LibraryTrack[]; liked: boolean }> {
   const current = await loadLoved();
   const exists = current.some((row) => row.id === track.id);
-  const next = exists ? current.filter((row) => row.id !== track.id) : [...current, track];
+  const next = exists
+    ? current.filter((row) => row.id !== track.id)
+    : [...current, { ...track, note: lovedNote(track) }];
   await saveLoved(next);
   return { tracks: next, liked: !exists };
 }

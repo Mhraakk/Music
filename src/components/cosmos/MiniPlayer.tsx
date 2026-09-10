@@ -2,16 +2,17 @@
 
 /**
  * Listening window. No skip/next — the engine owns what follows.
- * Minimize collapses the stage. Close stops. Love teaches the next drift.
+ * Minimize docks. Close stops and hides. Love teaches the next drift.
  */
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
-import { CloseGlyph, HeartGlyph, MinimizeGlyph, PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { LoveControl } from "./LoveControl";
 import { NuclearStage } from "./NuclearStage";
 import { LyricsStage } from "./LyricsStage";
 import type { LyricLine } from "@/lib/lyrics/lrclib";
@@ -27,19 +28,31 @@ export function MiniPlayer() {
     usePlayer();
   const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
+  const [docked, setDocked] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
   const [lyricsStatus, setLyricsStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
+  const [lovedHint, setLovedHint] = useState<string | null>(null);
+  const prevLiked = useRef(false);
   const liked = Boolean(current && likedIds.includes(current.id));
 
-  const minimize = () => setExpanded(false);
+  const minimize = () => {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    setDocked(true);
+  };
+  const restore = () => setDocked(false);
   const closeWindow = () => {
     setExpanded(false);
+    setDocked(false);
     stop();
   };
   const yt = current ? youtubeVideoId(current) : null;
   const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
+  const mode = !current ? "idle" : docked ? "dock" : expanded ? "stage" : "bar";
 
   const total = current
     ? listenVia === "youtube" && nuclearDuration
@@ -57,6 +70,10 @@ export function MiniPlayer() {
         event.preventDefault();
         if (expanded) {
           setExpanded(false);
+          return;
+        }
+        if (current && !docked) {
+          setDocked(true);
           return;
         }
         if (current) stop();
@@ -90,12 +107,15 @@ export function MiniPlayer() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, expanded, progress, setVolume, seek, stop, toggle, total, volume]);
+  }, [current, docked, expanded, progress, setVolume, seek, stop, toggle, total, volume]);
 
   useEffect(() => {
     if (!current) {
       setLyricLines([]);
       setLyricsStatus("idle");
+      setExpanded(false);
+      setDocked(false);
+      setLovedHint(null);
       return;
     }
     let cancelled = false;
@@ -125,39 +145,89 @@ export function MiniPlayer() {
     };
   }, [current?.id, current?.artist, current?.title]);
 
+  useEffect(() => {
+    prevLiked.current = Boolean(current && likedIds.includes(current.id));
+    setLovedHint(null);
+    // Snapshot at track change only — a later like must still be able to whisper.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id]);
+
+  useEffect(() => {
+    if (!current) return;
+    if (liked && !prevLiked.current) {
+      setLovedHint("Loved. The next drift leans this way.");
+      prevLiked.current = true;
+      const timer = window.setTimeout(() => setLovedHint(null), 3200);
+      return () => window.clearTimeout(timer);
+    }
+    prevLiked.current = liked;
+  }, [current, liked]);
+
+  if (!current) return null;
+
   return (
-    <section className="cx-mini" aria-label="Now playing">
+    <section className="cx-mini" data-mode={mode} aria-label="Now playing">
       <div className="cx-progress">
         <span style={{ width: `${Math.round(progress * 100)}%` }} />
       </div>
 
-      <div className="cx-mini-bar">
-        <button
-          type="button"
-          onClick={() => current && setExpanded((v) => !v)}
-          className="flex min-w-0 items-center gap-3 text-left"
-          aria-label={current ? (expanded ? "Hide playing details" : "Show playing details") : "Not playing"}
-        >
-          <span
-            className="cx-mini-art"
-            style={{ backgroundColor: current?.tint ?? "var(--color-sand)" }}
+      {docked ? (
+        <div className="cx-dock">
+          <button type="button" className="cx-dock-main" aria-label="Restore" onClick={restore}>
+            <span className="cx-mini-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
+              {current.artworkUrl &&
+                (current.foundVia ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <Image src={current.artworkUrl} alt="" fill sizes="40px" style={{ objectFit: "cover" }} />
+                ))}
+            </span>
+            <span className="min-w-0">
+              <span className="cx-truncate block text-[13px] font-semibold leading-tight">{current.title}</span>
+              <span className="cx-truncate block text-[12px] leading-tight text-[var(--ink-3)]">{current.artist}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={toggle}
+            className="cx-icon-button"
+            data-solid="true"
+            aria-label={playing ? "Pause" : "Play"}
+            disabled={loading}
           >
-            {current?.artworkUrl &&
-              (current.foundVia ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <Image src={current.artworkUrl} alt="" fill sizes="48px" style={{ objectFit: "cover" }} />
-              ))}
-          </span>
-          <span className="min-w-0">
-            <span className="cx-truncate block text-[13px] font-semibold leading-tight">
-              {current?.title ?? "Not Playing"}
+            {loading ? <SpinnerGlyph /> : playing ? <PauseIcon /> : <PlayIcon />}
+          </button>
+          <div className="cx-window-chrome">
+            <LoveControl track={current} />
+            <button type="button" className="cx-window-ctrl" aria-label="Restore" onClick={restore}>
+              <RestoreGlyph />
+            </button>
+            <button type="button" className="cx-window-ctrl" aria-label="Close" onClick={closeWindow}>
+              <CloseGlyph />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="cx-mini-bar">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex min-w-0 items-center gap-3 text-left"
+            aria-label={expanded ? "Hide playing details" : "Show playing details"}
+          >
+            <span className="cx-mini-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
+              {current.artworkUrl &&
+                (current.foundVia ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <Image src={current.artworkUrl} alt="" fill sizes="48px" style={{ objectFit: "cover" }} />
+                ))}
             </span>
-            <span className="cx-truncate block text-[12px] leading-tight text-[var(--ink-3)]">
-              {current?.artist ?? "Choose a song to start"}
-            </span>
-            {current && (
+            <span className="min-w-0">
+              <span className="cx-truncate block text-[13px] font-semibold leading-tight">{current.title}</span>
+              <span className="cx-truncate block text-[12px] leading-tight text-[var(--ink-3)]">{current.artist}</span>
               <span className="mt-[2px] flex items-center gap-2 text-[11px] text-[var(--ink-3)]">
                 <span className="tabular-nums">
                   {clock(elapsed)} / {clock(total)}
@@ -195,77 +265,54 @@ export function MiniPlayer() {
                   </>
                 )}
               </span>
-            )}
-          </span>
-        </button>
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={toggle}
-          className="cx-icon-button"
-          data-solid="true"
-          aria-label={playing ? "Pause" : "Play"}
-          disabled={!current || loading}
-        >
-          {loading ? <SpinnerGlyph /> : playing ? <PauseIcon /> : <PlayIcon />}
-        </button>
-
-        <div className="hidden min-w-0 md:block">
-          <input
-            type="range"
-            min={0}
-            max={1000}
-            value={Math.round(progress * 1000)}
-            onChange={(e) => seek(Number(e.target.value) / 1000)}
-            aria-label="Position"
-            disabled={!current}
-          />
-        </div>
-
-        <div className="hidden items-center gap-2 lg:flex">
-          <VolumeGlyph />
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(volume * 100)}
-            onChange={(e) => setVolume(Number(e.target.value) / 100)}
-            aria-label="Volume"
-            disabled={!current}
-          />
-        </div>
-
-        <div className="cx-window-chrome">
           <button
             type="button"
-            className="cx-window-ctrl"
-            aria-label={liked ? "Loved" : "Love this recording"}
-            aria-pressed={liked}
-            disabled={!current}
-            onClick={() => toggleLike()}
+            onClick={toggle}
+            className="cx-icon-button"
+            data-solid="true"
+            aria-label={playing ? "Pause" : "Play"}
+            disabled={loading}
           >
-            <HeartGlyph filled={liked} />
+            {loading ? <SpinnerGlyph /> : playing ? <PauseIcon /> : <PlayIcon />}
           </button>
-          <button
-            type="button"
-            className="cx-window-ctrl"
-            aria-label="Minimize"
-            disabled={!current || !expanded}
-            onClick={minimize}
-          >
-            <MinimizeGlyph />
-          </button>
-          <button
-            type="button"
-            className="cx-window-ctrl"
-            aria-label="Close"
-            disabled={!current}
-            onClick={closeWindow}
-          >
-            <CloseGlyph />
-          </button>
+
+          <div className="hidden min-w-0 md:block">
+            <input
+              type="range"
+              min={0}
+              max={1000}
+              value={Math.round(progress * 1000)}
+              onChange={(e) => seek(Number(e.target.value) / 1000)}
+              aria-label="Position"
+            />
+          </div>
+
+          <div className="hidden items-center gap-2 lg:flex">
+            <VolumeGlyph />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(volume * 100)}
+              onChange={(e) => setVolume(Number(e.target.value) / 100)}
+              aria-label="Volume"
+            />
+          </div>
+
+          <div className="cx-window-chrome">
+            <LoveControl track={current} />
+            <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
+              <MinimizeGlyph />
+            </button>
+            <button type="button" className="cx-window-ctrl" aria-label="Close" onClick={closeWindow}>
+              <CloseGlyph />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {listenVia === "youtube" && yt && (
         <NuclearStage
@@ -278,7 +325,7 @@ export function MiniPlayer() {
           onFailed={nuclearFailed}
         />
       )}
-      {playing && listenVia === "soundcloud" && sc && current?.openUrl && (
+      {playing && listenVia === "soundcloud" && sc && current.openUrl && (
         <iframe
           className="cx-embed"
           title="SoundCloud"
@@ -287,7 +334,7 @@ export function MiniPlayer() {
         />
       )}
 
-      {expanded && current && (
+      {expanded && !docked && (
         <div className="cx-panel">
           <div className="cx-window-bar">
             <p className="cx-window-name">Now playing</p>
@@ -302,10 +349,7 @@ export function MiniPlayer() {
           </div>
 
           <div className="cx-window-stage">
-            <span
-              className="cx-window-art"
-              style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}
-            >
+            <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
               {current.artworkUrl &&
                 (current.foundVia ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -331,11 +375,13 @@ export function MiniPlayer() {
                   type="button"
                   className={`cx-pill cx-pill-compact ${liked ? "cx-pill-dark" : "cx-pill-ghost"}`}
                   aria-pressed={liked}
+                  aria-label={liked ? "Loved" : "Love this recording"}
                   onClick={() => toggleLike()}
                 >
                   {liked ? "Loved" : "Love this"}
                 </button>
               </div>
+              {lovedHint && <p className="cx-meta mt-2">{lovedHint}</p>}
             </div>
           </div>
 
@@ -510,11 +556,7 @@ export function MiniPlayer() {
             </div>
           </div>
 
-          {error && (
-            <p className="cx-meta mt-2">
-              {error}
-            </p>
-          )}
+          {error && <p className="cx-meta mt-2">{error}</p>}
         </div>
       )}
     </section>
