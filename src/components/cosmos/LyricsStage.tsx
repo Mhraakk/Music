@@ -23,7 +23,11 @@ export function LyricsStage({
   }
 
   useEffect(() => {
-    active.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const line = active.current;
+    const root = line?.closest(".cx-lyrics");
+    if (!line || !(root instanceof HTMLElement)) return;
+    const top = line.offsetTop - root.clientHeight / 2 + line.clientHeight / 2;
+    root.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }, [current]);
 
   if (!lines.length) return null;

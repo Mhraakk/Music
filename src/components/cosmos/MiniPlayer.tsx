@@ -5,13 +5,13 @@
  * Minimize docks. Close stops and hides. Love teaches the next drift.
  */
 
-import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
 import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
 import { NuclearStage } from "./NuclearStage";
 import { LyricsStage } from "./LyricsStage";
@@ -180,13 +180,7 @@ export function MiniPlayer() {
         <div className="cx-dock">
           <button type="button" className="cx-dock-main" aria-label="Restore" onClick={restore}>
             <span className="cx-mini-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
-              {current.artworkUrl &&
-                (current.foundVia ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                ) : (
-                  <Image src={current.artworkUrl} alt="" fill sizes="40px" style={{ objectFit: "cover" }} />
-                ))}
+              {current.artworkUrl && <Artwork src={current.artworkUrl} sizes="40px" />}
             </span>
             <span className="min-w-0">
               <span className="cx-truncate block text-[13px] font-semibold leading-tight">{current.title}</span>
@@ -222,13 +216,7 @@ export function MiniPlayer() {
             aria-label={expanded ? "Hide playing details" : "Show playing details"}
           >
             <span className="cx-mini-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
-              {current.artworkUrl &&
-                (current.foundVia ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={current.artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                ) : (
-                  <Image src={current.artworkUrl} alt="" fill sizes="48px" style={{ objectFit: "cover" }} />
-                ))}
+              {current.artworkUrl && <Artwork src={current.artworkUrl} sizes="48px" />}
             </span>
             <span className="min-w-0">
               <span className="cx-truncate block text-[13px] font-semibold leading-tight">{current.title}</span>
@@ -355,48 +343,44 @@ export function MiniPlayer() {
       )}
 
       {expanded && !docked && (
-        <div className="cx-panel">
-          <div className="cx-window-stage">
-            <div className="cx-poster">
-              <span className="cx-poster-glow" aria-hidden />
-              <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
-                {current.artworkUrl &&
-                  (current.foundVia ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={current.artworkUrl} alt="" />
-                  ) : (
-                    <Image src={current.artworkUrl} alt="" fill sizes="340px" style={{ objectFit: "cover" }} />
-                  ))}
-              </span>
-            </div>
-            <div className="min-w-0 w-full">
-              <p className="cx-window-track">{current.title}</p>
-              <p className="mt-1 text-[15px] text-[var(--ink-3)]">{current.artist}</p>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  className="cx-icon-button"
-                  data-solid="true"
-                  aria-label={playing ? "Pause" : "Play"}
-                  onClick={toggle}
-                >
-                  {playing ? <PauseIcon /> : <PlayIcon />}
-                </button>
-                <button
-                  type="button"
-                  className={`cx-pill cx-pill-compact ${liked ? "cx-pill-dark" : "cx-pill-ghost"}`}
-                  aria-pressed={liked}
-                  aria-label={liked ? "Loved" : "Love this recording"}
-                  onClick={() => toggleLike()}
-                >
-                  {liked ? "Loved" : "Love this"}
-                </button>
-              </div>
-              {lovedHint && <p className="cx-meta mt-2">{lovedHint}</p>}
-            </div>
+        <div className="cx-window-stage">
+          <div className="cx-poster">
+            <span className="cx-poster-glow" aria-hidden />
+            <span className="cx-window-art" style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}>
+              {current.artworkUrl && <Artwork src={current.artworkUrl} sizes="400px" />}
+            </span>
           </div>
+          <div className="min-w-0 w-full">
+            <p className="cx-window-track">{current.title}</p>
+            <p className="mt-1 text-[15px] text-[var(--ink-3)]">{current.artist}</p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                className="cx-icon-button"
+                data-solid="true"
+                aria-label={playing ? "Pause" : "Play"}
+                onClick={toggle}
+              >
+                {playing ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <button
+                type="button"
+                className={`cx-pill cx-pill-compact ${liked ? "cx-pill-dark" : "cx-pill-ghost"}`}
+                aria-pressed={liked}
+                aria-label={liked ? "Loved" : "Love this recording"}
+                onClick={() => toggleLike()}
+              >
+                {liked ? "Loved" : "Love this"}
+              </button>
+            </div>
+            {lovedHint && <p className="cx-meta mt-2">{lovedHint}</p>}
+          </div>
+        </div>
+      )}
 
-          <p className="cx-meta mb-1 mt-4">Thicker marks are this track&apos;s most exposed moments</p>
+      {expanded && !docked && (
+        <div className="cx-panel">
+          <p className="cx-meta mb-1">Thicker marks are this track&apos;s most exposed moments</p>
 
           <div className="relative h-6">
             <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-[var(--hairline)]" />
