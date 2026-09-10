@@ -1,5 +1,5 @@
 /**
- * LISTEN NOW — York canvas, Taste Skill composition.
+ * LISTEN NOW — Epidemic liner notes, oxblood chapters.
  */
 
 import Link from "next/link";
@@ -17,7 +17,9 @@ export default function ListenNowPage() {
     <>
       <section className="cx-hero">
         <p className="sr-only">Favorite Songs. Connect Apple Music.</p>
-        <h1 className="cx-display">Listen Now</h1>
+        <h1 className="cx-display">
+          Listen <em>Now</em>
+        </h1>
         <p className="cx-hero-lede">
           Every Noise branches, then the same recording on Apple Music, Spotify, YouTube Music, and SoundCloud.
         </p>
@@ -35,6 +37,19 @@ export default function ListenNowPage() {
           Open the atlas
         </Link>
       </section>
+
+      <section className="cx-chapter">
+        <div className="cx-chapter-inner">
+          <h2 className="cx-title">Every branch.</h2>
+          <p className="cx-body">
+            Six thousand rooms from everynoise.com. Tap DJ Krush or trip hop and keep walking.
+          </p>
+          <Link href="/atlas" className="cx-see-all">
+            Walk the map
+          </Link>
+        </div>
+      </section>
+
       <main className="cx-page">
         <DiscoverSurface
           topPicks={topPicks}

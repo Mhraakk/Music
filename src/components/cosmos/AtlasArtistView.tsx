@@ -89,7 +89,11 @@ export function AtlasArtistView({ name }: { name: string }) {
 
       {page.nearbyGenres.length > 0 && (
         <section className="cx-section">
-          <p className="cx-kicker">Their branches</p>
+          <div className="cx-section-head">
+            <h2 className="cx-title">
+              Their <em>branches.</em>
+            </h2>
+          </div>
           <div className="cx-atlas-chips">
             {page.nearbyGenres.map((genre) => (
               <Link key={genre.id} href={`/atlas/genre/${genre.id}`} className="cx-atlas-chip">
@@ -101,7 +105,11 @@ export function AtlasArtistView({ name }: { name: string }) {
       )}
 
       <section className="cx-section">
-        <p className="cx-kicker">Recordings</p>
+        <div className="cx-section-head">
+          <h2 className="cx-title">
+            <em>Recordings.</em>
+          </h2>
+        </div>
         <div className="cx-atlas-tracks">
           {page.tracks.map((card, index) => (
             <AtlasTrackRow
@@ -115,7 +123,11 @@ export function AtlasArtistView({ name }: { name: string }) {
 
       {page.features.length > 0 && (
         <section className="cx-section">
-          <p className="cx-kicker">Features on their map</p>
+          <div className="cx-section-head">
+            <h2 className="cx-title">
+              Features on their <em>map.</em>
+            </h2>
+          </div>
           <div className="cx-atlas-chips">
             {page.features.map((artist) => (
               <Link

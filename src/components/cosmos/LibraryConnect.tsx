@@ -16,7 +16,9 @@ export function LibraryConnect() {
   return (
     <section className="cx-section">
       <div className="cx-section-head">
-        <h2 className="cx-title">Favorite Songs</h2>
+        <h2 className="cx-title">
+          Favorite <em>Songs.</em>
+        </h2>
         <p className="cx-body">
           {connected && synced > 0
             ? `${count} from your Apple Music library, circulating here.`

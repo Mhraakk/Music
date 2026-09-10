@@ -47,7 +47,7 @@ export function TasteExpand() {
     <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
       <button
         type="button"
-        className="cx-pill cx-pill-dark shrink-0 disabled:opacity-50"
+        className="cx-pill cx-pill-primary shrink-0 disabled:opacity-50"
         onClick={() => void generate()}
         disabled={busy}
       >

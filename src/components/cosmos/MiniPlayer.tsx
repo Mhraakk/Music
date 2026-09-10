@@ -90,8 +90,8 @@ export function MiniPlayer() {
           aria-label={current ? (expanded ? "Hide playing details" : "Show playing details") : "Not playing"}
         >
           <span
-            className="relative h-12 w-12 shrink-0 overflow-hidden"
-            style={{ borderRadius: 6, backgroundColor: current?.tint ?? "var(--paper-sunken)" }}
+            className="cx-mini-art"
+            style={{ backgroundColor: current?.tint ?? "var(--color-sand)" }}
           >
             {current?.artworkUrl &&
               (current.foundVia ? (

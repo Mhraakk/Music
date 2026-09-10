@@ -14,7 +14,9 @@ export function SessionMind() {
   return (
     <section className="cx-section">
       <div className="cx-section-head">
-        <h2 className="cx-title">Made for You</h2>
+        <h2 className="cx-title">
+          Made for <em>You.</em>
+        </h2>
         <p className="cx-body">The engine keeps drifting from how you listen. There is no skip.</p>
         <Link href="/radio" className="cx-see-all">
           Open Radio

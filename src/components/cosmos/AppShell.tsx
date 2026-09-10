@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * York header. Mini-player always. No skip.
+ * Editorial header. Mini-player always. No skip.
  */
 
 import Link from "next/link";
@@ -10,7 +10,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { MiniPlayer } from "./MiniPlayer";
 
 const ITEMS = [
-  { href: "/", label: "Listen Now" },
+  { href: "/", label: "Listen Now", short: "Listen" },
   { href: "/atlas", label: "Atlas" },
   { href: "/collections", label: "Browse" },
   { href: "/radio", label: "Radio" },
@@ -68,7 +68,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => void connect()}
                   disabled={syncing}
                 >
-                  {syncing ? "Connecting…" : "Connect Apple Music"}
+                  {syncing ? "Connecting…" : (
+                    <>
+                      <span className="cx-connect-full">Connect Apple Music</span>
+                      <span className="cx-connect-short">Connect</span>
+                    </>
+                  )}
                 </button>
               )}
               <Link href="/signature" className="cx-floatnav-meta">
@@ -94,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="cx-tab"
               aria-current={active ? "page" : undefined}
             >
-              {item.label}
+              {item.short ?? item.label}
             </Link>
           );
         })}

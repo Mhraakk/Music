@@ -14,7 +14,9 @@ export default function ArtistsPage() {
   return (
     <main className="cx-page">
       <header className="cx-section-head">
-        <h1 className="cx-display">Artists</h1>
+        <h1 className="cx-display">
+          <em>Artists.</em>
+        </h1>
         <p className="cx-body">
           Reference artists. Closest recordings, not a follower count.
         </p>

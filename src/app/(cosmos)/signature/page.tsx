@@ -25,7 +25,9 @@ export default function SignaturePage() {
       </Link>
 
       <header className="cx-section-head">
-        <h1 className="cx-display">Signature</h1>
+        <h1 className="cx-display">
+          <em>Signature.</em>
+        </h1>
         <p className="cx-body">
           Three photographs the work is signed with. They sit on the same emotional map as the music.
         </p>

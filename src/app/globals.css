@@ -3,8 +3,8 @@
 @import "./variables.css";
 
 /*
- * York @theme must not crush Tailwind spacing/radius utilities.
- * The 4px design grid lives on --spacing-unit and named :root tokens.
+ * Epidemic named spacing lives on :root.
+ * Restore Tailwind's spacing scale so utilities like p-4 keep working.
  */
 @theme {
   --spacing-4: calc(var(--spacing) * 4);
@@ -24,13 +24,11 @@
 }
 
 html {
-  --font-twk-lausanne: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-pp-mondwest: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-editorial-new: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-roobert: var(--font-twk-lausanne);
-  --font-raleway: var(--font-twk-lausanne);
-  --font-geist-mono: var(--font-loaded-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-display), ui-serif, Georgia, serif;
+  --font-twk-lausanne: var(--font-inter);
+  --font-pp-mondwest: var(--font-sebentafont-custom-editorial-serif);
+  --ease-glide: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 * {
@@ -40,10 +38,10 @@ html {
 html,
 body {
   min-height: 100%;
-  background: var(--surface-canvas);
-  color: var(--color-press-black);
-  font-family: var(--font-twk-lausanne);
-  font-weight: var(--font-weight-regular);
+  background: var(--surface-page-canvas);
+  color: var(--color-ink-black);
+  font-family: var(--font-inter);
+  font-weight: 400;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
@@ -60,10 +58,10 @@ body {
 }
 
 .display {
-  font-size: clamp(2.75rem, 8vw, 4.5rem);
-  font-family: var(--font-twk-lausanne);
-  font-weight: 550;
-  line-height: 1.05;
+  font-family: var(--font-sebentafont-custom-editorial-serif);
+  font-size: clamp(40px, 10vw, 80px);
+  font-weight: 500;
+  line-height: 1.06;
   letter-spacing: -0.04em;
 }
 

@@ -167,7 +167,9 @@ export function DiscoverSurface({
 
       {searching ? (
         <section className="cx-section">
-          <h2 className="cx-title mb-4">Search results</h2>
+          <h2 className="cx-title mb-4">
+            Search <em>results.</em>
+          </h2>
           <MasonryGrid tracks={results} />
           {canShowMore && (
             <div className="mt-8 flex justify-center">
@@ -188,19 +190,9 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
-              <h2 className="cx-title">Atlas</h2>
-              <p className="cx-body">
-                Electronic branches from everynoise.com. Tap DJ Krush or trip hop and keep walking the features.
-              </p>
-              <Link href="/atlas" className="cx-see-all">
-                Open Every Noise
-              </Link>
-            </div>
-          </section>
-
-          <section className="cx-section">
-            <div className="cx-section-head">
-              <h2 className="cx-title">Emotional map</h2>
+              <h2 className="cx-title">
+                Emotional <em>map.</em>
+              </h2>
               <p className="cx-body">
                 Tap a room. Refresh pulls new Apple Music recordings for that feeling, not the static shelf.
               </p>
@@ -226,7 +218,9 @@ export function DiscoverSurface({
           {arrived.length > 0 && (
             <section className="cx-section">
               <div className="cx-section-head">
-                <h2 className="cx-title">Just arrived</h2>
+                <h2 className="cx-title">
+                  Just <em>arrived.</em>
+                </h2>
               </div>
               {arrived[0]?.note && <p className="cx-meta mb-3">{arrived[0].note}</p>}
               <AlbumRow tracks={arrived} />
@@ -236,7 +230,9 @@ export function DiscoverSurface({
           {otherFresh.length > 0 && (
             <section className="cx-section">
               <div className="cx-section-head">
-                <h2 className="cx-title">New for you</h2>
+                <h2 className="cx-title">
+                  New for <em>you.</em>
+                </h2>
               </div>
               <AlbumRow tracks={otherFresh} />
             </section>
@@ -244,7 +240,9 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
-              <h2 className="cx-title">Top Picks</h2>
+              <h2 className="cx-title">
+                Top <em>Picks.</em>
+              </h2>
               <p className="cx-body">The recordings the engine would put on first. Image-led, no charts.</p>
             </div>
             <FeaturedPicks tracks={topPicks.slice(0, 3)} />
@@ -259,7 +257,9 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
-              <h2 className="cx-title">Stations</h2>
+              <h2 className="cx-title">
+                <em>Stations.</em>
+              </h2>
               <p className="cx-body">Neighbourhoods on the map. Tap one and the engine stays there.</p>
               <Link href="/collections" className="cx-see-all">
                 See all stations
@@ -270,7 +270,9 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
-              <h2 className="cx-title">New Music Mix</h2>
+              <h2 className="cx-title">
+                New Music <em>Mix.</em>
+              </h2>
               <p className="cx-body">Fresh recordings in circulation. Apple first, then the shelf.</p>
             </div>
             <AlbumRow tracks={[...circulating.slice(0, 4), ...newMusic].filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i).slice(0, 16)} />
@@ -278,7 +280,9 @@ export function DiscoverSurface({
 
           <section className="cx-section">
             <div className="cx-section-head">
-              <h2 className="cx-title">Artists</h2>
+              <h2 className="cx-title">
+                <em>Artists.</em>
+              </h2>
               <p className="cx-body">People the catalog already occupies, not a genre list.</p>
               <Link href="/curators" className="cx-see-all">
                 See all artists

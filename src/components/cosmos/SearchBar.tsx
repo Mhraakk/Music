@@ -112,7 +112,7 @@ export function SearchBar({
             <input
               type="color"
               className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0"
-              value={activeHex ?? "#688559"}
+              value={activeHex ?? "#4a242c"}
               onChange={(e) => onChange({ kind: "color", hex: e.target.value })}
               aria-label="Pick any colour"
             />

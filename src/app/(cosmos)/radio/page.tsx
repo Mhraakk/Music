@@ -13,7 +13,9 @@ export default function RadioPage() {
   return (
     <main className="cx-page">
       <header className="cx-section-head">
-        <h1 className="cx-display">Radio</h1>
+        <h1 className="cx-display">
+          <em>Radio.</em>
+        </h1>
         <p className="cx-body">
           Nine stations. Tap one and Resonant drifts from there. No skip, no shuffle.
         </p>
