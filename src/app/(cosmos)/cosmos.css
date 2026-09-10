@@ -1411,7 +1411,7 @@
   padding: 24px;
   border-radius: 0;
   background: var(--color-bone);
-  border: 0;
+  border: 1px solid var(--color-stone);
   color: var(--color-ink-black);
   text-transform: none;
   font-family: var(--font-inter), sans-serif;
