@@ -74,6 +74,10 @@ export type LibraryTrack = {
   spotifyUrl?: string | null;
   youtubeMusicUrl?: string | null;
   soundcloudUrl?: string | null;
+  /** Public search page on a named 网易/QQ/酷狗/酷我 catalog. Never an in-app stream. */
+  metingUrl?: string | null;
+  metingPlatform?: "netease" | "tencent" | "kugou" | "kuwo" | null;
+  metingLabel?: string | null;
 };
 
 function aspectFor(track: DriftTrack, media: TrackMedia | null): number {

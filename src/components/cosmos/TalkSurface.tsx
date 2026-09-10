@@ -326,7 +326,7 @@ export function TalkSurface() {
                       </span>
                       <PlayIcon size={12} />
                     </button>
-                    {(track.openUrl || track.appleUrl || track.spotifyUrl || track.youtubeMusicUrl || track.soundcloudUrl || track.videoUrl) && (
+                    {(track.openUrl || track.appleUrl || track.spotifyUrl || track.youtubeMusicUrl || track.soundcloudUrl || track.metingUrl || track.videoUrl) && (
                       <span className="flex shrink-0 flex-wrap items-center justify-end">
                         {(track.openUrl || track.appleUrl) && (
                           <a
@@ -336,6 +336,16 @@ export function TalkSurface() {
                             className="cx-meta px-2"
                           >
                             Apple
+                          </a>
+                        )}
+                        {track.metingUrl && (
+                          <a
+                            href={track.metingUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="cx-meta px-2"
+                          >
+                            {track.metingLabel ?? "Catalog"}
                           </a>
                         )}
                         {track.spotifyUrl && (

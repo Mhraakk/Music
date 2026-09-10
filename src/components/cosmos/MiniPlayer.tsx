@@ -390,6 +390,16 @@ export function MiniPlayer() {
                   SoundCloud
                 </a>
               )}
+              {current.metingUrl && (
+                <a
+                  href={current.metingUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="cx-pill cx-pill-ghost cx-pill-compact shrink-0"
+                >
+                  {current.metingLabel ?? "Catalog"}
+                </a>
+              )}
               {(current.videoUrl || yt) && (
                 <a
                   href={current.videoUrl || `https://www.youtube.com/watch?v=${yt}`}

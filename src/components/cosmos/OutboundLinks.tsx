@@ -8,6 +8,10 @@ export type OutboundSource = {
   spotifyArtist?: string | null;
   youtubeMusic?: string | null;
   soundcloud?: string | null;
+  netease?: string | null;
+  qqMusic?: string | null;
+  kugou?: string | null;
+  kuwo?: string | null;
 };
 
 const LINKS: { key: keyof OutboundSource; label: string }[] = [
@@ -15,6 +19,10 @@ const LINKS: { key: keyof OutboundSource; label: string }[] = [
   { key: "spotify", label: "Spotify" },
   { key: "youtubeMusic", label: "YouTube Music" },
   { key: "soundcloud", label: "SoundCloud" },
+  { key: "netease", label: "NetEase" },
+  { key: "qqMusic", label: "QQ Music" },
+  { key: "kugou", label: "KuGou" },
+  { key: "kuwo", label: "Kuwo" },
 ];
 
 const ARTIST_LINKS: { key: keyof OutboundSource; label: string }[] = [
@@ -30,6 +38,10 @@ export function outboundFromTrack(track: LibraryTrack): OutboundSource {
     spotify: track.spotifyUrl,
     youtubeMusic: track.youtubeMusicUrl,
     soundcloud: track.soundcloudUrl,
+    netease: track.metingPlatform === "netease" ? track.metingUrl : null,
+    qqMusic: track.metingPlatform === "tencent" ? track.metingUrl : null,
+    kugou: track.metingPlatform === "kugou" ? track.metingUrl : null,
+    kuwo: track.metingPlatform === "kuwo" ? track.metingUrl : null,
   };
 }
 

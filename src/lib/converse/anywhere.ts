@@ -3,6 +3,7 @@
  *
  * Apple Music first. YouTube is for official videos/trailers, or when the
  * listener named YouTube. Iranian-script hits are skipped unless asked.
+ * Named 网易/QQ/酷狗/酷我 still search Apple; a public catalog page is attached.
  */
 
 import {
@@ -18,6 +19,12 @@ import type { LibraryTrack } from "@/lib/library";
 import { latinCore, namedArtistQuery } from "./intent";
 import { matchRoom } from "./rooms";
 import { ROOM_LIVE_PROBES } from "./probes";
+import {
+  hasCatalogScript,
+  metingCatalogFor,
+  stripMetingTokens,
+  wantsMetingPlatform,
+} from "@/lib/meting/platforms";
 
 export type MusicSource = "deezer" | "youtube" | "youtube_music" | "soundcloud" | "apple";
 
@@ -85,8 +92,11 @@ export function wantsSoundcloud(query: string): boolean {
 }
 
 function searchQueries(raw: string): string[] {
-  const q = raw.trim();
-  if (!q) return [];
+  const original = raw.trim();
+  if (!original) return [];
+  const stripped = stripMetingTokens(original);
+  if (wantsMetingPlatform(original) && !stripped) return [];
+  const q = stripped || original;
   const extra: string[] = [];
   const shamsiNineties = /دهه\s*۹۰\s*شمسی|دهه نود شمسی/.test(q);
   if (shamsiNineties) {
@@ -110,10 +120,11 @@ function searchQueries(raw: string): string[] {
     extra.push(...(ROOM_LIVE_PROBES[room as CoordinateId] ?? []).slice(0, 2));
   }
 
-  if (wantsIranian(q)) {
-    return [...new Set([q, ...extra, named, latinCore(q)].filter((s): s is string => Boolean(s)))].slice(0, 3);
+  if (wantsIranian(original)) {
+    return [...new Set([q, ...extra, named, latinCore(original)].filter((s): s is string => Boolean(s)))].slice(0, 3);
   }
-  const out = [...extra, named].filter((s): s is string => Boolean(s)).map((s) => s.trim());
+  const catalog = !named && (wantsMetingPlatform(original) || hasCatalogScript(q)) ? q : null;
+  const out = [...extra, named, catalog].filter((s): s is string => Boolean(s)).map((s) => s.trim());
   return [...new Set(out.filter(Boolean))].slice(0, 3);
 }
 
@@ -485,7 +496,10 @@ async function searchSoundCloud(query: string, limit: number): Promise<FoundHit[
 }
 
 function keyOf(hit: FoundHit): string {
-  return `${hit.artist}::${hit.title}`.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g, " ").trim();
+  return `${hit.artist}::${hit.title}`
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06ff\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]+/g, " ")
+    .trim();
 }
 
 function toLibraryTrack(hit: FoundHit): LibraryTrack {
@@ -528,6 +542,19 @@ function toLibraryTrack(hit: FoundHit): LibraryTrack {
     videoId: hit.videoId ?? null,
     videoUrl: hit.videoId ? `https://www.youtube.com/watch?v=${hit.videoId}` : null,
   };
+}
+
+function withMetingCatalog(tracks: LibraryTrack[], query: string): LibraryTrack[] {
+  return tracks.map((track) => {
+    const catalog = metingCatalogFor(query, track.artist, track.title);
+    if (!catalog) return track;
+    return {
+      ...track,
+      metingUrl: catalog.url,
+      metingPlatform: catalog.platform,
+      metingLabel: catalog.label,
+    };
+  });
 }
 
 function interleave(groups: FoundHit[][], limit: number): FoundHit[] {
@@ -584,6 +611,14 @@ export async function officialVideo(artist: string, title: string): Promise<stri
   return official?.externalId ?? hits[0]?.externalId ?? null;
 }
 
+async function appleCatalog(query: string, limit: number, preferArtist: boolean): Promise<FoundHit[]> {
+  if (preferArtist && looksLikeArtistName(query)) {
+    const byArtist = await appleSongsByArtist(query, limit).catch(() => [] as FoundHit[]);
+    if (byArtist.length) return byArtist;
+  }
+  return searchApple(query, limit).catch(() => [] as FoundHit[]);
+}
+
 async function attachTrailers(tracks: LibraryTrack[], cap = 4): Promise<LibraryTrack[]> {
   const targets = tracks.filter((t) => t.foundVia === "apple" && !t.videoId).slice(0, cap);
   await Promise.all(
@@ -606,25 +641,24 @@ export type FindMusicOptions = {
 
 export async function findMusic(query: string, limit = 10, options: FindMusicOptions = {}): Promise<LibraryTrack[]> {
   const cap = Math.max(4, Math.min(12, limit));
-  const queries =
-    options.artistFocus && query.trim() ? [query.trim()] : searchQueries(query);
-  if (!queries.length) return [];
   const original = query.trim();
+  const catalogQuery = stripMetingTokens(original) || original;
+  const queries =
+    options.artistFocus && catalogQuery ? [catalogQuery] : searchQueries(query);
+  if (!queries.length) return [];
   const catalogQueries = queries.slice(0, 2);
   const namedQuery = queries[0];
   const iranianOk = wantsIranian(original);
   const youtubeNamed = wantsYoutube(original);
   const soundcloudNamed = wantsSoundcloud(original);
   const skipWeb = options.appleOnly === true;
-  const artistFocus = options.artistFocus === true || looksLikeArtistName(namedQuery);
+  const artistFocus =
+    options.artistFocus === true ||
+    (looksLikeArtistName(namedQuery) && !wantsMetingPlatform(original) && !hasCatalogScript(namedQuery));
 
   const [apple, deezer, youtube, youtubeMusic, soundcloud] = await Promise.all([
     Promise.all(
-      catalogQueries.map((q) =>
-        (artistFocus && looksLikeArtistName(q) ? appleSongsByArtist(q, cap) : searchApple(q, cap)).catch(
-          () => [] as FoundHit[]
-        )
-      )
+      catalogQueries.map((q) => appleCatalog(q, cap, artistFocus))
     ).then((groups) => groups.flat()),
     skipWeb
       ? Promise.resolve([] as FoundHit[])
@@ -650,7 +684,7 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
 
   const mixed = interleave(
     orderGroups(original, apple, deezer, youtubeMusic, soundcloud, youtube).map((g) =>
-      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", artistFocus)
+      preferArtistHits(g.filter(keep), artistFocus ? namedQuery : "", options.artistFocus === true)
     ),
     cap
   );
@@ -673,7 +707,7 @@ export async function findMusic(query: string, limit = 10, options: FindMusicOpt
     if (unique.length >= cap) break;
   }
 
-  const tracks = unique.map(toLibraryTrack);
+  const tracks = withMetingCatalog(unique.map(toLibraryTrack), original);
   if (options.attachVideo === false) return tracks;
   return attachTrailers(tracks, 3);
 }
