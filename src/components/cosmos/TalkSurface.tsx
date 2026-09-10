@@ -17,6 +17,7 @@ const STARTERS = [
   { fa: "آهنگ‌های شبیه Radiohead", en: "Songs like Radiohead" },
   { fa: "یه آهنگ گرم سینمایی بذار", en: "Play something warm and cinematic" },
   { fa: "نماهنگ رسمی Nothing Compares 2 U", en: "Official video for this song" },
+  { fa: "الان چی پخش می‌شه", en: "What's playing now" },
   { fa: "متن این آهنگ", en: "Lyrics for this song" },
 ];
 

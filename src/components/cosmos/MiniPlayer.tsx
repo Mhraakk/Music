@@ -44,6 +44,39 @@ export function MiniPlayer() {
   const elapsed = progress * total;
 
   useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (event.code === "Space") {
+        event.preventDefault();
+        toggle();
+        return;
+      }
+      if (!current || !total) return;
+      if (event.code === "ArrowLeft") {
+        event.preventDefault();
+        seek(Math.max(0, progress - 5 / total));
+        return;
+      }
+      if (event.code === "ArrowRight") {
+        event.preventDefault();
+        seek(Math.min(1, progress + 5 / total));
+        return;
+      }
+      if (event.code === "ArrowUp") {
+        event.preventDefault();
+        setVolume(Math.min(1, volume + 0.05));
+        return;
+      }
+      if (event.code === "ArrowDown") {
+        event.preventDefault();
+        setVolume(Math.max(0, volume - 0.05));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [current, progress, setVolume, seek, toggle, total, volume]);
+
+  useEffect(() => {
     if (!current) {
       setLyricLines([]);
       setLyricsStatus("idle");

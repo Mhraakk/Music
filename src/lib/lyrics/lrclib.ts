@@ -3,7 +3,7 @@
  *
  * Cyrene's desktop player shows LRC against the current track. Resonant does
  * the same on the web, from lrclib (no NetEase login, no Electron). Parser is
- * original — public LRC timestamps, not Cyrene source.
+ * original — public LRC timestamps plus `[offset:±ms]`, not Cyrene source.
  */
 
 export type LyricLine = {
@@ -22,9 +22,11 @@ export type LyricsResult = {
 };
 
 const TIME_TAG = /^(\d+):(\d{1,2})(?:[.:](\d{1,3}))?$/;
+const OFFSET_TAG = /^offset\s*:\s*([+-]?\d+)$/i;
 
 export function parseLrc(lrc: string): LyricLine[] {
   if (!lrc.trim()) return [];
+  let offsetMs = 0;
   const lines: LyricLine[] = [];
   for (const raw of lrc.split(/\r?\n/)) {
     let rest = raw.trim();
@@ -35,13 +37,17 @@ export function parseLrc(lrc: string): LyricLine[] {
       const tag = rest.slice(1, close);
       rest = rest.slice(close + 1).trim();
       const time = TIME_TAG.exec(tag);
-      if (!time) continue;
-      const msPart = time[3] ? Number(time[3].padEnd(3, "0")) : 0;
-      stamps.push(Number(time[1]) * 60_000 + Number(time[2]) * 1000 + msPart);
+      if (time) {
+        const msPart = time[3] ? Number(time[3].padEnd(3, "0")) : 0;
+        stamps.push(Number(time[1]) * 60_000 + Number(time[2]) * 1000 + msPart);
+        continue;
+      }
+      const offset = OFFSET_TAG.exec(tag);
+      if (offset) offsetMs = Number(offset[1]);
     }
     const text = rest.replace(/<[^>]+>/g, "").trim();
     if (!text || !stamps.length) continue;
-    for (const timeMs of stamps) lines.push({ timeMs, text });
+    for (const timeMs of stamps) lines.push({ timeMs: Math.max(0, timeMs - offsetMs), text });
   }
   lines.sort((a, b) => a.timeMs - b.timeMs);
   return lines;
