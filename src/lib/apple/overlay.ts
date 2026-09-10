@@ -45,7 +45,7 @@ export function parseFavoriteOverlay(raw: unknown): FavoriteOverlay[] {
     const title = typeof r.title === "string" ? r.title : "";
     const artist = typeof r.artist === "string" ? r.artist : "";
     const vector = asVector(r.vector);
-    if (!id.startsWith("f-") || !title || !artist || !vector) continue;
+    if (!/^(f-|l-|w-)/.test(id) || !title || !artist || !vector) continue;
     out.push({
       id,
       title,
@@ -53,7 +53,14 @@ export function parseFavoriteOverlay(raw: unknown): FavoriteOverlay[] {
       duration: typeof r.duration === "number" && r.duration > 0 ? r.duration : 240,
       vector,
       note: typeof r.note === "string" ? r.note : undefined,
-      appleMusicId: typeof r.appleMusicId === "string" ? r.appleMusicId : id.slice(2),
+      appleMusicId:
+        typeof r.appleMusicId === "string"
+          ? r.appleMusicId
+          : id.startsWith("f-")
+            ? id.slice(2)
+            : id.startsWith("w-it-")
+              ? id.slice(5)
+              : null,
     });
   }
   return out;

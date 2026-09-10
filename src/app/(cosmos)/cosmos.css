@@ -1198,7 +1198,7 @@
 
 .cx-mini-bar {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: var(--element-gap);
   min-height: var(--player-height);
@@ -1207,7 +1207,7 @@
 
 @media (min-width: 900px) {
   .cx-mini-bar {
-    grid-template-columns: minmax(180px, 1.1fr) auto minmax(180px, 1.4fr) minmax(100px, 0.7fr);
+    grid-template-columns: minmax(160px, 1.1fr) auto minmax(140px, 1.3fr) minmax(90px, 0.6fr) auto;
     padding: 8px 24px;
   }
 }
@@ -1283,8 +1283,121 @@
 .cx-panel {
   border-top: 1px solid var(--hairline);
   padding: var(--card-padding);
-  max-height: min(52vh, 480px);
+  max-height: min(72vh, 640px);
   overflow-y: auto;
+}
+
+.cx-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -8px -8px 16px;
+  padding: 0 8px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cx-window-name {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cx-window-chrome {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cx-window-ctrl {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.cx-window-ctrl:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(244, 241, 234, 0.06);
+}
+
+.cx-window-ctrl:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.cx-window-stage {
+  display: grid;
+  gap: 16px;
+  align-items: end;
+}
+
+@media (min-width: 700px) {
+  .cx-window-stage {
+    grid-template-columns: 168px 1fr;
+    gap: 24px;
+  }
+}
+
+.cx-window-art {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  overflow: hidden;
+}
+
+@media (min-width: 700px) {
+  .cx-window-art {
+    width: 168px;
+    height: 168px;
+  }
+}
+
+.cx-window-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cx-window-track {
+  font-family: var(--font-sebentafont-custom-editorial-serif);
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.cx-duration {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cx-atlas-play {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-wheat-paste {
+  width: min(100%, 520px);
+  min-height: 88px;
+  padding: 12px 16px;
+  background: var(--color-graphite, var(--color-mist));
+  color: var(--color-ink-black);
+  border: 1px solid var(--hairline);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
 }
 
 .cx-mini .cx-pill-ghost {

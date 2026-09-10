@@ -1,4 +1,5 @@
 import type { LibraryTrack } from "@/lib/library";
+import { capToDuration } from "@/lib/listen/duration";
 import { fetchEveryNoise, MAP_TTL_MS, PAGE_TTL_MS } from "./fetch";
 import { inFamily } from "./families";
 import {
@@ -157,20 +158,54 @@ export async function atlasArtist(name: string, enrichLimit = 10): Promise<{
   };
 }
 
+function harvestLimit(input: { limit?: number; durationMinutes?: number }): number {
+  if (input.durationMinutes && input.durationMinutes > 0) {
+    return Math.max(8, Math.min(36, Math.ceil((input.durationMinutes * 60) / 150)));
+  }
+  return Math.max(4, Math.min(16, input.limit ?? 10));
+}
+
+function finishHarvest(tracks: LibraryTrack[], title: string, durationMinutes?: number): {
+  tracks: LibraryTrack[];
+  title: string;
+  durationSeconds: number;
+} {
+  const unique: LibraryTrack[] = [];
+  const seen = new Set<string>();
+  for (const track of tracks) {
+    if (seen.has(track.id)) continue;
+    seen.add(track.id);
+    unique.push(track);
+  }
+  const capped = durationMinutes ? capToDuration(unique, durationMinutes) : unique;
+  const durationSeconds = capped.reduce((sum, track) => sum + (track.duration > 45 ? track.duration : 210), 0);
+  return { tracks: capped, title, durationSeconds };
+}
+
 export async function harvestAtlas(input: {
   artist?: string;
   genre?: string;
   query?: string;
   limit?: number;
-}): Promise<{ tracks: LibraryTrack[]; title: string }> {
-  const limit = Math.max(4, Math.min(16, input.limit ?? 10));
+  durationMinutes?: number;
+}): Promise<{ tracks: LibraryTrack[]; title: string; durationSeconds: number }> {
+  const limit = harvestLimit(input);
+  const minutes = input.durationMinutes && input.durationMinutes > 0 ? input.durationMinutes : undefined;
   if (input.artist?.trim()) {
     const page = await atlasArtist(input.artist, limit);
-    return { tracks: page?.libraryTracks.slice(0, limit) ?? [], title: page?.artist.name ?? input.artist };
+    return finishHarvest(page?.libraryTracks ?? [], page?.artist.name ?? input.artist, minutes);
   }
   if (input.genre?.trim()) {
     const page = await atlasGenre(genreSlug(input.genre), limit);
-    return { tracks: page?.libraryTracks.slice(0, limit) ?? [], title: page?.genre?.label ?? input.genre };
+    const extra: LibraryTrack[] = [...(page?.libraryTracks ?? [])];
+    if (minutes && extra.length < 4) {
+      for (const artist of (page?.artists ?? []).slice(0, 6)) {
+        const more = await recordingsForArtist(artist.name, 4);
+        extra.push(...more);
+        if (extra.length >= limit) break;
+      }
+    }
+    return finishHarvest(extra, page?.genre?.label ?? input.genre, minutes);
   }
   const query = input.query?.trim();
   if (query) {
@@ -178,23 +213,16 @@ export async function harvestAtlas(input: {
     const first = listed.genres[0];
     if (first) {
       const page = await atlasGenre(first.id, limit);
-      return { tracks: page?.libraryTracks.slice(0, limit) ?? [], title: first.label };
+      return finishHarvest(page?.libraryTracks ?? [], first.label, minutes);
     }
     const artist = await atlasArtist(query, limit);
-    return { tracks: artist?.libraryTracks.slice(0, limit) ?? [], title: query };
+    return finishHarvest(artist?.libraryTracks ?? [], query, minutes);
   }
   const listed = await listAtlasGenres({ family: "electronic", limit: 6 });
-  const pages = await Promise.all(listed.genres.slice(0, 3).map((g) => atlasGenre(g.id, 4)));
+  const pages = await Promise.all(listed.genres.slice(0, 3).map((g) => atlasGenre(g.id, Math.max(4, Math.ceil(limit / 3)))));
   const tracks: LibraryTrack[] = [];
-  const seen = new Set<string>();
   for (const page of pages) {
-    for (const track of page?.libraryTracks ?? []) {
-      if (seen.has(track.id)) continue;
-      seen.add(track.id);
-      tracks.push(track);
-      if (tracks.length >= limit) break;
-    }
-    if (tracks.length >= limit) break;
+    tracks.push(...(page?.libraryTracks ?? []));
   }
-  return { tracks, title: "Electronic atlas" };
+  return finishHarvest(tracks, "Electronic atlas", minutes);
 }

@@ -74,6 +74,28 @@ export function SearchGlyph() {
   );
 }
 
+export function HeartGlyph({ filled = false, size = 16 }: { filled?: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path
+        d="M12.1 20.3s-6.6-4.1-8.6-8.1C1.8 9.2 3.1 6 6.4 6c1.8 0 3.1 1 3.7 2.1C10.8 7 12.1 6 13.9 6c3.3 0 4.6 3.2 2.9 6.2-2 4-8.7 8.1-8.7 8.1z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function MinimizeGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 12h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CloseGlyph() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>

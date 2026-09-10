@@ -42,7 +42,7 @@ export default function ListenNowPage() {
         <div className="cx-chapter-inner">
           <h2 className="cx-title">Every branch.</h2>
           <p className="cx-body">
-            Six thousand rooms from everynoise.com. Tap DJ Krush or trip hop and keep walking.
+            Six thousand rooms from everynoise.com. Tap DJ Krush or trip hop, pick 15 to 60 minutes, keep walking.
           </p>
           <Link href="/atlas" className="cx-see-all">
             Walk the map

@@ -1,8 +1,8 @@
 /**
  * IMPLICIT RESONANCE
  *
- * There is no like button, no thumbs, no star rating and no skip. The engine
- * reads what the listener does rather than what they claim.
+ * Volume on an exposed moment is still the load-bearing implicit signal.
+ * An explicit like is extra evidence, never a skip, never a next-track.
  *
  * The load-bearing signal is a volume gesture landing on an exposed moment. If
  * someone reaches for the dial while a voice is audibly breaking, that is a far
@@ -22,7 +22,8 @@ export type ResonanceSignalKind =
   | "abandon"
   | "seek_back"
   | "seek_forward"
-  | "stillness";
+  | "stillness"
+  | "explicit_like";
 
 export type ResonanceSignal = {
   kind: ResonanceSignalKind;
@@ -68,6 +69,7 @@ const BASE_WEIGHT: Record<ResonanceSignalKind, number> = {
   // never reaches for the dial is not objecting — but it must not accumulate
   // into a conviction strong enough to redirect a drift the listener asked for.
   stillness: 0.14,
+  explicit_like: 0.78,
 };
 
 /** Signals whose meaning depends on landing inside a fragility window. */
@@ -135,6 +137,8 @@ function noteFor(signal: ResonanceSignal): string {
       return `skipped ahead ${where}`;
     case "stillness":
       return "listened without touching anything";
+    case "explicit_like":
+      return "marked this as a favorite";
   }
 }
 

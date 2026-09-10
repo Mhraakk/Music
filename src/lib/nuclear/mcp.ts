@@ -456,8 +456,9 @@ export async function nuclearCall(method: string, params: Record<string, unknown
     case "Favorites.getTracks":
     case "Favorites.addTrack":
     case "Favorites.isTrackFavorite":
-      return textResult("Favorite Songs live in the listener's browser (IndexedDB on Listen Now), not on this MCP server.", {
+      return textResult("Loved recordings live on Listen Now: the heart on the player. Favorite Songs stay in the browser, not on this MCP server.", {
         browserOwned: true,
+        likeOnPlayer: true,
       });
     case "Playlists.getIndex":
     case "Playlists.createPlaylist":

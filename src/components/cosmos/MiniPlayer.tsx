@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Full-width mini-player. No skip/next — the engine owns what follows.
- * Expand the bar for destination, volume, and the current reading.
+ * Listening window. No skip/next — the engine owns what follows.
+ * Minimize collapses the stage. Close stops. Love teaches the next drift.
  */
 
 import Image from "next/image";
@@ -11,7 +11,7 @@ import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
-import { PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { CloseGlyph, HeartGlyph, MinimizeGlyph, PauseIcon, PlayIcon, SpinnerGlyph, VolumeGlyph } from "./icons";
 import { NuclearStage } from "./NuclearStage";
 import { LyricsStage } from "./LyricsStage";
 import type { LyricLine } from "@/lib/lyrics/lrclib";
@@ -23,13 +23,20 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt } =
+  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds } =
     usePlayer();
-  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed } = usePlayerActions();
+  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
   const [lyricsStatus, setLyricsStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
+  const liked = Boolean(current && likedIds.includes(current.id));
+
+  const minimize = () => setExpanded(false);
+  const closeWindow = () => {
+    setExpanded(false);
+    stop();
+  };
   const yt = current ? youtubeVideoId(current) : null;
   const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
@@ -46,6 +53,15 @@ export function MiniPlayer() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      if (event.code === "Escape") {
+        event.preventDefault();
+        if (expanded) {
+          setExpanded(false);
+          return;
+        }
+        if (current) stop();
+        return;
+      }
       if (event.code === "Space") {
         event.preventDefault();
         toggle();
@@ -74,7 +90,7 @@ export function MiniPlayer() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, progress, setVolume, seek, toggle, total, volume]);
+  }, [current, expanded, progress, setVolume, seek, stop, toggle, total, volume]);
 
   useEffect(() => {
     if (!current) {
@@ -218,6 +234,37 @@ export function MiniPlayer() {
             disabled={!current}
           />
         </div>
+
+        <div className="cx-window-chrome">
+          <button
+            type="button"
+            className="cx-window-ctrl"
+            aria-label={liked ? "Loved" : "Love this recording"}
+            aria-pressed={liked}
+            disabled={!current}
+            onClick={() => toggleLike()}
+          >
+            <HeartGlyph filled={liked} />
+          </button>
+          <button
+            type="button"
+            className="cx-window-ctrl"
+            aria-label="Minimize"
+            disabled={!current || !expanded}
+            onClick={minimize}
+          >
+            <MinimizeGlyph />
+          </button>
+          <button
+            type="button"
+            className="cx-window-ctrl"
+            aria-label="Close"
+            disabled={!current}
+            onClick={closeWindow}
+          >
+            <CloseGlyph />
+          </button>
+        </div>
       </div>
 
       {listenVia === "youtube" && yt && (
@@ -242,7 +289,57 @@ export function MiniPlayer() {
 
       {expanded && current && (
         <div className="cx-panel">
-          <p className="cx-meta mb-1">Thicker marks are this track&apos;s most exposed moments</p>
+          <div className="cx-window-bar">
+            <p className="cx-window-name">Now playing</p>
+            <div className="cx-window-chrome">
+              <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
+                <MinimizeGlyph />
+              </button>
+              <button type="button" className="cx-window-ctrl" aria-label="Close" onClick={closeWindow}>
+                <CloseGlyph />
+              </button>
+            </div>
+          </div>
+
+          <div className="cx-window-stage">
+            <span
+              className="cx-window-art"
+              style={{ backgroundColor: current.tint ?? "var(--color-sand)" }}
+            >
+              {current.artworkUrl &&
+                (current.foundVia ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={current.artworkUrl} alt="" />
+                ) : (
+                  <Image src={current.artworkUrl} alt="" fill sizes="200px" style={{ objectFit: "cover" }} />
+                ))}
+            </span>
+            <div className="min-w-0">
+              <p className="cx-window-track">{current.title}</p>
+              <p className="cx-meta mt-1">{current.artist}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="cx-icon-button"
+                  data-solid="true"
+                  aria-label={playing ? "Pause" : "Play"}
+                  onClick={toggle}
+                >
+                  {playing ? <PauseIcon /> : <PlayIcon />}
+                </button>
+                <button
+                  type="button"
+                  className={`cx-pill cx-pill-compact ${liked ? "cx-pill-dark" : "cx-pill-ghost"}`}
+                  aria-pressed={liked}
+                  onClick={() => toggleLike()}
+                >
+                  {liked ? "Loved" : "Love this"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p className="cx-meta mb-1 mt-4">Thicker marks are this track&apos;s most exposed moments</p>
 
           <div className="relative h-6">
             <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-[var(--hairline)]" />
@@ -410,9 +507,6 @@ export function MiniPlayer() {
                   Official video
                 </a>
               )}
-              <button type="button" onClick={stop} className="cx-pill cx-pill-ghost cx-pill-compact shrink-0">
-                Stop
-              </button>
             </div>
           </div>
 

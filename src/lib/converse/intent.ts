@@ -1,12 +1,13 @@
 import { ROOM_ALIASES, matchRoom } from "./rooms";
 import type { CoordinateId } from "@/lib/drift/topography";
 import { hasCatalogScript, stripMetingTokens } from "@/lib/meting/platforms";
+import { parseDurationMinutes } from "@/lib/listen/duration";
 
 export type ListenerLanguage = "fa" | "en";
 
 export type LocalIntent =
   | { kind: "station"; room: CoordinateId }
-  | { kind: "playlist"; query: string; room: CoordinateId | null }
+  | { kind: "playlist"; query: string; room: CoordinateId | null; durationMinutes?: number }
   | { kind: "related"; artist: string; title?: string }
   | { kind: "expand" }
   | { kind: "alternative" }
@@ -15,7 +16,8 @@ export type LocalIntent =
   | { kind: "nowPlaying" }
   | { kind: "play"; query: string; room: CoordinateId | null }
   | { kind: "search"; query: string; room: CoordinateId | null }
-  | { kind: "atlas"; query: string; artist?: string; genre?: string }
+  | { kind: "atlas"; query: string; artist?: string; genre?: string; durationMinutes?: number }
+  | { kind: "wheat"; query: string; durationMinutes?: number }
   | { kind: "chat"; query: string };
 
 const VERB_STOP = new Set([
@@ -196,6 +198,10 @@ export function wantsAtlas(text: string): boolean {
   );
 }
 
+export function wantsWheat(text: string): boolean {
+  return /wheat1|\bt\.me\/wheat|کانال تلگرام|telegram channel/i.test(text);
+}
+
 export function wantsPlayback(text: string): boolean {
   if (wantsLyrics(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
   const t = text.toLowerCase();
@@ -218,11 +224,20 @@ export function interpretLocal(text: string): LocalIntent {
   if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
   if (wantsNowPlaying(trimmed)) return { kind: "nowPlaying" };
   if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
+  if (wantsWheat(trimmed)) {
+    return { kind: "wheat", query: trimmed, durationMinutes: parseDurationMinutes(trimmed) ?? 30 };
+  }
   if (wantsAtlas(trimmed)) {
     const named = namedArtistQuery(
       trimmed.replace(/everynoise|every\s*noise|اطلس|شاخه(?:‌های)?|engenremap|نقشه ژانر|genre map|electronic atlas/gi, " ")
     );
-    return { kind: "atlas", query: trimmed, artist: named ?? undefined, genre: named ? undefined : trimmed };
+    return {
+      kind: "atlas",
+      query: trimmed,
+      artist: named ?? undefined,
+      genre: named ? undefined : trimmed,
+      durationMinutes: parseDurationMinutes(trimmed) ?? undefined,
+    };
   }
   const named = namedArtistQuery(trimmed);
   const room = named ? null : matchRoom(trimmed);
@@ -256,7 +271,7 @@ export function interpretLocal(text: string): LocalIntent {
     /\b(take me to|head toward|go to|drift toward)\b/.test(q) || /ببر(م)? به|بریم سمت/.test(trimmed);
 
   if (station && room) return { kind: "station", room };
-  if (playlist) return { kind: "playlist", query: trimmed, room };
+  if (playlist) return { kind: "playlist", query: trimmed, room, durationMinutes: parseDurationMinutes(trimmed) ?? undefined };
   if (destOnly && room) return { kind: "destination", room };
   if (play) return { kind: "play", query: trimmed, room };
   if (room && !/دهه|\b\d0s\b|youtube|یوتیوب|ساوند|deezer|دیزر|soundcloud/i.test(trimmed)) {
