@@ -2,18 +2,18 @@
   /* Colors */
   --color-hot-pink: #4a242c;
   --color-sun-yellow: #ffda40;
-  --color-signal-blue: #292c33;
+  --color-signal-blue: #11100e;
   --color-ember-orange: #ff6138;
   --color-leaf-green: #5ad363;
-  --color-ink-black: #000000;
-  --color-charcoal: #292c33;
-  --color-slate: #60605e;
-  --color-bone: #f1f0eb;
-  --color-paper-white: #ffffff;
-  --color-mist: #efefef;
-  --color-stone: #c1c0bc;
-  --color-sand: #e4d9cf;
-  --color-frost: #cfd6e5;
+  --color-ink-black: #f4f1ea;
+  --color-charcoal: #11100e;
+  --color-slate: #9a9084;
+  --color-bone: #161310;
+  --color-paper-white: #0a0908;
+  --color-mist: #1c1814;
+  --color-stone: #3d2e1c;
+  --color-sand: #c4a574;
+  --color-frost: #2a241c;
 
   /* Typography */
   --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
