@@ -11,6 +11,7 @@ type MusicKitInstance = {
   authorize: () => Promise<string>;
   unauthorize?: () => Promise<void>;
   isAuthorized?: boolean;
+  musicUserToken?: string;
 };
 
 declare global {
@@ -70,7 +71,8 @@ export async function authorizeAppleMusic(): Promise<string> {
   }
 
   const music = MusicKit.getInstance();
-  const userToken = await music.authorize();
+  const userToken =
+    music.isAuthorized && music.musicUserToken ? music.musicUserToken : await music.authorize();
   if (!userToken) throw new Error("Apple Music authorization was cancelled.");
 
   const session = await fetch("/api/musickit/session", {

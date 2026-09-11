@@ -112,6 +112,17 @@ export function CloseGlyph() {
   );
 }
 
+export function ShareGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="18" cy="5" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="6" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="18" cy="19" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M8.2 10.8l7.6-4.2M8.2 13.2l7.6 4.2" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
 export function RefuseGlyph() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>

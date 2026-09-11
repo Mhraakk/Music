@@ -43,6 +43,7 @@ export function DiscoverSurface({
   const [arrived, setArrived] = useState<LibraryTrack[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (location.hash === "#search") {
@@ -55,11 +56,13 @@ export function DiscoverSurface({
       setRemote(null);
       setTotal(catalogTotal + synced);
       setOffset(0);
+      setSearchError(null);
       return;
     }
 
     const controller = new AbortController();
     setBusy(true);
+    setSearchError(null);
 
     const params = new URLSearchParams({ limit: String(PAGE), offset: "0" });
     if (mode.kind === "text") params.set("q", mode.query);
@@ -82,10 +85,12 @@ export function DiscoverSurface({
         setTotal(payload.total + synced);
         setOffset(payload.tracks.length);
         setBusy(false);
+        setSearchError(null);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         setBusy(false);
+        setSearchError("Search could not reach the catalog.");
       });
 
     return () => controller.abort();
@@ -118,8 +123,9 @@ export function DiscoverSurface({
       });
       setTotal(payload.total + synced);
       setOffset(offset + payload.tracks.length);
+      setSearchError(null);
     } catch {
-      /* keep what already rendered */
+      setSearchError("Search could not reach the catalog.");
     } finally {
       setBusy(false);
     }
@@ -178,6 +184,7 @@ export function DiscoverSurface({
           <h2 className="cx-title mb-4">
             Search <em>results.</em>
           </h2>
+          {searchError ? <p className="cx-meta mb-4">{searchError}</p> : null}
           <MasonryGrid tracks={results} />
           {canShowMore && (
             <div className="mt-8 flex justify-center">

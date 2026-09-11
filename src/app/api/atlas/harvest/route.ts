@@ -21,21 +21,34 @@ export async function POST(request: Request) {
       ? Math.max(8, Math.min(180, body.durationMinutes))
       : undefined;
   const playlistKind = body.playlistKind && KINDS.includes(body.playlistKind) ? body.playlistKind : undefined;
-  const result = await harvestAtlas({
-    artist: body.artist,
-    genre: body.genre,
-    query: body.query,
-    playlist: body.playlist,
-    playlistKind,
-    limit: body.limit,
-    durationMinutes: minutes,
-  });
-  return NextResponse.json({
-    ok: true,
-    title: result.title,
-    tracks: result.tracks,
-    count: result.tracks.length,
-    durationSeconds: result.durationSeconds,
-    durationMinutes: minutes ?? null,
-  });
+  try {
+    const result = await harvestAtlas({
+      artist: body.artist,
+      genre: body.genre,
+      query: body.query,
+      playlist: body.playlist,
+      playlistKind,
+      limit: body.limit,
+      durationMinutes: minutes,
+    });
+    return NextResponse.json({
+      ok: true,
+      title: result.title,
+      tracks: result.tracks,
+      count: result.tracks.length,
+      durationSeconds: result.durationSeconds,
+      durationMinutes: minutes ?? null,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        title: null,
+        tracks: [],
+        count: 0,
+        error: error instanceof Error ? error.message : "Could not harvest this branch.",
+      },
+      { status: 502 }
+    );
+  }
 }

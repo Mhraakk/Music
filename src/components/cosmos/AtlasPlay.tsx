@@ -52,9 +52,11 @@ export function AtlasPlay({
   const { ingest, playQueue } = usePlayerActions();
   const [minutes, setMinutes] = useState<ListenMinutes>(30);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   async function play() {
     setBusy(true);
+    setNote(null);
     try {
       const response = await fetch("/api/atlas/harvest", {
         method: "POST",
@@ -68,11 +70,33 @@ export function AtlasPlay({
           durationMinutes: minutes,
         }),
       });
-      const payload = (await response.json()) as { tracks?: LibraryTrack[]; title?: string };
-      const tracks = payload.tracks?.length ? payload.tracks : fallbackTracks;
-      if (!tracks.length) return;
-      ingest(tracks);
-      playQueue(tracks, payload.title ?? title);
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        tracks?: LibraryTrack[];
+        title?: string;
+        error?: string;
+      };
+      const harvested = payload.tracks?.length ? payload.tracks : [];
+      if (harvested.length) {
+        ingest(harvested);
+        playQueue(harvested, payload.title ?? title);
+        return;
+      }
+      if (fallbackTracks.length) {
+        setNote("Could not harvest this branch — playing what we already have.");
+        ingest(fallbackTracks);
+        playQueue(fallbackTracks, title);
+        return;
+      }
+      setNote(payload.error ?? "Could not harvest this branch just now.");
+    } catch {
+      if (fallbackTracks.length) {
+        setNote("Could not harvest this branch — playing what we already have.");
+        ingest(fallbackTracks);
+        playQueue(fallbackTracks, title);
+        return;
+      }
+      setNote("Could not harvest this branch just now.");
     } finally {
       setBusy(false);
     }
@@ -84,6 +108,7 @@ export function AtlasPlay({
       <button type="button" className="cx-pill cx-pill-primary" onClick={() => void play()} disabled={busy}>
         {busy ? "Gathering…" : `${label} · ${durationLabel(minutes)}`}
       </button>
+      {note ? <p className="cx-meta">{note}</p> : null}
     </div>
   );
 }
