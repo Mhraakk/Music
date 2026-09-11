@@ -156,8 +156,9 @@
   justify-content: space-around;
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--surface-bone-surface);
-  border-top: 0;
+  background: color-mix(in srgb, var(--surface-bone-surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand) 20%, transparent);
 }
 
 .cx-tab {
@@ -165,12 +166,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  padding: 0 4px;
   color: var(--color-slate);
   font-family: var(--font-inter), sans-serif;
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-decoration: none;
   text-transform: uppercase;
 }
