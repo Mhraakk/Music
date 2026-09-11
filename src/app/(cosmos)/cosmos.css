@@ -52,7 +52,10 @@
 
   color-scheme: dark;
   background-color: var(--surface-page-canvas);
-  background-image: none;
+  background-image:
+    radial-gradient(80% 42% at 50% -12%, color-mix(in srgb, var(--color-sand) 18%, transparent), transparent 62%),
+    radial-gradient(36% 28% at 100% 0%, color-mix(in srgb, var(--color-sand) 8%, transparent), transparent 70%);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
@@ -71,9 +74,23 @@
   cursor: pointer;
 }
 
-.cosmos::before,
+.cosmos::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(50% 36% at 12% 88%, color-mix(in srgb, var(--color-sand) 7%, transparent), transparent 72%);
+  animation: cx-iridescent 18s var(--ease-glide) infinite alternate;
+}
+
 .cosmos::after {
   display: none;
+}
+
+.cosmos > * {
+  position: relative;
+  z-index: 1;
 }
 
 .cx-skip {
@@ -186,8 +203,9 @@
   margin-bottom: -64px;
   padding: 0 16px;
   pointer-events: none;
-  background: var(--surface-page-canvas);
-  border-bottom: 0;
+  background: color-mix(in srgb, var(--surface-page-canvas) 78%, transparent);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-stone) 55%, transparent);
 }
 
 .cx-floatnav {
@@ -223,6 +241,7 @@
   font-style: normal;
   letter-spacing: -0.04em;
   line-height: 1.15;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color-sand) 28%, transparent);
 }
 
 .cx-floatnav-links {
@@ -255,7 +274,7 @@
 
 .cx-floatnav-link[aria-current="page"] {
   color: var(--color-sand);
-  box-shadow: none;
+  box-shadow: inset 0 -2px 0 var(--color-sand);
 }
 
 .cx-floatnav-end {
@@ -346,6 +365,7 @@
   font-weight: 600;
   color: var(--color-sand);
   padding-bottom: 0;
+  text-shadow: 0 0 32px color-mix(in srgb, var(--color-sand) 55%, transparent);
 }
 
 .cx-title {
@@ -360,6 +380,7 @@
 .cx-title em {
   font-style: normal;
   font-weight: 600;
+  color: var(--color-sand);
 }
 
 .cx-heading {
@@ -476,7 +497,7 @@
 
 .cx-see-all:hover {
   letter-spacing: 0;
-  color: var(--color-slate);
+  color: var(--color-sand);
 }
 
 /* ─────────────────────────────── hero ─────────────────────────────── */
@@ -496,7 +517,12 @@
 }
 
 .cx-hero::before {
-  display: none;
+  content: "";
+  position: absolute;
+  inset: -28% -18% 18%;
+  background: radial-gradient(ellipse at 50% 42%, color-mix(in srgb, var(--color-sand) 26%, transparent), transparent 64%);
+  pointer-events: none;
+  animation: cx-iridescent 16s ease-in-out infinite alternate;
 }
 
 .cx-hero .cx-display {
@@ -504,6 +530,13 @@
   z-index: 1;
   color: var(--color-ink-black);
   max-width: 12ch;
+}
+
+.cx-hero .cx-hero-lede,
+.cx-hero .cx-hero-inserts,
+.cx-hero .cx-pill {
+  position: relative;
+  z-index: 1;
 }
 
 .cx-kicker {
@@ -535,8 +568,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 32px;
+  gap: 12px;
+  margin-bottom: 36px;
 }
 
 .cx-hero-insert {
@@ -546,7 +579,27 @@
   overflow: hidden;
   border-radius: 0;
   background: var(--color-frost);
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--color-sand) 18%, transparent);
+  box-shadow:
+    0 24px 64px color-mix(in srgb, var(--color-sand) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-sand) 24%, transparent);
+  transition: transform 220ms var(--ease-glide), box-shadow 220ms var(--ease-glide);
+}
+
+.cx-hero-insert:nth-child(1) {
+  transform: rotate(-3.5deg) translateY(8px);
+}
+
+.cx-hero-insert:nth-child(2) {
+  transform: rotate(4deg) translateY(-6px);
+}
+
+@media (hover: hover) {
+  .cx-hero-insert:hover {
+    transform: rotate(0deg) translateY(-8px);
+    box-shadow:
+      0 28px 72px color-mix(in srgb, var(--color-sand) 42%, transparent),
+      0 0 0 1px var(--color-sand);
+  }
 }
 
 .cx-hero-insert[data-size="tall"] {
@@ -559,6 +612,14 @@
   height: 100%;
   object-fit: cover;
   filter: none;
+}
+
+@media (min-width: 768px) {
+  .cx-hero-insert,
+  .cx-hero-insert[data-size="tall"] {
+    width: 180px;
+    height: 180px;
+  }
 }
 
 .cx-scroll-badge {
@@ -668,6 +729,7 @@
   border-radius: 0;
   background: var(--tile-tint, var(--color-frost));
   box-shadow: 0 16px 40px color-mix(in srgb, var(--tile-tint, #00ffff) 28%, transparent);
+  transition: transform 220ms var(--ease-glide), box-shadow 220ms var(--ease-glide);
 }
 
 .cx-album[data-size="lg"] .cx-album-art {
@@ -691,6 +753,16 @@
 .cx-album[data-active="true"] .cx-album-art {
   outline: 2px solid var(--color-sand);
   outline-offset: 2px;
+  box-shadow: 0 0 28px color-mix(in srgb, var(--color-sand) 40%, transparent);
+}
+
+@media (hover: hover) {
+  .cx-album:hover .cx-album-art {
+    transform: translateY(-3px);
+    box-shadow:
+      0 22px 48px color-mix(in srgb, var(--tile-tint, #00ffff) 46%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--color-sand) 40%, transparent);
+  }
 }
 
 .cx-play-fab {
@@ -706,6 +778,7 @@
   place-items: center;
   opacity: 0;
   pointer-events: none;
+  box-shadow: 0 0 0 1px var(--color-sand), 0 10px 24px color-mix(in srgb, var(--color-sand) 28%, transparent);
 }
 
 @media (hover: hover) {
@@ -877,11 +950,17 @@
   text-decoration: none;
   color: inherit;
   text-align: center;
+  transition: color 200ms var(--ease-glide);
+}
+
+.cx-artist-chip:hover {
+  color: var(--color-sand);
 }
 
 .cx-artist-chip .cx-avatar {
   width: 88px;
   height: 88px;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--color-sand) 16%, transparent);
 }
 
 .cx-songs {
@@ -1028,7 +1107,8 @@
 .cosmos button.cx-pill:hover,
 .cosmos a.cx-pill:hover {
   transform: none;
-  opacity: 0.86;
+  opacity: 1;
+  box-shadow: 0 0 0 1px var(--color-sand), 0 12px 32px color-mix(in srgb, var(--color-sand) 22%, transparent);
 }
 
 .cosmos button.cx-pill:active,
@@ -1136,10 +1216,16 @@
   padding: 0 16px;
   border-radius: 0;
   background: var(--color-bone);
-  border: 0;
+  border: 1px solid var(--color-stone);
   min-width: 0;
   flex: 1;
   max-width: 420px;
+  transition: border-color 200ms var(--ease-glide), box-shadow 200ms var(--ease-glide);
+}
+
+.cx-search:focus-within {
+  border-color: var(--color-sand);
+  box-shadow: 0 0 0 1px var(--color-sand), 0 12px 28px color-mix(in srgb, var(--color-sand) 12%, transparent);
 }
 
 .cx-swatch {
@@ -1198,7 +1284,8 @@
   --ink-3: var(--color-slate);
   --hairline: rgba(255, 255, 255, 0.08);
   --hairline-strong: rgba(0, 255, 255, 0.55);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--color-sand) 28%, transparent);
+  box-shadow: 0 -18px 48px color-mix(in srgb, var(--color-sand) 8%, transparent);
 }
 
 .cx-mini[data-mode="stage"] {
@@ -1229,6 +1316,7 @@
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 0;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-sand) 30%, transparent);
 }
 
 .cx-mini-art img {
@@ -1266,6 +1354,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--color-sand);
+  box-shadow: 0 0 12px var(--color-sand);
   transition: width 260ms linear;
 }
 
@@ -1745,11 +1834,19 @@
   line-height: 1;
   letter-spacing: 0;
   text-transform: none;
+  transition: border-color 200ms var(--ease-glide), color 200ms var(--ease-glide), box-shadow 200ms var(--ease-glide);
+}
+
+.cosmos button.cx-feeling-chip:hover {
+  border-color: var(--color-sand);
+  color: var(--color-sand);
 }
 
 .cosmos button.cx-feeling-chip[data-active="true"] {
-  background: var(--color-ink-black);
-  color: var(--color-paper-white);
+  background: transparent;
+  color: var(--color-sand);
+  border-color: var(--color-sand);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-sand) 18%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -1877,6 +1974,7 @@
   font-style: normal;
   font-weight: 600;
   color: var(--color-sand);
+  text-shadow: 0 0 32px color-mix(in srgb, var(--color-sand) 50%, transparent);
 }
 
 @media (max-width: 640px) {
@@ -1902,6 +2000,10 @@
   .cx-hero-inserts {
     justify-content: flex-start;
   }
+}
+
+.cx-atlas-hero {
+  position: relative;
 }
 
 .cx-atlas-lede {
@@ -1939,6 +2041,11 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-slate);
+  transition: color 200ms var(--ease-glide);
+}
+
+.cx-atlas-tab:hover {
+  color: var(--color-ink-black);
 }
 
 .cx-atlas-tab[aria-selected="true"] {
@@ -1955,11 +2062,21 @@
   width: 100%;
   height: 56px;
   padding: 0 16px;
-  border: 0;
+  border: 1px solid var(--color-stone);
   border-radius: 0;
   background: var(--color-bone);
   color: var(--color-ink-black);
   font-size: 16px;
+  transition: border-color 200ms var(--ease-glide), box-shadow 200ms var(--ease-glide);
+}
+
+.cx-atlas-search input:hover,
+.cx-atlas-search input:focus {
+  border-color: var(--color-sand);
+}
+
+.cx-atlas-search input:focus {
+  box-shadow: 0 0 0 1px var(--color-sand), 0 12px 32px color-mix(in srgb, var(--color-sand) 12%, transparent);
 }
 
 .cx-atlas-field {
@@ -1967,7 +2084,11 @@
   height: min(68vh, 720px);
   margin: 28px 0 48px;
   overflow: auto;
-  background: var(--color-bone);
+  background: var(--color-paper-white);
+  outline: 1px solid color-mix(in srgb, var(--color-sand) 16%, transparent);
+  box-shadow:
+    inset 0 0 140px color-mix(in srgb, var(--color-paper-white) 35%, transparent),
+    0 0 80px color-mix(in srgb, var(--color-sand) 8%, transparent);
 }
 
 .cx-atlas-field.is-nearby {
@@ -2006,6 +2127,10 @@
   letter-spacing: 0;
   white-space: nowrap;
   z-index: 1;
+  text-shadow:
+    0 1px 2px var(--color-paper-white),
+    0 0 14px color-mix(in srgb, currentColor 40%, transparent);
+  transition: filter 160ms var(--ease-glide), z-index 0s;
 }
 
 .cx-atlas-node.is-played::before {
@@ -2082,10 +2207,17 @@
   }
 }
 
-.cx-atlas-node:hover,
-.cx-atlas-list-row:hover {
+.cx-atlas-node:hover {
   color: var(--color-ink-black);
   z-index: 20;
+  filter: brightness(1.28);
+  text-shadow:
+    0 0 18px var(--color-sand),
+    0 1px 2px var(--color-paper-white);
+}
+
+.cx-atlas-list-row:hover {
+  color: var(--color-ink-black);
 }
 
 .cx-atlas-tab[aria-pressed="true"] {
@@ -2265,13 +2397,17 @@
 .cx-outbound-link:focus-visible {
   border-color: var(--color-sand);
   color: var(--color-sand);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-sand) 16%, transparent);
 }
 
 .cx-chapter {
-  background: var(--color-hot-pink);
+  background:
+    radial-gradient(70% 80% at 80% 20%, color-mix(in srgb, var(--color-sand) 14%, transparent), transparent 60%),
+    var(--color-hot-pink);
   color: var(--color-ink-black);
   width: 100%;
   padding: 48px 24px;
+  border-block: 1px solid color-mix(in srgb, var(--color-sand) 16%, transparent);
 }
 
 .cx-chapter-inner {
@@ -2293,7 +2429,7 @@
 }
 
 .cx-chapter .cx-see-all {
-  color: var(--color-ink-black);
+  color: var(--color-sand);
 }
 
 @media (min-width: 768px) {
