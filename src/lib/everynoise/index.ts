@@ -1,12 +1,24 @@
-export { atlasArtist, atlasGenre, atlasMap, harvestAtlas, listAtlasGenres } from "./service";
+export { atlasArtist, atlasGenre, atlasMap, atlasMapPage, atlasPlaylist, harvestAtlas, listAtlasGenres } from "./service";
 export { classifyFamily, inFamily } from "./families";
-export { parseExampleTitle, parseLookup, parseMap, parseGenreArtists, parseNearbyGenres, parsePlaylists } from "./parse";
+export {
+  parseExampleTitle,
+  parseLookup,
+  parseMap,
+  parseGenreArtists,
+  parseNearbyGenres,
+  parseMirrorGenres,
+  parsePlaylists,
+  parseCanvas,
+} from "./parse";
 export type {
   AtlasArtistRef,
+  AtlasCanvas,
   AtlasFamily,
   AtlasGenre,
   AtlasOutbound,
+  AtlasPin,
   AtlasPlaylist,
+  AtlasPlaylistKind,
   AtlasTrackCard,
 } from "./types";
-export { genreSlug, searchUrls, spotifyArtistUrl, spotifyTrackUrl } from "./types";
+export { genreSlug, isSearchUrl, searchUrls, spotifyArtistUrl, spotifyPlaylistUrl, spotifyTrackUrl } from "./types";

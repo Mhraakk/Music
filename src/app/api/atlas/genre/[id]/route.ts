@@ -21,8 +21,12 @@ export async function GET(
     genre: page.genre,
     artists: page.artists,
     nearby: page.nearby,
+    mirrors: page.mirrors,
     playlists: page.playlists,
     tracks: page.tracks,
     libraryTracks: page.libraryTracks,
+    canvas: page.canvas,
+    nearbyCanvas: page.nearbyCanvas,
+    mirrorCanvas: page.mirrorCanvas,
   });
 }

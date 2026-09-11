@@ -13,7 +13,7 @@ export default async function AtlasArtistPage({
   const { name } = await searchParams;
   return (
     <main className="cx-page">
-      <AtlasArtistView name={name?.trim() || "DJ Krush"} />
+      <AtlasArtistView name={name?.trim() || ""} />
     </main>
   );
 }

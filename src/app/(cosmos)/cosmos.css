@@ -1766,6 +1766,12 @@
     margin: 20px -20px 32px;
   }
 
+  .cx-atlas-field.is-nearby,
+  .cx-atlas-field.is-mirror {
+    height: min(36dvh, 280px);
+    margin: 16px 0 28px;
+  }
+
   .cx-search {
     max-width: none;
   }
@@ -1856,9 +1862,13 @@
 .cx-atlas-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin: 32px 0 24px;
+}
+
+.cx-atlas-toolbar .cx-outbound-stack {
+  flex: 1 1 100%;
 }
 
 .cx-atlas-tabs {
@@ -1904,27 +1914,134 @@
   position: relative;
   height: min(68vh, 720px);
   margin: 28px 0 48px;
-  overflow: hidden;
+  overflow: auto;
   background: var(--color-bone);
+}
+
+.cx-atlas-field.is-nearby {
+  height: min(42vh, 360px);
+  background: #fcfcfc;
+  border: 1px solid var(--color-stone);
+}
+
+.cx-atlas-field.is-mirror {
+  height: min(42vh, 360px);
+  background: #1a1a1a;
+  border: 1px solid var(--color-stone);
+}
+
+.cx-atlas-canvas {
+  position: relative;
+  min-height: 100%;
 }
 
 .cx-atlas-node {
   position: absolute;
   transform: translate(-50%, -50%);
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-slate);
+  align-items: baseline;
+  gap: 4px;
+  color: inherit;
   text-decoration: none;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
   white-space: nowrap;
+  z-index: 1;
+}
+
+.cx-atlas-node.is-played::before {
+  content: "♪ ";
+}
+
+.cx-atlas-node-play {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cx-atlas-node-more {
+  color: var(--color-sand);
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+.cx-atlas-list-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-stone);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cx-atlas-list-row.cx-atlas-playlist-row,
+.cx-atlas-list-row.is-plain {
+  grid-template-columns: minmax(0, 1.4fr) auto auto;
+}
+
+.cx-atlas-list-row.cx-atlas-playlist-row .cx-atlas-list-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cx-outbound-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.cx-outbound-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.cx-outbound-kicker {
+  padding-top: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-slate);
+}
+
+@media (max-width: 720px) {
+  .cx-outbound-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .cx-outbound-kicker {
+    padding-top: 0;
+  }
 }
 
 .cx-atlas-node:hover,
 .cx-atlas-list-row:hover {
   color: var(--color-ink-black);
+  z-index: 20;
+}
+
+.cx-atlas-tab[aria-pressed="true"] {
+  color: var(--color-sand);
+  box-shadow: inset 0 -2px 0 var(--color-sand);
+}
+
+.cx-atlas-list-row button.cx-atlas-list-label {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .cx-atlas-dot {
@@ -1940,17 +2057,6 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-}
-
-.cx-atlas-list-row {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: 12px;
-  align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--color-stone);
-  text-decoration: none;
-  color: inherit;
 }
 
 .cx-atlas-list-label {
@@ -2073,17 +2179,31 @@
 .cx-outbound {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 16px;
+  gap: 12px;
 }
 
 .cx-outbound-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-stone);
+  border-radius: var(--radius-buttons);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-transform: none;
   color: var(--color-ink-black);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  background: var(--color-bone);
+  white-space: nowrap;
+}
+
+.cx-outbound-link:hover,
+.cx-outbound-link:focus-visible {
+  border-color: var(--color-sand);
+  color: var(--color-sand);
 }
 
 .cx-chapter {

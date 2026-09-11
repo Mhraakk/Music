@@ -3,7 +3,7 @@
 import type { LibraryTrack } from "@/lib/library";
 import type { AtlasTrackCard } from "@/lib/everynoise/types";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
-import { OutboundLinks, outboundFromAtlas, outboundFromTrack } from "./OutboundLinks";
+import { OutboundLinks, outboundFromAtlas, outboundFromTrack, pickOutbound } from "./OutboundLinks";
 import { LoveControl } from "./LoveControl";
 import { DislikeControl } from "./DislikeControl";
 
@@ -49,7 +49,16 @@ export function AtlasTrackRow({
             </div>
           ) : null}
       </div>
-      <OutboundLinks links={track ? outboundFromTrack(track) : outboundFromAtlas(card.outbound)} />
+      <OutboundLinks
+        links={
+          track
+            ? pickOutbound(outboundFromTrack(track), outboundFromAtlas(card.outbound))
+            : outboundFromAtlas(card.outbound)
+        }
+        layout="atlas"
+        artistName={card.artist}
+        title={card.title}
+      />
     </article>
   );
 }
