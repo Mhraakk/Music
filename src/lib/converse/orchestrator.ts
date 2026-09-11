@@ -150,6 +150,11 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
   }
 
   if (ctx.lastShare) {
+    if (!ctx.lastShare.trackId) {
+      return lang === "fa"
+        ? "اول یک آهنگ پخش کن، بعد لینک شنیدن را می‌دهم."
+        : "Play a recording first, then I can share the listen link.";
+    }
     if (lang === "fa") {
       return `لینک این شنیدن: ${ctx.lastShare.url}`;
     }

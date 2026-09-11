@@ -673,6 +673,7 @@ async function verifyConverse() {
   check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
   check(/ChatGPT|OpenAI/.test(talk), "Ask page explains the ChatGPT key field");
   check(/lyrics|متن/i.test(talk), "Ask page mentions lyrics");
+  check(/liner notes|listen link/i.test(talk), "Ask page mentions liner notes and share");
   check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
 
   async function turn(text) {
@@ -940,6 +941,30 @@ async function verifyCyreneLyrics() {
   }).then((r) => r.json());
   check(empty.ok === true && /[\u0600-\u06FF]/.test(empty.reply ?? ""), "empty now-playing gets a Persian reply");
   check(!empty.effects?.some((e) => e.type === "play"), "empty now-playing does not invent a play");
+
+  const shareEmpty = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "لینک این آهنگ را بده" }],
+      session: { sessionId: "verify-share-empty", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(shareEmpty.ok === true, "Ask answers a share request with nothing loaded");
+  check(!shareEmpty.effects?.some((e) => e.type === "play"), "empty share does not start a new song");
+  check(/اول یک آهنگ|Play a recording first/i.test(shareEmpty.reply ?? ""), "empty share asks them to play first", shareEmpty.reply?.slice(0, 80));
+
+  const about = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "about Radiohead" }],
+      session: { sessionId: "verify-research", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(about.ok === true, "Ask answers an about-the-artist request");
+  check(!about.effects?.some((e) => e.type === "play"), "liner-notes research does not start a new song");
+  check(/radiohead/i.test(about.reply ?? ""), "research names Radiohead", about.reply?.slice(0, 120));
 }
 
 async function verifyMetingListen() {

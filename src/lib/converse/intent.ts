@@ -214,7 +214,9 @@ export function wantsShare(text: string): boolean {
 export function wantsResearch(text: string): boolean {
   if (wantsLyrics(text)) return false;
   return (
-    /\b(who is|about (this )?(artist|band|song)|liner notes|biography|bio of|tell me about)\b/i.test(text) ||
+    /\b(who is|about (this )?(artist|band|song)|about [A-Za-z0-9][\w'.-]{1,}|liner notes|biography|bio of|tell me about)\b/i.test(
+      text
+    ) ||
     /درباره (این )?(خواننده|آرتیست|گروه|آهنگ)|بیوگرافی|چی میدونی از|از این خواننده بگو/.test(text)
   );
 }

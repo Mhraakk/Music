@@ -812,7 +812,10 @@ export async function executeConverseTool(
     }
     case "share_listen": {
       const id = asString(args.id) || ctx.session.currentTrackId || "";
-      if (!id) return { ok: false, error: "Nothing to share. Play a recording first." };
+      if (!id) {
+        ctx.lastShare = { path: "", url: "", trackId: "" };
+        return { ok: false, error: "Nothing to share. Play a recording first." };
+      }
       const path = `/?listen=${encodeURIComponent(id)}`;
       const origin = asString(args.origin) || ctx.session.origin || "";
       const url = origin ? `${origin.replace(/\/$/, "")}${path}` : path;
