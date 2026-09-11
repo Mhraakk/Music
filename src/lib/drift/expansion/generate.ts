@@ -136,6 +136,9 @@ export async function generateTasteExpansion(input: {
   tasteVectors?: import("@/lib/drift/ontology").EmotionalVector[];
   libraryVectors?: import("@/lib/drift/ontology").EmotionalVector[];
   libraryArtists?: { artist: string; via: string }[];
+  likedVectors?: import("@/lib/drift/ontology").EmotionalVector[];
+  refuseVectors?: import("@/lib/drift/ontology").EmotionalVector[];
+  tasteMemory?: import("@/lib/taste/memory").TasteWire | import("@/lib/taste/memory").TasteSnapshot | null;
   excludeIds?: string[];
   limit?: number;
   analyze?: boolean;
@@ -147,6 +150,9 @@ export async function generateTasteExpansion(input: {
     tasteVectors: input.tasteVectors,
     libraryVectors: input.libraryVectors,
     libraryArtists: input.libraryArtists,
+    likedVectors: input.likedVectors,
+    refuseVectors: input.refuseVectors,
+    tasteMemory: input.tasteMemory,
     pool,
   });
 

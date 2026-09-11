@@ -1079,10 +1079,12 @@ async function verifySoftListen() {
   check(/explicit_dislike/.test(resonance), "resonance records an explicit dislike");
   const overlay = readFileSync(new URL("../src/lib/apple/overlay.ts", import.meta.url), "utf8");
   check(/f-\|l-\|w-/.test(overlay) || /\^\(f-\|l-\|w-\)/.test(overlay), "overlay admits loved web recordings");
+  check(/Loved on Resonant/.test(overlay), "overlay also admits hearted catalog ids");
   const home = await fetch(`${BASE}/`).then((r) => r.text());
   check(home.includes("Listen Now"), "home is still Listen Now");
   check(home.includes("Favorite Songs"), "home still names Favorite Songs");
   check(home.includes("Connect Apple Music"), "home still names Connect Apple Music");
+  check(/Joyful/.test(home), "home names the Joyful golds");
   check(/15 to 60 minutes/.test(home), "home mentions duration-aware atlas listening");
   const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
   check(/wheat1/.test(radio), "radio names wheat1");
@@ -1241,6 +1243,37 @@ async function verifyListenComplete() {
   check(wheatHint.ok === true, "GET /api/wheat accepts durationMinutes");
 }
 
+async function verifyTasteMemory() {
+  section("Coded taste memory");
+  const memory = readFileSync(new URL("../src/lib/taste/memory.ts", import.meta.url), "utf8");
+  check(/export function tasteScore/.test(memory), "tasteScore is a coded function");
+  check(/export function applyLike/.test(memory), "applyLike is coded");
+  check(/export function applyDislike/.test(memory), "applyDislike is coded");
+  check(/resonant\.taste\.v1/.test(memory) && /resonant-taste/.test(memory), "taste persists to localStorage and IndexedDB");
+  check(!/recordSkip/.test(memory), "taste memory does not wire skip DNA");
+  const player = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  check(/isLovedNote/.test(player), "ingest keeps hearted catalog tracks");
+  check(/tasteMemory/.test(player), "drift sends the coded taste snapshot");
+  check(/persistTaste/.test(player) && /toggleLoved/.test(player), "like/dislike rebuild and persist taste");
+  const algorithm = readFileSync(new URL("../src/lib/drift/algorithm.ts", import.meta.url), "utf8");
+  check(/breakdown\.taste/.test(algorithm), "candidate scoring uses the like/dislike score");
+  check(/pullTowardTaste/.test(algorithm), "next phase leans toward the like-centroid");
+  const talk = readFileSync(new URL("../src/components/cosmos/TalkSurface.tsx", import.meta.url), "utf8");
+  check(/tasteMemory/.test(talk), "Ask sends the coded taste snapshot");
+  const joyful = readFileSync(new URL("../src/lib/taste/joyful.ts", import.meta.url), "utf8");
+  check(/JOYFUL_VECTOR/.test(joyful) && /rankJoyful/.test(joyful), "Joyful is a coded warmth harvest");
+  check(/cinematic_warmth/.test(joyful) && /dusted_soul/.test(joyful) && /patient_bloom/.test(joyful), "Joyful walks existing rooms, not a tenth coordinate");
+  const inspect = await callTool("inspect_expansion_engine", {});
+  const likeCheck = (inspect.checks ?? []).find((c) => /likes taste profile|hearted vectors/.test(c.label));
+  check(Boolean(likeCheck?.ok), "expansion inspect locks the likes taste profile", likeCheck?.label ?? "missing");
+  const heartCheck = (inspect.checks ?? []).find((c) => /hearts raise/.test(c.label));
+  check(Boolean(heartCheck?.ok), "expansion inspect locks heart scoring", heartCheck?.label ?? "missing");
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(/Play this gold/.test(home), "home Joyful section can play the gold");
+  const joyfulPage = await fetch(`${BASE}/joyful`).then((r) => r.text());
+  check(/Joyful/.test(joyfulPage) && /Listen Now/.test(joyfulPage), "Joyful page keeps Listen Now");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -1259,6 +1292,7 @@ try {
   await verifyMetingListen();
   await verifySoftListen();
   await verifyListenComplete();
+  await verifyTasteMemory();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

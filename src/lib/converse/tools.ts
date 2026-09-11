@@ -693,7 +693,12 @@ export async function executeConverseTool(
           tasteVectors: ctx.session.tasteVectors,
           libraryVectors: ctx.session.overlay?.map((o) => o.vector),
           libraryArtists: (ctx.session.overlay ?? []).slice(0, 8).map((o) => ({ artist: o.artist, via: "favorite" })),
-          excludeIds: ctx.session.historyIds,
+          likedVectors: ctx.session.tasteMemory?.likedVectors,
+          tasteMemory: ctx.session.tasteMemory,
+          excludeIds: [
+            ...ctx.session.historyIds,
+            ...(ctx.session.tasteMemory?.refusedIds ?? []),
+          ],
           limit,
           analyze: false,
         });

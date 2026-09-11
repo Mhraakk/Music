@@ -69,7 +69,11 @@ export async function toggleLoved(track: LibraryTrack): Promise<{ tracks: Librar
   return { tracks: next, liked: !exists };
 }
 
+export function isLovedNote(note: string | null | undefined): boolean {
+  return Boolean(note && note.includes("Loved on Resonant"));
+}
+
 export function lovedNote(track: LibraryTrack): string {
-  if (track.note.includes("Loved on Resonant")) return track.note;
+  if (isLovedNote(track.note)) return track.note;
   return track.note ? `${track.note} · Loved on Resonant` : "Loved on Resonant";
 }

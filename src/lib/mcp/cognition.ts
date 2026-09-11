@@ -49,6 +49,7 @@ import {
 import { readResonance, type ResonanceReading, type ResonanceSignal } from "@/lib/drift/resonance";
 import { resolveAudio, type ResolvedAudio } from "@/lib/providers/resolve";
 import { geminiConfigured, geminiStructured, type GeminiSchema } from "./gemini";
+import type { TasteSnapshot, TasteWire } from "@/lib/taste/memory";
 
 /** How many anonymous candidates the model is allowed to choose between. */
 const SHORTLIST_SIZE = 10;
@@ -97,6 +98,7 @@ export type DriftRequestInput = {
   soundCloudAccessToken?: string | null;
   /** Per-request Favorite Songs window. Never written into the shared catalog. */
   overlay?: DriftTrack[];
+  taste?: TasteSnapshot | TasteWire | null;
 };
 
 /* ──────────────────────────── SHORTLIST BUILDING ──────────────────────────── */
@@ -115,7 +117,8 @@ function buildShortlist(
   exclude: string[],
   branches: BranchState,
   seed: string,
-  overlay?: DriftTrack[]
+  overlay?: DriftTrack[],
+  taste?: TasteSnapshot | TasteWire | null
 ): Candidate[] {
   const used = new Set(exclude);
   const pool = admissiblePool(overlay);
@@ -129,6 +132,7 @@ function buildShortlist(
       branches,
       seed,
       pool,
+      taste,
     }))
     .filter((c) => !used.has(c.track.id))
     .sort((a, b) => b.score - a.score)
@@ -316,6 +320,7 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
     exclude: input.exclude,
     seed: input.sessionId,
     overlay: input.overlay,
+    taste: input.taste,
   });
 
   if (!baseline) {
@@ -342,7 +347,8 @@ export async function decideNextDrift(input: DriftRequestInput): Promise<DriftDe
       input.exclude,
       branches,
       input.sessionId,
-      input.overlay
+      input.overlay,
+      input.taste
     );
 
     if (shortlist.length === 0) {
@@ -458,6 +464,7 @@ export async function planFullDrift(input: {
   branches?: BranchState;
   soundCloudAccessToken?: string | null;
   overlay?: DriftTrack[];
+  taste?: TasteSnapshot | TasteWire | null;
 }): Promise<PlannedArc> {
   const arc = planDrift({
     origin: input.origin,
@@ -466,6 +473,7 @@ export async function planFullDrift(input: {
     exclude: input.exclude,
     branches: input.branches,
     overlay: input.overlay,
+    taste: input.taste,
   });
 
   const phases = await Promise.all(

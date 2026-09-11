@@ -41,6 +41,7 @@ import {
 } from "./topography";
 import { admissiblePool, type DriftTrack } from "./catalog";
 import type { ResonanceMode, ResonanceReading } from "./resonance";
+import { pullTowardTaste, tasteScore, type TasteSnapshot, type TasteWire } from "@/lib/taste/memory";
 
 export const MIN_ARC = 5;
 export const MAX_ARC = 7;
@@ -188,6 +189,8 @@ export type SelectionContext = {
   branches: BranchState;
   seed: string;
   pool: DriftTrack[];
+  /** Listener like/dislike memory. Coded, not a model. */
+  taste?: TasteSnapshot | TasteWire | null;
 };
 
 export type ScoredCandidate = { track: DriftTrack; score: number; breakdown: Record<string, number> };
@@ -222,6 +225,10 @@ export function scoreCandidate(track: DriftTrack, ctx: SelectionContext): Scored
    */
   if (track.id.startsWith("f-") || (typeof track.note === "string" && track.note.includes("Loved on Resonant"))) {
     breakdown.loved = 1.15;
+  }
+
+  if (ctx.taste) {
+    breakdown.taste = (tasteScore(track.vector, ctx.taste, track.artist) - 0.5) * 3.2;
   }
 
   /**
@@ -305,6 +312,7 @@ export type PlanInput = {
   length?: number;
   /** Per-request Favorite Songs window. Never written into the shared catalog. */
   overlay?: readonly DriftTrack[];
+  taste?: TasteSnapshot | TasteWire | null;
 };
 
 export function planDrift(input: PlanInput): DriftArc {
@@ -337,6 +345,7 @@ export function planDrift(input: PlanInput): DriftArc {
       branches,
       seed: `${seed}:${i}`,
       pool,
+      taste: input.taste,
     });
     if (!picked) break;
 
@@ -541,6 +550,7 @@ export type NextPhaseInput = {
   seed?: string;
   /** Per-request Favorite Songs window. Never written into the shared catalog. */
   overlay?: readonly DriftTrack[];
+  taste?: TasteSnapshot | TasteWire | null;
 };
 
 export type NextPhaseResult = {
@@ -619,6 +629,8 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
     aim = lerpVector((lateral ?? destination).vector, destination.vector, 0.4);
   }
 
+  aim = pullTowardTaste(aim, input.taste, mode === "deepen" ? 0.22 : 0.14);
+
   const target = lerpVector(here, aim, travel);
   const used = new Set(input.exclude ?? []);
   const picked = selectForTarget({
@@ -630,6 +642,7 @@ export function nextPhase(input: NextPhaseInput): NextPhaseResult | null {
     branches,
     seed: `${input.seed ?? "next"}:${input.trajectory.length}`,
     pool,
+    taste: input.taste,
   });
   if (!picked) return null;
 

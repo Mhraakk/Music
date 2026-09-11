@@ -45,14 +45,18 @@ export function parseFavoriteOverlay(raw: unknown): FavoriteOverlay[] {
     const title = typeof r.title === "string" ? r.title : "";
     const artist = typeof r.artist === "string" ? r.artist : "";
     const vector = asVector(r.vector);
-    if (!/^(f-|l-|w-)/.test(id) || !title || !artist || !vector) continue;
+    const note = typeof r.note === "string" ? r.note : undefined;
+    const loved = Boolean(note && note.includes("Loved on Resonant"));
+    const favoriteId = /^(f-|l-|w-)/.test(id);
+    const lovedCatalog = loved && /^(h-|x-|a-)/.test(id);
+    if ((!favoriteId && !lovedCatalog && !loved) || !title || !artist || !vector) continue;
     out.push({
       id,
       title,
       artist,
       duration: typeof r.duration === "number" && r.duration > 0 ? r.duration : 240,
       vector,
-      note: typeof r.note === "string" ? r.note : undefined,
+      note,
       appleMusicId:
         typeof r.appleMusicId === "string"
           ? r.appleMusicId

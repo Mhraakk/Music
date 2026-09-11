@@ -2556,3 +2556,10 @@
     padding: 64px 32px;
   }
 }
+
+.cx-joyful-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}

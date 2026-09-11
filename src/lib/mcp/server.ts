@@ -29,6 +29,7 @@ import { catalogStats, driftTrack } from "@/lib/drift/catalog";
 import { generateTasteExpansion, inspectExpansionEngine } from "@/lib/drift/expansion";
 import { toLibraryTrack } from "@/lib/library";
 import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
+import { parseTasteWire } from "@/lib/taste/memory";
 import type { BranchState } from "@/lib/drift/algorithm";
 import type { ResonanceSignal, ResonanceSignalKind } from "@/lib/drift/resonance";
 import { geminiConfigured, geminiModel } from "./gemini";
@@ -169,6 +170,30 @@ export const TOOLS: readonly ToolDescriptor[] = [
             },
           },
         },
+        tasteMemory: {
+          type: "object",
+          description:
+            "Coded like/dislike memory from this listener's device. Hearts pull the next phase toward that centroid; refuses repel. Not a language model.",
+          properties: {
+            centroid: {
+              type: "object",
+              properties: Object.fromEntries(
+                AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+              ),
+            },
+            repel: {
+              type: "object",
+              properties: Object.fromEntries(
+                AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+              ),
+            },
+            likedIds: { type: "array", items: { type: "string" } },
+            refusedIds: { type: "array", items: { type: "string" } },
+            refusedArtists: { type: "array", items: { type: "string" } },
+            likedVectors: { type: "array", items: { type: "object" } },
+            refusedVectors: { type: "array", items: { type: "object" } },
+          },
+        },
       },
       required: ["sessionId", "destination"],
     },
@@ -192,6 +217,10 @@ export const TOOLS: readonly ToolDescriptor[] = [
           description:
             "Circulating Favorite Songs from the listener's device, so the planned arc can occupy loved recordings without writing them into the shared catalog.",
           items: { type: "object" },
+        },
+        tasteMemory: {
+          type: "object",
+          description: "Coded like/dislike memory from this listener's device.",
         },
       },
       required: ["origin", "destination"],
@@ -287,6 +316,20 @@ export const TOOLS: readonly ToolDescriptor[] = [
             type: "object",
             properties: { artist: { type: "string" }, via: { type: "string" } },
           },
+        },
+        likedVectors: {
+          type: "array",
+          description: "Substrate positions of recordings this listener hearted on Resonant.",
+          items: {
+            type: "object",
+            properties: Object.fromEntries(
+              AXES.map((a) => [a.key, { type: "number", minimum: 0, maximum: 1 }])
+            ),
+          },
+        },
+        tasteMemory: {
+          type: "object",
+          description: "Coded like/dislike memory. Hearts outweigh mere listen history.",
         },
         exclude: {
           type: "array",
@@ -427,6 +470,7 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
         .filter((v): v is EmotionalVector => Boolean(v));
 
   const overlay = materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay));
+  const taste = parseTasteWire(args.tasteMemory);
 
   try {
     const decision = await decideNextDrift({
@@ -439,6 +483,7 @@ async function toolGetNextEmotionalDrift(args: Record<string, unknown>, context:
       branches: parseBranches(args.branches),
       soundCloudAccessToken: context.soundCloudAccessToken ?? null,
       overlay,
+      taste,
     });
 
     const summary = [
@@ -464,6 +509,7 @@ async function toolPlanEmotionalDrift(args: Record<string, unknown>, context: Mc
     exclude: asStringArray(args.exclude),
     soundCloudAccessToken: context.soundCloudAccessToken ?? null,
     overlay: materializeFavoriteOverlay(parseFavoriteOverlay(args.libraryOverlay)),
+    taste: parseTasteWire(args.tasteMemory),
   });
 
   const summary = [
@@ -543,6 +589,8 @@ async function toolGenerateTasteExpansion(args: Record<string, unknown>): Promis
     tasteVectors: parseVectors(args.tasteVectors),
     libraryVectors: parseVectors(args.libraryVectors),
     libraryArtists: parseArtistProbes(args.libraryArtists),
+    likedVectors: parseVectors(args.likedVectors),
+    tasteMemory: parseTasteWire(args.tasteMemory),
     excludeIds: asStringArray(args.exclude),
     limit: asNumber(args.limit, 10),
     analyze: args.analyze === false ? false : true,

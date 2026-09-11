@@ -20,6 +20,8 @@ export type ConverseSession = {
   historyIds: string[];
   overlay?: FavoriteOverlay[];
   tasteVectors?: EmotionalVector[];
+  /** Coded like/dislike memory from the listening surface. */
+  tasteMemory?: import("@/lib/taste/memory").TasteWire | null;
   /** Public origin for share deep links. Browser Ask sends window.location.origin. */
   origin?: string | null;
 };

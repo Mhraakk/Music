@@ -4,9 +4,10 @@ import { useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { generateTasteExpansion } from "@/lib/mcp/client";
 import { useLibrary } from "@/context/LibraryContext";
+import { cachedTaste, toTasteWire } from "@/lib/taste/memory";
 
 export function TasteExpand() {
-  const { historyIds, extras, current, sessionId, tasteVectors } = usePlayer();
+  const { historyIds, extras, current, sessionId, tasteVectors, dislikedIds } = usePlayer();
   const { tasteVectors: libraryVectors, probeArtists, excludeIds } = useLibrary();
   const { ingest, play } = usePlayerActions();
   const [busy, setBusy] = useState(false);
@@ -19,13 +20,16 @@ export function TasteExpand() {
     setError(null);
     setNote(null);
 
+    const memory = toTasteWire(cachedTaste());
     const outcome = await generateTasteExpansion({
       sessionId,
       history: historyIds.slice(-12),
       tasteVectors,
       libraryVectors,
       libraryArtists: probeArtists,
-      exclude: [...extras.map((t) => t.id), ...excludeIds],
+      likedVectors: memory.likedVectors,
+      tasteMemory: memory,
+      exclude: [...extras.map((t) => t.id), ...excludeIds, ...dislikedIds],
       limit: 10,
     });
 
