@@ -1,0 +1,44 @@
+@theme {
+  /* Colors */
+  --color-hot-pink: #121212;
+  --color-sun-yellow: #00ffff;
+  --color-signal-blue: #000000;
+  --color-ember-orange: #ff6138;
+  --color-leaf-green: #5ad363;
+  --color-ink-black: #ffffff;
+  --color-charcoal: #121212;
+  --color-slate: #a3a3a3;
+  --color-bone: #1a1a1a;
+  --color-paper-white: #000000;
+  --color-mist: #161616;
+  --color-stone: #2e2e2e;
+  --color-sand: #00ffff;
+  --color-frost: #242424;
+
+  /* Typography */
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Typography — Scale */
+  --text-caption: 10px;
+  --leading-caption: 1;
+  --tracking-caption: 1px;
+  --text-body: 16px;
+  --leading-body: 1.56;
+  --text-subheading: 18px;
+  --leading-subheading: 1.6;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.33;
+  --text-heading: 40px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.8px;
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.13;
+  --tracking-heading-lg: -1.44px;
+  --text-display: 64px;
+  --leading-display: 1.06;
+  --tracking-display: -2.56px;
+  --text-display-xl: 80px;
+  --leading-display-xl: 1;
+  --tracking-display-xl: -3.2px;
+}

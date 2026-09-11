@@ -1,221 +1,86 @@
 @import "tailwindcss";
+@import "./theme.css";
+@import "./variables.css";
 
-:root {
-  /* Core palette — nocturnal cinematic */
-  --r-bg: #050403;
-  --r-ink: #f3eee6;
-  --r-muted: rgba(243, 238, 230, 0.42);
-  --r-accent: #e8a06a;
-  --r-amber: #c4783a;
-  --r-ember: #8b3a1a;
-  --r-deep: #120a06;
-
-  /* Liquid Glass material system — 4 tiers */
-  --glass-1: rgba(255, 248, 240, 0.035);
-  --glass-2: rgba(255, 245, 235, 0.065);
-  --glass-3: rgba(255, 242, 230, 0.095);
-  --glass-4: rgba(255, 248, 240, 0.13);
-
-  --edge: rgba(255, 220, 180, 0.14);
-  --edge-strong: rgba(255, 210, 160, 0.28);
-  --edge-hero: rgba(255, 200, 140, 0.38);
-
-  --blur-1: 14px;
-  --blur-2: 24px;
-  --blur-3: 40px;
-  --blur-4: 56px;
-
-  --radius-card: 1.35rem;
-  --radius-pill: 999px;
-  --radius-hero: 1.75rem;
-
-  --shadow-glass: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-
-  --shadow-elevated: 
-    0 20px 60px rgba(0, 0, 0, 0.55),
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-
-  --shadow-hero: 
-    0 32px 90px rgba(0, 0, 0, 0.65),
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
-
-  --ambient: 28, 12, 6;
-  --ambient-strength: 0.42;
+/*
+ * Epidemic named spacing lives on :root.
+ * Restore Tailwind's spacing scale so utilities like p-4 keep working.
+ */
+@theme {
+  --spacing-4: calc(var(--spacing) * 4);
+  --spacing-8: calc(var(--spacing) * 8);
+  --spacing-10: calc(var(--spacing) * 10);
+  --spacing-12: calc(var(--spacing) * 12);
+  --spacing-15: calc(var(--spacing) * 15);
+  --spacing-16: calc(var(--spacing) * 16);
+  --spacing-20: calc(var(--spacing) * 20);
+  --spacing-24: calc(var(--spacing) * 24);
+  --spacing-28: calc(var(--spacing) * 28);
+  --spacing-32: calc(var(--spacing) * 32);
+  --spacing-40: calc(var(--spacing) * 40);
+  --spacing-48: calc(var(--spacing) * 48);
+  --spacing-64: calc(var(--spacing) * 64);
+  --radius-full: 9999px;
 }
 
-* { box-sizing: border-box; }
+html {
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-twk-lausanne: var(--font-inter);
+  --font-pp-mondwest: var(--font-sebentafont-custom-editorial-serif);
+  --ease-glide: cubic-bezier(0.25, 1, 0.5, 1);
+}
 
-html, body {
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
   min-height: 100%;
-  background: var(--r-bg);
-  color: var(--r-ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  background-color: var(--surface-page-canvas);
+  background-image: none;
+  background-attachment: fixed;
+  color: var(--color-ink-black);
+  font-family: var(--font-inter);
+  font-weight: 400;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   overflow-x: hidden;
 }
 
-/* ─── Liquid Glass Material Primitives ─── */
-
-.glass-1 {
-  background: var(--glass-1);
-  backdrop-filter: blur(var(--blur-1)) saturate(1.25) brightness(1.02);
-  -webkit-backdrop-filter: blur(var(--blur-1)) saturate(1.25) brightness(1.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-.glass-2 {
-  background: var(--glass-2);
-  backdrop-filter: blur(var(--blur-2)) saturate(1.4) brightness(1.03);
-  -webkit-backdrop-filter: blur(var(--blur-2)) saturate(1.4) brightness(1.03);
-  border: 1px solid var(--edge);
-  box-shadow: var(--shadow-glass);
-}
-
-.glass-3 {
-  background: var(--glass-3);
-  backdrop-filter: blur(var(--blur-3)) saturate(1.5) brightness(1.04);
-  -webkit-backdrop-filter: blur(var(--blur-3)) saturate(1.5) brightness(1.04);
-  border: 1px solid var(--edge-strong);
-  box-shadow: var(--shadow-elevated);
-}
-
-.glass-4 {
-  background: linear-gradient(
-    155deg,
-    rgba(255, 248, 240, 0.14) 0%,
-    rgba(255, 240, 220, 0.06) 50%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  backdrop-filter: blur(var(--blur-4)) saturate(1.6) brightness(1.05);
-  -webkit-backdrop-filter: blur(var(--blur-4)) saturate(1.6) brightness(1.05);
-  border: 1px solid var(--edge-hero);
-  box-shadow: var(--shadow-hero);
-}
-
-/* Edge thickness & light catch */
-.glass-edge {
-  position: relative;
-}
-.glass-edge::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.28),
-    inset 1px 0 0 rgba(255, 255, 255, 0.04),
-    inset -1px 0 0 rgba(0, 0, 0, 0.08);
-}
-
-/* Ambient environment — Layer 0–1 */
-.ambient-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.ambient-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.5;
-  transition: background 1.1s ease, transform 1.6s ease, opacity 1s ease;
-  will-change: background, transform;
-}
-
-.grain {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Interaction */
-.pressable {
-  transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1), 
-              opacity 0.15s ease, 
-              background 0.2s ease,
-              box-shadow 0.2s ease;
-}
-.pressable:active {
-  transform: scale(0.96);
-}
-
-/* Soft glow on interactive glass */
-.glow-accent {
-  box-shadow: 0 0 24px rgba(232, 160, 106, 0.28), var(--shadow-glass);
+.display {
+  font-family: var(--font-inter);
+  font-size: clamp(40px, 10vw, 80px);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Range inputs — refined */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  height: 6px;
-  cursor: pointer;
-}
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #f3eee6;
-  margin-top: -5.5px;
-  box-shadow: 0 0 14px rgba(232, 160, 106, 0.55);
-  border: 1px solid rgba(255, 200, 140, 0.4);
-}
-input[type="range"]::-moz-range-track {
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-}
-input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #f3eee6;
-  border: 1px solid rgba(255, 200, 140, 0.4);
-  box-shadow: 0 0 14px rgba(232, 160, 106, 0.55);
-}
-
-/* Safe area helpers */
-.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
-
-/* Editorial display weight for headlines */
-.display {
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
 }

@@ -1,0 +1,149 @@
+:root {
+  /* Colors */
+  --color-hot-pink: #121212;
+  --color-sun-yellow: #00ffff;
+  --color-signal-blue: #000000;
+  --color-ember-orange: #ff6138;
+  --color-leaf-green: #5ad363;
+  --color-ink-black: #ffffff;
+  --color-charcoal: #121212;
+  --color-slate: #a3a3a3;
+  --color-bone: #1a1a1a;
+  --color-paper-white: #000000;
+  --color-mist: #161616;
+  --color-stone: #2e2e2e;
+  --color-sand: #00ffff;
+  --color-frost: #242424;
+
+  /* Compatibility aliases for cosmos rules */
+  --color-obsidian: #000000;
+  --color-paper: #000000;
+  --color-inkstone: #121212;
+  --color-felt-gray: #a3a3a3;
+  --color-ash-mist: #161616;
+  --color-pewter: #2e2e2e;
+  --color-slate-pill: #121212;
+  --color-iridescent-fade: #121212;
+  --color-press-black: #ffffff;
+  --color-bone-white: #1a1a1a;
+  --color-typesetter-ink: #ffffff;
+  --color-newsprint-gray: #a3a3a3;
+  --color-muted-sage: #2e2e2e;
+  --color-highlighter-green: #121212;
+  --color-shadow-moss: #2e2e2e;
+  --color-echo-green: #00ffff;
+  --color-slate-verdant: #000000;
+
+  /* Typography — Font Families */
+  --font-inter: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sebentafont-custom-editorial-serif: var(--font-loaded-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-twk-lausanne: var(--font-inter);
+  --font-pp-mondwest: var(--font-sebentafont-custom-editorial-serif);
+  --font-editorial-new: var(--font-sebentafont-custom-editorial-serif);
+  --font-times: var(--font-sebentafont-custom-editorial-serif);
+  --font-roobert: var(--font-inter);
+  --font-raleway: var(--font-sebentafont-custom-editorial-serif);
+  --font-system-ui: var(--font-inter);
+
+  /* Typography — Scale */
+  --text-caption: 10px;
+  --leading-caption: 1;
+  --tracking-caption: 1px;
+  --text-body: 16px;
+  --leading-body: 1.56;
+  --text-subheading: 18px;
+  --leading-subheading: 1.6;
+  --text-heading-sm: 24px;
+  --leading-heading-sm: 1.33;
+  --text-heading: 40px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.8px;
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.13;
+  --tracking-heading-lg: -1.44px;
+  --text-display: 64px;
+  --leading-display: 1.06;
+  --tracking-display: -2.56px;
+  --text-display-xl: 80px;
+  --leading-display-xl: 1;
+  --tracking-display-xl: -3.2px;
+
+  /* Typography — Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extralight: 400;
+  --font-weight-light: 400;
+  --font-weight-w350: 400;
+  --font-weight-w550: 500;
+
+  /* Spacing */
+  --spacing-unit: 8px;
+  --spacing-8: 8px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-72: 72px;
+  --spacing-80: 80px;
+  --spacing-128: 128px;
+  --spacing-144: 144px;
+  --spacing-240: 240px;
+  --spacing-4: 8px;
+  --spacing-10: 8px;
+  --spacing-15: 16px;
+  --spacing-20: 24px;
+  --spacing-25: 24px;
+  --spacing-30: 32px;
+  --spacing-35: 32px;
+  --spacing-40: 48px;
+  --spacing-45: 48px;
+  --spacing-50: 48px;
+  --spacing-55: 56px;
+  --spacing-60: 64px;
+  --spacing-120: 128px;
+  --spacing-190: 144px;
+
+  /* Layout */
+  --page-max-width: 1200px;
+  --section-gap: 64px;
+  --card-padding: 24px;
+  --element-gap: 16px;
+
+  /* Named Radii */
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 9999px;
+  --radius-pills: 0px;
+  --radius-round: 9999px;
+  --radius-images: 0px;
+  --radius-buttons: 0px;
+  --radius-tags: 9999px;
+  --radius-cards: 0px;
+  --radius-inputs: 0px;
+  --radius-nav: 0px;
+  --radius-badges: 9999px;
+  --radius-accordion-rows: 0px;
+
+  /* Shadows: none. Depth is a surface shift. */
+  --shadow-lg: none;
+  --shadow-lg-2: none;
+
+  /* Surfaces */
+  --surface-page-canvas: #000000;
+  --surface-bone-surface: #1a1a1a;
+  --surface-mist-surface: #161616;
+  --surface-hot-pink-block: #121212;
+  --surface-signal-blue-block: #000000;
+  --surface-canvas: #000000;
+  --surface-dark-section: #121212;
+  --surface-accent-band: #121212;
+  --surface-paper: #000000;
+  --surface-obsidian: #000000;
+  --surface-slate-pill: #121212;
+  --surface-ash-mist: #161616;
+}

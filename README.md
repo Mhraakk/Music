@@ -1,17 +1,106 @@
-# RESONANT v4 — Liquid Glass
+# RESONANT — Apple-first listening
 
-Cinematic music intelligence. Artwork-driven. Emotional taste graph.
+Listen Now, Favorite Songs, and Connect Apple Music. No genres, no BPM, no popularity
+ranking, and no skip. The engine owns what follows. Ask is at `/talk`.
 
-## What changed in v4
-- Real album artwork on every track
-- Persistent floating glass Mini Player
-- Immersive Now Playing (artwork illuminates the room)
-- Liquid Glass material system (glass-1 … glass-4)
-- Ambient environment derived from cover colors
-- Hero discovery card + editorial track cards
-- Preserved recommendation engine + rejection memory
-
-## Run
 ```bash
 npm i && npm run dev
 ```
+
+| Route | What it is |
+|---|---|
+| `/` | **Listen Now** — sleeves, Favorite Songs, Connect Apple Music |
+| `/library` | The living catalog and connected Favorite Songs |
+| `/talk` | Ask — find music, lyrics, liner notes, share a listen |
+| `/atlas` | Every Noise as navigation only. Never written onto catalog records |
+| `/radio` | wheat1 night and the nine rooms |
+| `/collections` | Nine regions of the emotional map. Not playlists — coordinates |
+| `/curators` | The seven reference positions the engine was tuned on |
+| `/drift` | The emotional map — pick two coordinates and the engine computes the arc |
+
+## What makes it not a music player
+
+**Zero-genre ontology.** A record is not "trip hop" or "deep house" here; it is a position in
+a seven-axis emotional substrate, retrieved on two derived keys — an Acoustic Vulnerability
+Index and a Cinematic Space Vector. Six strict rejection rules are expressed as predicates
+over acoustics rather than tag blocklists, so an untagged record nobody has heard is still
+filtered on its emotional structure alone.
+
+**No next button.** A session advances when a track ends or when you name a new destination.
+Everything else you do is read as evidence rather than obeyed as a command: turning the volume
+up while a voice is at its most exposed counts for up to 2.3× the same gesture anywhere else.
+Positive resonance deepens the current pattern, negative prunes the branch, partial explores
+sideways.
+
+**Search by colour.** Every sleeve's dominant colour is extracted at build time, so picking a
+swatch ranks the whole catalog instantly and tints the room to match.
+
+**Gemini MCP.** `/api/mcp` is a real Model Context Protocol server, and the browser UI is just
+one of its clients. The model is shown anonymous coordinates with no artist, title or genre —
+which makes genre reasoning structurally impossible rather than merely discouraged — and every
+proposal is verified against the ontology before it is accepted.
+
+**Living catalog.** The authored seed is only the calibration set. The expansion engine
+searches Apple Music near the artists who already occupy your taste — taste is a position
+in the substrate, never a genre — projects each hit onto the seven axes, and admits what
+survives the rejection rules. `10 new near your taste` on the discover surface asks for
+ten new positions whenever you want them.
+
+**Favorite Songs.** Connect Apple Music on Discover and the private playlist
+`pl.u-jEUdxzrWgb` is admitted through the same ontology as harvest — then it
+circulates as catalog (a rotating window, never a 10k dump) and as taste
+(the library centroid plus your most-loved artists as search probes).
+Needs a MusicKit key; without it the rest of the app still runs on iTunes previews.
+
+## Deploying
+
+Nothing is required to deploy. There are no mandatory environment variables — the engine falls
+back to deterministic local cognition and playback uses iTunes previews, so a fresh deploy is
+fully functional out of the box.
+
+**Connect this GitHub repo to Vercel** (import, do not clone — the repo already exists):
+
+[https://vercel.com/new/import?s=https://github.com/Mhraakk/Music](https://vercel.com/new/import?s=https://github.com/Mhraakk/Music)
+
+Vercel detects Next.js from `vercel.json`. Until this lands on `main`, set **Production Branch**
+to `cursor/complete-listen-e638` — that is the final 4.1 listen surface.
+
+A `VERCEL_TOKEN` (Account Settings → Tokens) lets the CLI finish the rest without the
+dashboard:
+
+```bash
+npx vercel login
+npx vercel link --yes --project resonant
+npx vercel --prod --yes
+```
+
+`@vercel/speed-insights` is already wired into the root layout and starts reporting on its
+own.
+
+Optional variables, each of which upgrades a capability rather than enabling one:
+
+| Variable | Without it |
+|---|---|
+| `GEMINI_API_KEY` | Drift uses local cognition; Ask still finds songs on Deezer / YouTube / SoundCloud / Apple. Paste a key in **Ask** to talk to Gemini. |
+| `APPLE_MUSIC_TEAM_ID` · `APPLE_MUSIC_KEY_ID` · `APPLE_MUSIC_PRIVATE_KEY` | 30-second iTunes previews; Favorite Songs stay disconnected until a MusicKit key is set |
+| `SOUNDCLOUD_CLIENT_ID` · `SOUNDCLOUD_CLIENT_SECRET` | No SoundCloud identity or base audio |
+
+`SOUNDCLOUD_REDIRECT_URI` is derived from the request origin, so it only needs setting if your
+registered callback differs from `https://<your-domain>/api/auth/soundcloud/callback`.
+
+## Checks
+
+```bash
+npm run typecheck
+npm run verify:tokens
+npm run verify:atlas
+npm run verify:drift    # behavioural checks against the engine; needs a server running
+npm run harvest:catalog # pull Apple Music neighbours into the living catalog
+npm run resolve:media   # refresh artwork, previews and colours for the authored seed
+```
+
+`verify:drift` takes an optional base URL, so it can be pointed at a production build or a
+deployed instance: `node scripts/verify-drift-engine.mjs https://your-domain`.
+
+Architecture, design rationale, configuration and the full list of environment variables:
+[`docs/SONIC_DRIFT_ARCHITECTURE.md`](docs/SONIC_DRIFT_ARCHITECTURE.md).

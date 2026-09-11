@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "nuclear": {
+      "url": "http://127.0.0.1:8800/mcp"
+    },
+    "resonant": {
+      "url": "http://127.0.0.1:3000/api/mcp"
+    },
+    "harness": {
+      "url": "https://mcp.harness.io/mcp",
+      "auth": {
+        "CLIENT_ID": "mcp-client"
+      }
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "notion": {
+      "url": "https://mcp.notion.com/mcp"
+    },
+    "slack": {
+      "url": "https://mcp.slack.com/mcp"
+    },
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "braintrust": {
+      "url": "https://mcp.braintrust.dev/mcp"
+    }
+  }
+}

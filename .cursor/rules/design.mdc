@@ -1,0 +1,33 @@
+---
+description: Epidemic Sound liner-notes visual system for Resonant UI
+globs: src/**/*.{tsx,css}
+---
+
+Reading this as: redesign of an existing listening product for design-conscious
+music listeners, with an Epidemic Sound editorial liner-notes language,
+leaning toward Inter + Newsreader italic, paper white, and oxblood chapters
+instead of hot pink.
+
+Dials: DESIGN_VARIANCE 6 / MOTION_INTENSITY 3 / VISUAL_DENSITY 3.
+
+Before changing UI, read `src/app/theme.css`, `src/app/variables.css`, and
+`src/app/tokens.json`.
+
+Hard rules from the Jadid / Epidemic Sound spec:
+- Canvas is Paper White `#ffffff`. Warm surface is Bone `#f1f0eb`.
+- Oxblood `#4a242c` substitutes Hot Pink. Use it as a full-bleed chapter, never
+  as a small tint, never as the filled CTA.
+- The only filled button is Ink Black `#000000` with white type, 0px radius.
+  Ghost buttons are Bone with black type. No shadows.
+- 0px radius on cards, buttons, inputs, images. Badges may be 9999px.
+- Inter for all functional UI. Newsreader (sebentaFont substitute) for display
+  only. Emphasis inside headlines is italic of the same serif, never a color swap.
+- Photographs arrive at full fidelity. No duotone, no overlay labels on images.
+- Page max-width 1200px. Section gap 64px. Card padding 24px.
+- Chromatic cadence: mostly white/bone, then one oxblood block, then charcoal
+  if needed. Never stack two chromatic sections.
+- Brand stays Resonant. No skip / next control.
+- Homepage still names Listen Now, Favorite Songs, Connect Apple Music.
+- Every Noise atlas is navigation only. Never write a genre field onto stored
+  catalog records.
+- No em-dash in visible copy.

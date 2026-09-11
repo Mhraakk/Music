@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "harness": {
+      "enabled": true
+    },
+    "resonant": {
+      "enabled": true
+    }
+  }
+}

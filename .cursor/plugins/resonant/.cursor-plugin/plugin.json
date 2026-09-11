@@ -1,0 +1,22 @@
+{
+  "name": "resonant",
+  "displayName": "Resonant",
+  "version": "1.0.0",
+  "description": "Listen MCP, Ask tools, atlas navigation, and product locks for the Resonant music app.",
+  "author": {
+    "name": "Resonant"
+  },
+  "homepage": "https://github.com/Mhraakk/Music",
+  "repository": "https://github.com/Mhraakk/Music",
+  "license": "UNLICENSED",
+  "logo": "assets/logo.svg",
+  "mcpServers": "./mcp.json",
+  "keywords": [
+    "resonant",
+    "music",
+    "apple-music",
+    "mcp",
+    "atlas",
+    "listen"
+  ]
+}

@@ -1,36 +1,43 @@
 import { NextResponse } from "next/server";
-import { TRACKS } from "@/lib/tracks";
-import { recommend, getDebugSnapshot } from "@/lib/engine";
-import { catalogIntegrity } from "@/lib/agent/verify";
-import { getAgentDefinition } from "@/lib/agent/registry";
-import { getWeights } from "@/lib/reliability/weights";
+import { engineStatus } from "@/lib/mcp/server";
+import { library } from "@/lib/library";
 
+/**
+ * Ops signal for the living cognitive engine — not the retired 60-track ranker.
+ */
 export async function GET() {
-  const catalog = catalogIntegrity();
-  let recOk = false;
-  let itemCount = 0;
-  try {
-    const res = recommend(
-      { warm: 0.55, sad: 0.45, organic: 0.5, energy: 0.35, dark: 0.55 },
-      {},
-      0.7
-    );
-    itemCount = res.items.length;
-    recOk = itemCount > 0;
-  } catch {
-    recOk = false;
-  }
-  const ok = catalog.ok && recOk && TRACKS.length > 0;
-  const agent = getAgentDefinition();
+  const status = engineStatus();
+  const catalog = library();
+  const playable = catalog.filter((t) => Boolean(t.previewUrl)).length;
+  const sleeves = catalog.filter((t) => Boolean(t.artworkUrl)).length;
+  const auditOk = status.topography.audit.every((row) => row.ok);
+  const ok =
+    status.ontology.admitted > 40 &&
+    playable > 40 &&
+    status.ontology.genreFields === 0 &&
+    auditOk;
+
   return NextResponse.json(
     {
       status: ok ? "ok" : "degraded",
-      catalog,
-      recommendations: { ok: recOk, itemCount },
-      agent: { id: agent.id, version: agent.version },
-      weights: getWeights(),
-      debug: getDebugSnapshot(),
-      providers: { local: { status: "up" } },
+      engine: {
+        catalogSize: status.ontology.living,
+        living: status.ontology.living,
+        seed: status.ontology.seed,
+        harvested: status.ontology.harvested,
+        admitted: status.ontology.admitted,
+        refused: status.ontology.refused,
+        favorites: status.ontology.favorites ?? 0,
+        genreFields: status.ontology.genreFields,
+        axes: status.ontology.axes,
+        tools: status.tools,
+        cognition: status.cognition,
+      },
+      media: { playable, sleeves, catalog: catalog.length },
+      topography: {
+        coordinates: status.topography.coordinates,
+        auditOk,
+      },
       ts: new Date().toISOString(),
     },
     { status: ok ? 200 : 503 }

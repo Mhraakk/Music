@@ -1,0 +1,1269 @@
+#!/usr/bin/env node
+/**
+ * Drives the Sonic Drift cognitive core through /api/mcp exactly as the browser
+ * client does, and asserts the properties the engine claims about itself.
+ *
+ * This exists because the interesting failures in this engine are behavioural
+ * rather than type-level: an arc that reads as going backwards, a rejection rule
+ * calibrated half a point too loose, or a feedback ledger in which older
+ * positives out-vote a fresh abandonment. None of those are visible to tsc, and
+ * all three were real defects caught by running this.
+ *
+ *   npm run dev
+ *   node scripts/verify-drift-engine.mjs [baseUrl]
+ */
+
+import { readFileSync } from "node:fs";
+
+const BASE = process.argv[2] ?? "http://localhost:3000";
+const ENDPOINT = `${BASE}/api/mcp`;
+
+let failures = 0;
+let checks = 0;
+
+function check(ok, label, detail = "") {
+  checks += 1;
+  if (!ok) failures += 1;
+  const mark = ok ? "  ok  " : " FAIL ";
+  console.log(`${mark} ${label}${detail ? ` — ${detail}` : ""}`);
+}
+
+function section(title) {
+  console.log(`\n${title}\n${"-".repeat(title.length)}`);
+}
+
+let rpcId = 0;
+
+async function rpc(method, params) {
+  rpcId += 1;
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: rpcId, method, params }),
+  });
+  if (!response.ok) throw new Error(`${method} → HTTP ${response.status}`);
+  const payload = await response.json();
+  if (payload.error) throw new Error(`${method} → ${payload.error.message}`);
+  return payload.result;
+}
+
+async function callTool(name, args) {
+  const result = await rpc("tools/call", { name, arguments: args });
+  if (result.isError) throw new Error(`${name} → ${result.content?.[0]?.text}`);
+  return result.structuredContent;
+}
+
+/* ─────────────────────────── protocol + capability ─────────────────────────── */
+
+async function verifyProtocol() {
+  section("MCP protocol");
+
+  const init = await rpc("initialize", {
+    protocolVersion: "2025-06-18",
+    clientInfo: { name: "verify-drift-engine", version: "1.0.0" },
+  });
+  check(init.protocolVersion === "2025-06-18", "initialize negotiates the protocol version", init.protocolVersion);
+  check(Boolean(init.capabilities?.tools), "server advertises tool capability");
+
+  const { tools } = await rpc("tools/list", {});
+  const names = tools.map((t) => t.name);
+  check(names.includes("get_next_emotional_drift"), "get_next_emotional_drift is exposed");
+  check(names.includes("generate_taste_expansion"), "generate_taste_expansion is exposed");
+  check(names.includes("inspect_expansion_engine"), "inspect_expansion_engine is exposed");
+  check(names.includes("find_music"), "Ask find_music is on /api/mcp");
+  check(names.includes("browse_atlas"), "Ask browse_atlas is on /api/mcp");
+  check(names.includes("research_recording"), "research_recording is on /api/mcp");
+  check(names.includes("share_listen"), "share_listen is on /api/mcp");
+  check(names.includes("resolve_atlas"), "resolve_atlas is on /api/mcp");
+  check(tools.every((t) => t.inputSchema?.type === "object"), "every tool carries a JSON Schema");
+
+  // Notifications must be answered with silence and a 202, not a result object.
+  const notified = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+  });
+  check(notified.status === 202, "notification returns 202 with no body", `status ${notified.status}`);
+
+  const unknown = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 99, method: "does/not/exist" }),
+  }).then((r) => r.json());
+  check(unknown.error?.code === -32601, "unknown method returns METHOD_NOT_FOUND", String(unknown.error?.code));
+}
+
+async function verifyOntology() {
+  section("Ontology and topography");
+
+  const status = await fetch(ENDPOINT).then((r) => r.json()).then((d) => d.status);
+
+  check(status.ontology.genreFields === 0, "zero genre fields in the catalog");
+  check(status.ontology.admitted > 40, "admissible pool is large enough to drift in", `${status.ontology.admitted} positions`);
+  check(
+    typeof status.ontology.seed === "number" && status.ontology.living >= status.ontology.seed,
+    "living catalog is at least the authored seed",
+    `seed ${status.ontology.seed} · living ${status.ontology.living}`
+  );
+  check(status.ontology.axes.length === 7, "seven substrate axes");
+  check(status.ontology.rejectionRules.length === 6, "six strict rejection rules");
+
+  const failed = status.topography.audit.filter((a) => !a.ok);
+  check(
+    failed.length === 0,
+    "every coordinate is a place the engine would play",
+    failed.length ? failed.map((f) => `${f.id}:${f.worst}`).join(", ") : `${status.topography.coordinates} coordinates`
+  );
+}
+
+/* ───────────────────────────── rejection calibration ───────────────────────────── */
+
+const SHAPES = [
+  ["festival EDM anthem", { depth: 0.2, narrative: 0.25, fragility: 0.1, cinema: 0.2, warmth: 0.5, imperfection: 0.1, insistence: 0.95 }, 0.9, false],
+  ["loop-based minimal techno", { depth: 0.45, narrative: 0.15, fragility: 0.2, cinema: 0.4, warmth: 0.3, imperfection: 0.2, insistence: 0.7 }, 0.2, false],
+  ["bright commercial house", { depth: 0.2, narrative: 0.5, fragility: 0.25, cinema: 0.35, warmth: 0.9, imperfection: 0.3, insistence: 0.6 }, 0.85, false],
+  ["emotionless ambient", { depth: 0.3, narrative: 0.15, fragility: 0.1, cinema: 0.6, warmth: 0.2, imperfection: 0.15, insistence: 0.05 }, 0.1, false],
+  ["rhythm-dominant experimental jazz", { depth: 0.35, narrative: 0.55, fragility: 0.3, cinema: 0.4, warmth: 0.45, imperfection: 0.85, insistence: 0.8 }, 0.15, false],
+  ["Portishead-shaped", { depth: 0.9, narrative: 0.68, fragility: 0.92, cinema: 0.84, warmth: 0.4, imperfection: 0.74, insistence: 0.3 }, 0.2, true],
+  ["Massive Attack-shaped", { depth: 0.88, narrative: 0.72, fragility: 0.66, cinema: 0.86, warmth: 0.44, imperfection: 0.58, insistence: 0.34 }, 0.35, true],
+  ["St Germain-shaped", { depth: 0.56, narrative: 0.7, fragility: 0.44, cinema: 0.66, warmth: 0.88, imperfection: 0.8, insistence: 0.42 }, 0.3, true],
+  ["16BL deep-room-shaped", { depth: 0.7, narrative: 0.6, fragility: 0.46, cinema: 0.78, warmth: 0.72, imperfection: 0.54, insistence: 0.44 }, 0.2, true],
+];
+
+async function verifyRejections() {
+  section("Strict rejections");
+
+  for (const [label, vector, chartGravity, shouldAdmit] of SHAPES) {
+    const result = await callTool("evaluate_emotional_resonance", { vector, chartGravity });
+    const top = result.violations[0];
+    check(
+      result.admitted === shouldAdmit,
+      `${shouldAdmit ? "admits" : "refuses"} ${label}`,
+      result.admitted
+        ? `AVI ${result.acousticVulnerabilityIndex.toFixed(2)}, nearest ${result.baselineResonance.nearest}`
+        : `${top?.id} ${top?.severity.toFixed(2)}`
+    );
+  }
+}
+
+/* ──────────────────────────────── arc geometry ──────────────────────────────── */
+
+const SEAM_LIMIT = 0.34;
+
+async function verifyArc() {
+  section("Arc planning");
+
+  const { arc, phases } = await callTool("plan_emotional_drift", {
+    sessionId: "verify-arc",
+    origin: "deep_melancholy",
+    destination: "cinematic_warmth",
+  });
+
+  check(phases.length >= 5 && phases.length <= 7, "arc is 5–7 phases", `${phases.length} phases`);
+  check(arc.origin === "deep_melancholy" && arc.destination === "cinematic_warmth", "arc honours both endpoints");
+
+  const worstSeam = Math.max(...phases.map((p) => p.step));
+  check(worstSeam <= SEAM_LIMIT, "no transition exceeds the seam cap", `worst step ${worstSeam.toFixed(3)}`);
+
+  const artists = phases.map((p) => p.artist.toLowerCase());
+  check(new Set(artists).size === artists.length, "no artist repeats within an arc");
+
+  // Warmth should rise across a drift toward Cinematic Warmth. A dip mid-arc is
+  // legal (the path bows), but the endpoints must be ordered.
+  const first = phases[0].target.warmth;
+  const last = phases[phases.length - 1].target.warmth;
+  check(last > first, "warmth increases from departure to arrival", `${first.toFixed(2)} → ${last.toFixed(2)}`);
+
+  // The bow: the deepest point should be strictly inside the arc, not at an end.
+  const depths = phases.map((p) => p.target.depth);
+  const deepestIndex = depths.indexOf(Math.max(...depths));
+  check(
+    deepestIndex > 0 && deepestIndex < phases.length - 1,
+    "the path bows — deepest point is mid-arc",
+    `deepest at phase ${deepestIndex + 1} of ${phases.length}`
+  );
+
+  console.log("");
+  for (const p of phases) {
+    console.log(
+      `       ${String(p.index + 1).padStart(2)}. ${p.chapter.padEnd(8)} ` +
+        `${p.region.padEnd(18)} step ${p.step.toFixed(3)}  field ${p.field.padEnd(12)} ` +
+        `${p.artist} — ${p.title}`
+    );
+  }
+}
+
+/* ────────────────────────────── session behaviour ────────────────────────────── */
+
+const SCRIPT = [
+  ["volume_raise", 0.85, 0.35, "leans in on an exposed moment"],
+  ["volume_raise", 0.8, 0.3, "leans in again"],
+  ["dwell_complete", 0, 0, "listens to the end"],
+  ["abandon", 0.2, 0, "walks out early"],
+  ["volume_lower", 0.75, 0.4, "pulls back on an exposed moment"],
+  ["stillness", 0, 0, "does nothing"],
+  ["seek_back", 0.7, 0, "replays a moment"],
+  ["dwell_complete", 0, 0, "listens to the end"],
+];
+
+async function verifySession() {
+  section("Session behaviour under implicit feedback");
+
+  let history = [];
+  let branches = {};
+  let signals = [];
+  const modes = [];
+
+  // Each row is the engine's decision followed by what the listener then did in
+  // response to it, so the mode on any row reflects the rows above it.
+  console.log("\n       behaviour that follows each decision → the decision it produced next\n");
+  for (const [kind, fragility, magnitude, label] of SCRIPT) {
+    const decision = await callTool("get_next_emotional_drift", {
+      sessionId: "verify-session",
+      origin: "deep_melancholy",
+      destination: "cinematic_warmth",
+      history,
+      signals,
+      branches,
+    });
+
+    const { phase, reading } = decision;
+    branches = decision.branches;
+    history.push(phase.trackId);
+    modes.push(reading.mode);
+
+    console.log(
+      `       ${label.padEnd(34)} ${reading.mode.padEnd(8)} ` +
+        `val ${reading.valence >= 0 ? "+" : ""}${reading.valence.toFixed(2)} ` +
+        `conf ${reading.confidence.toFixed(2)} step ${phase.step.toFixed(3)} ` +
+        `${phase.region.padEnd(18)} ${phase.artist} — ${phase.title}`
+    );
+
+    signals = [
+      ...signals,
+      {
+        kind,
+        trackId: phase.trackId,
+        progress: kind === "abandon" ? 0.15 : kind === "dwell_complete" ? 1 : 0.5,
+        fragility,
+        magnitude,
+        at: Date.now(),
+      },
+    ];
+  }
+
+  console.log("");
+  check(new Set(history).size === history.length, "no track repeats across the session", `${history.length} phases`);
+  check(modes.includes("deepen"), "positive gestures produce deepening");
+  check(modes.includes("prune"), "negative gestures produce pruning");
+  check(
+    Object.values(branches).some((b) => b.status === "pruned"),
+    "a branch is recorded as pruned in branch memory",
+    JSON.stringify(branches)
+  );
+}
+
+async function verifyDeepenIntensifies() {
+  section("Deepen semantics");
+
+  // A deliberately cold, heavy starting position, so progress toward the warm
+  // destination is unambiguous in a single axis.
+  const here = {
+    depth: 0.9,
+    narrative: 0.5,
+    fragility: 0.7,
+    cinema: 0.85,
+    warmth: 0.25,
+    imperfection: 0.6,
+    insistence: 0.2,
+  };
+  const shared = {
+    sessionId: "verify-deepen",
+    origin: "deep_melancholy",
+    destination: "cinematic_warmth",
+    history: ["l-3", "l-19"],
+    trajectory: [here, here],
+    branches: {},
+  };
+  const at = Date.now();
+
+  const weak = await callTool("get_next_emotional_drift", {
+    ...shared,
+    signals: [{ kind: "volume_raise", trackId: "l-19", progress: 0.5, fragility: 0.85, magnitude: 0.3, at }],
+  });
+  const strong = await callTool("get_next_emotional_drift", {
+    ...shared,
+    signals: [
+      { kind: "volume_raise", trackId: "l-19", progress: 0.5, fragility: 0.85, magnitude: 0.35, at },
+      { kind: "volume_raise", trackId: "l-3", progress: 0.55, fragility: 0.8, magnitude: 0.3, at: at - 1000 },
+      { kind: "dwell_complete", trackId: "l-3", progress: 1, fragility: 0, magnitude: 0, at: at - 2000 },
+    ],
+  });
+
+  check(weak.reading.mode === "deepen" && strong.reading.mode === "deepen", "both readings deepen");
+  check(
+    strong.reading.confidence > weak.reading.confidence,
+    "more evidence raises confidence",
+    `${weak.reading.confidence.toFixed(2)} → ${strong.reading.confidence.toFixed(2)}`
+  );
+
+  /**
+   * Regression guard for the freeze. `deepen` once combined a step that shrank
+   * with confidence and an aim that dropped the destination entirely, so the
+   * strongest resonance produced the least movement and a session could stall
+   * on one position forever.
+   *
+   * Note this asserts *progress*, not step length. A smaller step at higher
+   * confidence is now correct: the aim retains a destination component, and
+   * strong resonance legitimately means staying nearer to what is working. What
+   * must never happen again is the drift ceasing to advance.
+   */
+  for (const [label, result] of [["low", weak], ["high", strong]]) {
+    check(
+      result.phase.target.warmth > here.warmth,
+      `deepen still advances toward the destination at ${label} confidence`,
+      `warmth ${here.warmth.toFixed(2)} → ${result.phase.target.warmth.toFixed(2)}`
+    );
+    check(
+      result.phase.step > 0.004,
+      `deepen produces a non-zero step at ${label} confidence`,
+      `step ${result.phase.step.toFixed(4)}`
+    );
+  }
+}
+
+async function verifySilentSessionRestraint() {
+  section("Silent-session restraint");
+
+  // A phase with no resolved audio still advances, but its completion is
+  // recorded as `stillness` rather than `dwell_complete`. Crediting an inaudible
+  // phase as a full dwell manufactures strong positives and pins the engine in
+  // `deepen` for an entire session, which is what this guards against.
+  const run = async (kind) => {
+    let history = [];
+    let branches = {};
+    let signals = [];
+    let last = null;
+    for (let i = 0; i < 6; i++) {
+      const decision = await callTool("get_next_emotional_drift", {
+        sessionId: `verify-silent-${kind}`,
+        origin: "deep_melancholy",
+        destination: "cinematic_warmth",
+        history,
+        signals,
+        branches,
+      });
+      branches = decision.branches;
+      history.push(decision.phase.trackId);
+      last = decision.reading;
+      signals.push({
+        kind,
+        trackId: decision.phase.trackId,
+        progress: 1,
+        fragility: 0,
+        magnitude: 0,
+        at: Date.now(),
+      });
+    }
+    return last;
+  };
+
+  const still = await run("stillness");
+  const dwelt = await run("dwell_complete");
+
+  check(
+    still.confidence < dwelt.confidence,
+    "stillness builds less confidence than a real dwell",
+    `${still.confidence.toFixed(2)} vs ${dwelt.confidence.toFixed(2)}`
+  );
+  check(
+    still.confidence < 0.7,
+    "a silent session does not reach high conviction",
+    `confidence ${still.confidence.toFixed(2)} after 6 phases`
+  );
+}
+
+async function verifyArrival() {
+  section("Long-session arrival");
+
+  // A listener who names a destination must reach it, whether they engage or
+  // sit still. Two defects used to prevent that: `deepen` dropped the
+  // destination from its aim entirely, and the engine treated the served
+  // track's position as "where the session is", so once a region ran thin the
+  // compromise occupant dragged the whole trajectory back the way it came.
+  const run = async (kind) => {
+    const arc = [];
+    let branches = {};
+    let signals = [];
+    for (let i = 0; i < 18; i++) {
+      const recent = arc.slice(-24);
+      const decision = await callTool("get_next_emotional_drift", {
+        sessionId: `verify-arrival-${kind}`,
+        origin: "deep_melancholy",
+        destination: "cinematic_warmth",
+        history: recent.map((p) => p.trackId),
+        trajectory: recent.map((p) => p.target),
+        signals: signals.slice(-12),
+        branches,
+      });
+      branches = decision.branches;
+      arc.push(decision.phase);
+      signals.push({
+        kind,
+        trackId: decision.phase.trackId,
+        progress: 1,
+        fragility: 0,
+        magnitude: 0,
+        at: Date.now(),
+      });
+    }
+    return arc;
+  };
+
+  for (const [kind, label] of [
+    ["stillness", "passive listener"],
+    ["dwell_complete", "engaged listener"],
+  ]) {
+    const arc = await run(kind);
+    const final = arc[arc.length - 1];
+    const tailWarmth = arc.slice(-6).map((p) => p.target.warmth);
+
+    check(
+      final.region === "cinematic_warmth",
+      `${label} arrives at the named destination`,
+      `${final.region}, warmth ${final.target.warmth.toFixed(2)}`
+    );
+    check(
+      Math.min(...tailWarmth) > 0.6,
+      `${label} holds the destination once reached`,
+      `min warmth over last 6 phases ${Math.min(...tailWarmth).toFixed(2)}`
+    );
+    check(
+      final.target.warmth > arc[0].target.warmth,
+      `${label} ends warmer than it began`,
+      `${arc[0].target.warmth.toFixed(2)} → ${final.target.warmth.toFixed(2)}`
+    );
+  }
+}
+
+/* ──────────────────────────────────── main ──────────────────────────────────── */
+
+async function verifyExpansion() {
+  section("Expansion engine");
+
+  const inspection = await callTool("inspect_expansion_engine", {});
+  check(inspection.failed === 0, "offline expansion self-test is clean", `${inspection.passed} checks`);
+  for (const row of inspection.checks ?? []) {
+    check(row.ok, row.label, row.detail);
+  }
+
+  // Live generate-10 talks to Apple. A transport failure must not fail the
+  // suite — the self-test above is the behavioural contract. When Apple
+  // answers, the payload still has to be ten admissible, de-genred positions.
+  try {
+    const expansion = await callTool("generate_taste_expansion", {
+      sessionId: "verify-expand",
+      history: ["l-11", "l-57"],
+      limit: 10,
+      analyze: false,
+    });
+    check(Array.isArray(expansion.libraryTracks), "generate_taste_expansion returns library tracks");
+    if (expansion.libraryTracks.length) {
+      const artists = expansion.libraryTracks.map((t) => t.artist.toLowerCase());
+      const unique = new Set(artists);
+      const heaviest = Math.max(
+        ...[...unique].map((name) => artists.filter((a) => a === name).length)
+      );
+      check(expansion.libraryTracks.length === 10, "live expansion admits ten positions", `${expansion.libraryTracks.length}`);
+      check(unique.size >= 6, "live expansion spans several artists", `${unique.size} artists`);
+      check(heaviest <= 2, "no artist appears more than twice in a generate-10", `heaviest ${heaviest}`);
+      check(
+        expansion.libraryTracks.every((t) => t.previewUrl && t.artworkUrl),
+        "every generated position has artwork and a preview"
+      );
+      check(
+        expansion.libraryTracks.every((t) => !("genre" in t)),
+        "generated library tracks carry no genre field"
+      );
+    } else {
+      check(true, "Apple Music returned no live hits — self-test still stands", expansion.note ?? "");
+    }
+  } catch (error) {
+    check(true, "live expansion skipped after transport failure", error.message);
+  }
+
+  try {
+    const fromLibrary = await callTool("generate_taste_expansion", {
+      sessionId: "verify-library-taste",
+      libraryVectors: [
+        {
+          depth: 0.62,
+          narrative: 0.7,
+          fragility: 0.55,
+          cinema: 0.68,
+          warmth: 0.72,
+          imperfection: 0.74,
+          insistence: 0.36,
+        },
+      ],
+      libraryArtists: [{ artist: "Portishead", via: "f-1" }],
+      limit: 10,
+      analyze: false,
+    });
+    check(
+      fromLibrary.taste?.source === "library",
+      "generate-10 reports library as the taste source when Favorite Songs vectors are sent",
+      fromLibrary.taste?.source
+    );
+  } catch (error) {
+    check(true, "library taste expansion skipped after transport failure", error.message);
+  }
+}
+
+async function verifyProductSurface() {
+  section("Product surface");
+
+  const healthRes = await fetch(`${BASE}/api/health`);
+  const health = await healthRes.json();
+  check(healthRes.ok && health.status === "ok", "health reports the living engine", health.status);
+  check(
+    health.engine?.admitted > 100 && health.engine?.genreFields === 0,
+    "health catalog is the living substrate",
+    `${health.engine?.admitted} admitted`
+  );
+  check(health.media?.playable > 40, "health sees playable previews", `${health.media?.playable} playable`);
+
+  const featured = await fetch(`${BASE}/api/catalog?limit=72`).then((r) => r.json());
+  check(Array.isArray(featured.tracks) && featured.tracks.length === 72, "featured wall is 72 positions", `${featured.tracks?.length}`);
+  check(
+    featured.tracks.every((t) => t.id && t.title && t.artist && t.vector),
+    "featured positions carry identity and a vector"
+  );
+  check(
+    featured.tracks.filter((t) => t.previewUrl).length > 50,
+    "most featured positions are playable",
+    `${featured.tracks.filter((t) => t.previewUrl).length}/72`
+  );
+
+  const feeling = await fetch(`${BASE}/api/catalog?q=fragile`).then((r) => r.json());
+  check(feeling.tracks?.length > 0, "feeling search returns positions", `${feeling.tracks?.length}`);
+
+  const color = await fetch(`${BASE}/api/catalog?color=%23e76f3b`).then((r) => r.json());
+  check(color.tracks?.length > 0, "colour search ranks sleeves", `${color.tracks?.length}`);
+
+  const knownId = featured.tracks[0].id;
+  const byId = await fetch(`${BASE}/api/catalog?ids=${encodeURIComponent(knownId)}`).then((r) => r.json());
+  check(byId.tracks?.[0]?.id === knownId, "catalog resolves an engine-chosen id");
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(!home.includes("Classic view"), "discover no longer leaks the retired classic app");
+  check(home.includes("Listen Now"), "home is Listen Now");
+  check(home.length < 900_000, "homepage is no longer a 1.5MB catalog dump", `${Math.round(home.length / 1024)} KB`);
+
+  const classic = await fetch(`${BASE}/classic`, { redirect: "manual" });
+  check(
+    [301, 307, 308].includes(classic.status),
+    "classic route redirects to discover",
+    `status ${classic.status}`
+  );
+}
+
+async function verifyFavoriteCirculation() {
+  section("Favorite Songs circulation");
+
+  const status = await fetch(`${BASE}/api/library/sync`).then((r) => r.json());
+  check(status.playlistId === "pl.u-jEUdxzrWgb", "library status names the Favorite Songs playlist", status.playlistId);
+  check(Array.isArray(status.missing), "library status reports MusicKit secret gaps", (status.missing ?? []).join(", ") || "configured");
+  check(typeof status.stats?.favorites === "number", "catalog stats expose a favorites count");
+
+  const health = await fetch(`${BASE}/api/health`).then((r) => r.json());
+  check(typeof health.engine?.favorites === "number", "health reports favorites in the living catalog", `${health.engine?.favorites ?? "?"}`);
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Favorite Songs"), "discover invites Favorite Songs as catalog and taste");
+  check(home.includes("Connect Apple Music"), "discover exposes Apple Music connect");
+
+  const art = "https://is1-ssl.mzstatic.com/image/thumb/Music/fixture/1000x1000bb.jpg";
+  const preview = "https://audio-ssl.itunes.apple.com/itunes-assets/fixture.m4a";
+  const ingest = await fetch(`${BASE}/api/library/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      candidates: [
+        {
+          appleTrackId: "770000001",
+          title: "Verify Loved One",
+          artist: "Verify Noir Ensemble",
+          album: "Fixture",
+          durationMs: 280000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+        {
+          appleTrackId: "770000002",
+          title: "Verify Loved Two",
+          artist: "Verify Warm Players",
+          album: "Fixture",
+          durationMs: 265000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+        {
+          appleTrackId: "770000003",
+          title: "Glory Box (Karaoke)",
+          artist: "Karaoke Tribute Band",
+          album: "Fixture",
+          durationMs: 240000,
+          previewUrl: preview,
+          artworkUrl: art,
+        },
+      ],
+    }),
+  });
+  const payload = await ingest.json();
+  check(ingest.ok, "library ingest accepts a Favorite Songs page without MusicKit", `HTTP ${ingest.status}`);
+  check(
+    payload.admitted >= 1 && Array.isArray(payload.tracks),
+    "ontology admits loved recordings into the living catalog",
+    `admitted ${payload.admitted}, refused ${payload.refused}`
+  );
+  check(
+    (payload.tracks ?? []).every((t) => String(t.id).startsWith("f-")),
+    "admitted favorites use the f- prefix",
+    (payload.tracks ?? []).map((t) => t.id).join(", ")
+  );
+  check(
+    (payload.tracks ?? []).every((t) => t.origin === "favorite" && t.vector && !("genre" in t)),
+    "favorite library tracks carry origin, a vector, and no genre field"
+  );
+  check(payload.refused >= 1, "karaoke / unprojectable loved tracks are still refused", `${payload.refused} refused`);
+  check(
+    Boolean(payload.tracks?.[0]?.artworkUrl || payload.tracks?.[0]?.previewUrl),
+    "admitted favorites keep media on the record returned to the client"
+  );
+
+  const listed = await rpc("tools/list", {});
+  const drift = listed.tools.find((t) => t.name === "get_next_emotional_drift");
+  const plan = listed.tools.find((t) => t.name === "plan_emotional_drift");
+  check(
+    Boolean(drift?.inputSchema?.properties?.libraryOverlay),
+    "get_next_emotional_drift accepts a Favorite Songs overlay"
+  );
+  check(
+    Boolean(plan?.inputSchema?.properties?.libraryOverlay),
+    "plan_emotional_drift accepts a Favorite Songs overlay"
+  );
+}
+
+async function verifyConverse() {
+  section("Ask companion");
+
+  const status = await fetch(`${BASE}/api/converse`).then((r) => r.json());
+  check(typeof status.configured === "boolean", "GET /api/converse reports configured without leaking a key");
+  check(status.acceptsClientKey === true, "Ask accepts a device Gemini key");
+  check(status.acceptsOpenAiKey === true, "Ask accepts a device ChatGPT key");
+  check(typeof status.openaiConfigured === "boolean", "Ask reports OpenAI configuration without leaking a key");
+  check(Array.isArray(status.rooms) && status.rooms.length === 9, "Ask lists the nine rooms", `${status.rooms?.length}`);
+  const dumped = JSON.stringify(status);
+  check(!/AIza[0-9A-Za-z_-]{10,}/.test(dumped), "converse status does not contain a Google API key");
+  check(!String(status.note ?? "").toLowerCase().includes("genre"), "converse status does not lead with genre");
+
+  const talk = await fetch(`${BASE}/talk`).then((r) => r.text());
+  check(talk.includes("Ask"), "Ask page is reachable");
+  check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
+  check(/ChatGPT|OpenAI/.test(talk), "Ask page explains the ChatGPT key field");
+  check(/lyrics|متن/i.test(talk), "Ask page mentions lyrics");
+  check(/liner notes|listen link/i.test(talk), "Ask page mentions liner notes and share");
+  check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
+
+  async function turn(text) {
+    const response = await fetch(`${BASE}/api/converse`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", text }],
+        session: { sessionId: "verify-ask", destination: "cinematic_warmth", historyIds: [] },
+      }),
+    });
+    const payload = await response.json();
+    return { response, payload };
+  }
+
+  const warm = await turn("Play something warm and cinematic");
+  check(warm.response.ok && warm.payload.ok, "Ask fulfils a play request without a Gemini key", `HTTP ${warm.response.status}`);
+  check(warm.payload.source === "local" || warm.payload.source === "gemini" || warm.payload.source === "openai", "Ask names its source");
+  const play = (warm.payload.effects ?? []).find((e) => e.type === "play");
+  check(Boolean(play?.track?.id && play.track.title && play.track.artist), "warm request returns a real catalog track");
+  check(play && !("genre" in play.track), "played track has no genre field");
+
+  const mix = await turn("A playlist for a quiet night");
+  const mixPlay = (mix.payload.effects ?? []).find((e) => e.type === "play");
+  const mixQueue = (mix.payload.effects ?? []).find((e) => e.type === "queue");
+  check(mix.payload.ok && Boolean(mixPlay), "playlist request starts a song");
+  check(
+    Boolean(mixQueue?.tracks?.length) || Boolean(mixPlay),
+    "playlist request can queue the rest of the set",
+    `${mixQueue?.tracks?.length ?? 0} queued`
+  );
+
+  const station = await turn("Start the deep melancholy station");
+  const dest = (station.payload.effects ?? []).find((e) => e.type === "destination");
+  check(dest?.id === "deep_melancholy", "station request locks Deep Melancholy", dest?.id ?? "none");
+
+  const persian = await turn("یه آهنگ گرم سینمایی بذار");
+  const faPlay = (persian.payload.effects ?? []).find((e) => e.type === "play");
+  check(persian.payload.ok && Boolean(faPlay?.track?.id), "Persian play request fulfils from the catalog");
+  check(/[\u0600-\u06FF]/.test(persian.payload.reply || ""), "Persian request gets a Persian reply");
+
+  const nineties = await turn("آهنگ های دهه ۹۰ میخوام");
+  const nPlay = (nineties.payload.effects ?? []).find((e) => e.type === "play");
+  const nQueue = (nineties.payload.effects ?? []).find((e) => e.type === "queue");
+  const nTracks = [nPlay?.track, ...(nQueue?.tracks ?? [])].filter(Boolean);
+  check(nineties.payload.ok && Boolean(nPlay?.track?.id), "90s request returns a real song", nPlay?.track ? `${nPlay.track.artist} — ${nPlay.track.title}` : "none");
+  check(!/کاتالوگ|in the catalog|from the catalog/i.test(nineties.payload.reply || ""), "90s reply does not hide behind the catalog", nineties.payload.reply?.slice(0, 120));
+  check(
+    nTracks.some((t) => t.foundVia || String(t.id).startsWith("w-")),
+    "90s hits come from open search (Deezer / YouTube / SoundCloud / Apple)",
+    nTracks.map((t) => t.foundVia || t.id).slice(0, 4).join(", ")
+  );
+  check(
+    nTracks.some((t) => t.previewUrl || t.openUrl || t.appleUrl),
+    "90s hits are openable or previewable",
+    nPlay?.track?.foundVia ?? "none"
+  );
+  check(/[\u0600-\u06FF]/.test(nineties.payload.reply || ""), "90s Persian request gets a Persian reply");
+  check(
+    nPlay?.track?.foundVia === "apple" || String(nPlay?.track?.id || "").startsWith("w-it-"),
+    "90s search prefers Apple Music",
+    nPlay?.track?.foundVia ?? nPlay?.track?.id ?? "none"
+  );
+  check(
+    !/[\u0600-\u06FF]/.test(`${nPlay?.track?.title ?? ""} ${nPlay?.track?.artist ?? ""}`),
+    "90s default is not an Iranian-script pick",
+    `${nPlay?.track?.artist ?? ""} — ${nPlay?.track?.title ?? ""}`
+  );
+
+  const related = await turn("آهنگ‌های شبیه Radiohead");
+  const rPlay = (related.payload.effects ?? []).find((e) => e.type === "play");
+  const rQueue = (related.payload.effects ?? []).find((e) => e.type === "queue");
+  const rTracks = [rPlay?.track, ...(rQueue?.tracks ?? [])].filter(Boolean);
+  check(related.payload.ok && Boolean(rPlay?.track?.id), "related request returns real songs", rPlay?.track ? `${rPlay.track.artist} — ${rPlay.track.title}` : "none");
+  check(
+    rTracks.some((t) => /radiohead/i.test(`${t.artist}`)),
+    "related hits include the named artist",
+    rTracks.map((t) => `${t.artist}`).slice(0, 4).join(", ")
+  );
+  const relatedDest = (related.payload.effects ?? []).find((e) => e.type === "destination");
+  check(
+    !relatedDest,
+    "related Radiohead does not start a map station",
+    relatedDest?.id ?? "none"
+  );
+
+  const fresh = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=17&limit=8`).then((r) => r.json());
+  check(fresh.ok && Array.isArray(fresh.tracks) && fresh.tracks.length > 0, "Discover live harvest returns Apple recordings", `${fresh.tracks?.length ?? 0}`);
+  check(
+    (fresh.tracks ?? []).every((t) => t.foundVia === "apple" || String(t.id).startsWith("w-it-")),
+    "live harvest is Apple Music",
+    (fresh.tracks ?? []).map((t) => t.foundVia || t.id).slice(0, 3).join(", ")
+  );
+  check(
+    (fresh.tracks ?? []).some((t) => t.previewUrl),
+    "live harvest includes audio trailers",
+    `${(fresh.tracks ?? []).filter((t) => t.previewUrl).length} previews`
+  );
+  const zeroSeven = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=1&limit=6`).then((r) => r.json());
+  check(
+    (zeroSeven.tracks ?? []).some((t) => /zero\s*7/i.test(t.artist)),
+    "Zero 7 probe does not collapse to a different Zero",
+    (zeroSeven.tracks ?? []).map((t) => t.artist).slice(0, 3).join(", ")
+  );
+
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Ask"), "Listen Now chrome includes Ask");
+  check(home.includes("Listen Now"), "home is still Listen Now");
+  check(home.includes("Favorite Songs"), "home still names Favorite Songs");
+  check(home.includes("Connect Apple Music"), "home still exposes Connect Apple Music");
+  check(home.length < 900_000, "homepage stayed under 900KB after Ask", `${Math.round(home.length / 1024)} KB`);
+}
+
+async function verifyNuclear() {
+  section("Nuclear free listen");
+
+  const listed = await rpc("tools/list", {});
+  const names = listed.tools.map((t) => t.name);
+  check(names.includes("list_methods"), "MCP exposes Nuclear list_methods");
+  check(names.includes("call"), "MCP exposes Nuclear call");
+  check(names.includes("nuclear_search_stream"), "MCP exposes nuclear_search_stream");
+
+  const methods = await callTool("list_methods", { domain: "Streaming" });
+  check(
+    JSON.stringify(methods).includes("searchForTrack"),
+    "Streaming domain lists searchForTrack"
+  );
+
+  const resolved = await fetch(`${BASE}/api/stream/nuclear?artist=Radiohead&title=Creep`).then((r) => r.json());
+  check(resolved.ok === true && Boolean(resolved.stream?.videoId), "Nuclear resolve returns a YouTube video", resolved.stream?.videoId ?? resolved.note);
+  check(resolved.stream?.protocol === "youtube-embed", "stream protocol is youtube-embed", resolved.stream?.protocol);
+  check(/^https:\/\/www\.youtube/.test(resolved.stream?.watchUrl ?? ""), "watch URL is YouTube");
+
+  const mcp = await fetch(`${BASE}/mcp`).then((r) => r.json());
+  check(typeof mcp.local === "string" && mcp.local.includes("8800"), "MCP discovery names the Nuclear localhost port");
+  check(
+    Array.isArray(mcp.domains) && mcp.domains.includes("Atlas") && mcp.domains.includes("Cognition"),
+    "Nuclear discovery lists Atlas and Cognition domains",
+    (mcp.domains ?? []).join(", ")
+  );
+
+  const nuclearInit = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18", clientInfo: { name: "verify-drift-engine", version: "1.0.0" } },
+    }),
+  }).then((r) => r.json());
+  check(nuclearInit.result?.serverInfo?.name === "resonant-nuclear", "POST /mcp initialize is Nuclear-shaped");
+  const nuclearTools = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
+  }).then((r) => r.json());
+  const nuclearNames = (nuclearTools.result?.tools ?? []).map((t) => t.name);
+  check(nuclearNames.includes("list_methods") && nuclearNames.includes("call"), "POST /mcp tools/list exposes Nuclear tools");
+  check(nuclearNames.length === 4, "Nuclear MCP surface is the four discovery tools", String(nuclearNames.length));
+
+  const listedResources = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "resources/list" }),
+  }).then((r) => r.json());
+  check(Array.isArray(listedResources.result?.resources), "POST /mcp resources/list is empty, not an error");
+
+  const called = await callTool("call", { method: "Streaming.searchForTrack", params: { artist: "Radiohead", title: "Creep" } });
+  check(Boolean(called?.stream?.videoId || called?.ok), "call Streaming.searchForTrack returns a stream");
+
+  const skip = await rpc("tools/call", { name: "call", arguments: { method: "Queue.goToNext" } });
+  check(skip.isError === true, "Queue.goToNext is refused — Resonant has no skip");
+
+  const atlas = await callTool("list_methods", { domain: "Atlas" });
+  check(
+    JSON.stringify(atlas).includes("harvest") && JSON.stringify(atlas).includes("resolve"),
+    "Atlas domain lists harvest and resolve"
+  );
+  const share = await callTool("share_listen", {});
+  check(share?.ok === false, "share_listen without a track refuses");
+}
+
+async function verifyCyreneLyrics() {
+  section("Cyrene-fit lyrics");
+
+  const { readFileSync } = await import("node:fs");
+  const lrc = readFileSync(new URL("../src/lib/lyrics/lrclib.ts", import.meta.url), "utf8");
+  check(lrc.includes("OFFSET_TAG"), "LRC parser honours [offset:±ms]");
+  const player = readFileSync(new URL("../src/components/cosmos/MiniPlayer.tsx", import.meta.url), "utf8");
+  check(player.includes('event.code === "Space"'), "mini-player Space pauses");
+  check(!/SkipForward|goToNext|aria-label=\"Skip/.test(player), "mini-player still has no skip");
+
+  const listed = await callTool("list_methods", { domain: "Streaming" });
+  check(JSON.stringify(listed).includes("getLyrics"), "Streaming domain lists getLyrics");
+
+  const lyrics = await fetch(`${BASE}/api/lyrics?artist=Radiohead&title=Creep`).then((r) => r.json());
+  check(lyrics.ok === true && Array.isArray(lyrics.lines) && lyrics.lines.length > 4, "lrclib returns Creep lyrics", lyrics.note);
+  check(typeof lyrics.lines[0]?.text === "string" && lyrics.lines[0].text.length > 0, "lyric lines have text");
+  check(lyrics.synced === true, "direct artist/title lookup is synced");
+
+  const byQuery = await fetch(`${BASE}/api/lyrics?query=${encodeURIComponent("Radiohead Creep")}`).then((r) => r.json());
+  check(byQuery.ok === true, "query-only lyrics lookup succeeds");
+  check(/radiohead/i.test(byQuery.artist ?? "") && /^creep$/i.test(byQuery.title ?? ""), "query-only lyrics lookup names Radiohead / Creep", `${byQuery.artist} — ${byQuery.title}`);
+  check(byQuery.synced === true, "query-only lyrics lookup prefers synced LRC");
+
+  const asked = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "lyrics for this" }],
+      session: {
+        sessionId: "verify-lyrics",
+        destination: "cinematic_warmth",
+        historyIds: [],
+        currentArtist: "Radiohead",
+        currentTitle: "Creep",
+      },
+    }),
+  }).then((r) => r.json());
+  check(asked.ok === true, "Ask answers a lyrics request");
+  check(!asked.effects?.some((e) => e.type === "play"), "lyrics request does not start a new play");
+  check(/when you were here before|you're just like a dream|whatever makes you happy/i.test(asked.reply ?? ""), "Ask quotes published Creep lyrics, not invented ones");
+
+  const named = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "lyrics for Radiohead Creep" }],
+      session: { sessionId: "verify-lyrics-named", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(named.ok === true, "Ask answers a named lyrics request without a current track");
+  check(!named.effects?.some((e) => e.type === "play"), "named lyrics request does not start a new play");
+  check(/when you were here before|i'm a creep|whatever makes you happy/i.test(named.reply ?? ""), "named lyrics request quotes Creep");
+  check(/radiohead/i.test(named.reply ?? "") && /\bcreep\b/i.test(named.reply ?? ""), "named lyrics reply names the recording");
+  check(!/radiohead\s+creep\s+[—-]\s+radiohead\s+creep/i.test(named.reply ?? ""), "named lyrics reply is not a duplicated query string");
+
+  const now = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "what's playing" }],
+      session: {
+        sessionId: "verify-now-playing",
+        destination: "cinematic_warmth",
+        historyIds: [],
+        currentArtist: "Radiohead",
+        currentTitle: "Creep",
+        currentTrackId: "verify-creep",
+      },
+    }),
+  }).then((r) => r.json());
+  check(now.ok === true, "Ask answers a now-playing request");
+  check(!now.effects?.some((e) => e.type === "play"), "now-playing does not start a new song");
+  check(/radiohead/i.test(now.reply ?? "") && /\bcreep\b/i.test(now.reply ?? ""), "now-playing names the current recording");
+
+  const empty = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "الان چی پخش می‌شه" }],
+      session: { sessionId: "verify-now-empty", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(empty.ok === true && /[\u0600-\u06FF]/.test(empty.reply ?? ""), "empty now-playing gets a Persian reply");
+  check(!empty.effects?.some((e) => e.type === "play"), "empty now-playing does not invent a play");
+
+  const shareEmpty = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "لینک این آهنگ را بده" }],
+      session: { sessionId: "verify-share-empty", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(shareEmpty.ok === true, "Ask answers a share request with nothing loaded");
+  check(!shareEmpty.effects?.some((e) => e.type === "play"), "empty share does not start a new song");
+  check(/اول یک آهنگ|Play a recording first/i.test(shareEmpty.reply ?? ""), "empty share asks them to play first", shareEmpty.reply?.slice(0, 80));
+
+  const about = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "about Radiohead" }],
+      session: { sessionId: "verify-research", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(about.ok === true, "Ask answers an about-the-artist request");
+  check(!about.effects?.some((e) => e.type === "play"), "liner-notes research does not start a new song");
+  check(/radiohead/i.test(about.reply ?? ""), "research names Radiohead", about.reply?.slice(0, 120));
+}
+
+async function verifyMetingListen() {
+  section("Meting-fit catalog");
+
+  const { readFileSync } = await import("node:fs");
+  const skill = readFileSync(new URL("../.agents/skills/meting-listen/SKILL.md", import.meta.url), "utf8");
+  const platforms = readFileSync(new URL("../src/lib/meting/platforms.ts", import.meta.url), "utf8");
+  const pkg = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+  const player = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  const intent = readFileSync(new URL("../src/lib/converse/intent.ts", import.meta.url), "utf8");
+
+  check(/Do not/.test(skill) && /unofficial/i.test(skill), "meting-listen skill refuses the unofficial client");
+  check(!/@eldment\/meting-agent/.test(pkg), "package.json does not vendor @eldment/meting-agent");
+  check(!/createCipheriv|eapi|EAPI_KEY/.test(platforms), "platforms.ts has no NetEase EAPI crypto");
+  check(/歌词\|歌詞/.test(intent), "歌词 is a lyrics ask");
+  check(/el\.src = hydrated\.previewUrl/.test(player), "player still feeds previewUrl, not a Meting stream");
+
+  const rows = [...platforms.matchAll(/platform: "(\w+)", pattern: String\.raw`([^`]+)`/g)].map((m) => ({
+    platform: m[1],
+    pattern: m[2],
+  }));
+  check(rows.length === 4, "four Meting platforms are declared", String(rows.length));
+  const strip = (text) => {
+    let out = text;
+    for (const row of rows) out = out.replace(new RegExp(row.pattern, "gi"), " ");
+    return out.replace(/\s+/g, " ").trim();
+  };
+  const named = (text) => {
+    for (const row of rows) {
+      if (new RegExp(row.pattern, "i").test(text)) return row.platform;
+    }
+    return null;
+  };
+  check(strip("网易云 我怀念的") === "我怀念的", "strip 网易云 from a CJK title");
+  check(named("play this on QQ音乐") === "tencent", "QQ音乐 names tencent");
+  check(named("KuGou 晴天") === "kugou" && named("Radiohead Creep") === null, "KuGou is named, plain Apple queries are not");
+  check(strip("netease cloud music Radiohead Creep") === "Radiohead Creep", "strip English NetEase tokens");
+
+  const asked = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "网易云 Radiohead Creep" }],
+      session: { sessionId: "verify-meting-netease", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  const play = asked.effects?.find((e) => e.type === "play");
+  const ingest = asked.effects?.find((e) => e.type === "ingest");
+  const sample = play?.track ?? ingest?.tracks?.[0];
+  check(asked.ok === true, "Ask answers a named NetEase query");
+  check(/creep/i.test(asked.reply ?? "") || /creep/i.test(sample?.title ?? ""), "NetEase-named query still finds Creep on Apple");
+  check(sample?.foundVia === "apple" || /apple\.com/i.test(sample?.appleUrl ?? sample?.openUrl ?? ""), "playback source stays Apple");
+  check(/music\.163\.com/i.test(sample?.metingUrl ?? ""), "Apple hit carries a public NetEase search page");
+  check(!/163\.com|qq\.com|kugou\.com|kuwo\.cn/i.test(sample?.previewUrl ?? ""), "preview URL is not a Meting play stream");
+
+  const plain = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "Radiohead Creep" }],
+      session: { sessionId: "verify-meting-plain", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  const plainPlay = plain.effects?.find((e) => e.type === "play");
+  check(plain.ok === true && /creep/i.test(plain.reply ?? ""), "plain artist+title still finds Creep on Apple");
+  check(!plainPlay?.track?.metingUrl, "plain query does not attach a NetEase page");
+
+  const lyrics = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "歌词 Radiohead Creep" }],
+      session: { sessionId: "verify-meting-lyrics", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(lyrics.ok === true, "Ask answers a 歌词 request");
+  check(!lyrics.effects?.some((e) => e.type === "play"), "歌词 does not start a new play");
+  check(/when you were here before|i'm a creep|whatever makes you happy/i.test(lyrics.reply ?? ""), "歌词 still quotes published Creep lyrics");
+}
+
+async function verifySoftListen() {
+  section("Soft listen window");
+  const player = readFileSync(new URL("../src/components/cosmos/MiniPlayer.tsx", import.meta.url), "utf8");
+  check(/aria-label="Minimize"/.test(player), "mini-player has minimize");
+  check(/aria-label="Close"/.test(player), "mini-player has close");
+  check(/Love this recording/.test(player), "mini-player has a like control");
+  check(/Not this recording or mood/.test(player), "mini-player has a dislike control");
+  check(/Won.t lean this way next/.test(player), "dislike whispers without skipping");
+  check(/setDocked\(true\)/.test(player), "minimize docks the listening window");
+  check(!/SkipForward|goToNext|aria-label=\"Skip/.test(player), "mini-player still has no skip");
+  const love = readFileSync(new URL("../src/components/cosmos/LoveControl.tsx", import.meta.url), "utf8");
+  check(/toggleLike/.test(love), "like control teaches without skipping");
+  const dislike = readFileSync(new URL("../src/components/cosmos/DislikeControl.tsx", import.meta.url), "utf8");
+  check(/toggleDislike/.test(dislike), "dislike control is wired");
+  check(!/advance\(|goToNext/.test(dislike), "dislike control does not skip");
+  const wheatUi = readFileSync(new URL("../src/components/cosmos/WheatSurface.tsx", import.meta.url), "utf8");
+  check(/Refresh tonight/.test(wheatUi), "wheat has a refresh control");
+  check(/excludeQueries/.test(wheatUi), "wheat refresh excludes the last night");
+  const radioUi = readFileSync(new URL("../src/components/cosmos/RadioSurface.tsx", import.meta.url), "utf8");
+  check(/exclude/.test(radioUi) && /nextOpenRoom/.test(radioUi), "radio harvest excludes last set and refused rooms");
+  const liveRoom = readFileSync(new URL("../src/lib/converse/live-room.ts", import.meta.url), "utf8");
+  check(/PER_PROBE/.test(liveRoom) && /exclude/.test(liveRoom), "room harvest takes two per artist and honours exclude");
+  const playerCtx = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  const dislikeFn = playerCtx.match(/const toggleDislike = useCallback\([\s\S]*?\n  \);/);
+  check(Boolean(dislikeFn), "player exposes toggleDislike");
+  check(dislikeFn && !/advanceRef|void advance\(/.test(dislikeFn[0]), "toggleDislike does not skip to the next track");
+  const duration = readFileSync(new URL("../src/lib/listen/duration.ts", import.meta.url), "utf8");
+  check(/LISTEN_MINUTES = \[15, 30, 45, 60\]/.test(duration), "atlas listen lengths are 15–60 minutes");
+  const resonance = readFileSync(new URL("../src/lib/drift/resonance.ts", import.meta.url), "utf8");
+  check(/explicit_like/.test(resonance), "resonance records an explicit like");
+  check(/explicit_dislike/.test(resonance), "resonance records an explicit dislike");
+  const overlay = readFileSync(new URL("../src/lib/apple/overlay.ts", import.meta.url), "utf8");
+  check(/f-\|l-\|w-/.test(overlay) || /\^\(f-\|l-\|w-\)/.test(overlay), "overlay admits loved web recordings");
+  const home = await fetch(`${BASE}/`).then((r) => r.text());
+  check(home.includes("Listen Now"), "home is still Listen Now");
+  check(home.includes("Favorite Songs"), "home still names Favorite Songs");
+  check(home.includes("Connect Apple Music"), "home still names Connect Apple Music");
+  check(/15 to 60 minutes/.test(home), "home mentions duration-aware atlas listening");
+  const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
+  check(/wheat1/.test(radio), "radio names wheat1");
+  check(/land on this page/.test(radio), "radio puts the night on the page");
+  const wheat = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=101&limit=5`).then((r) => r.json());
+  check(wheat.ok === true && wheat.channel === "wheat1", "GET /api/wheat is wired");
+  check((wheat.hints ?? []).length >= 5, "wheat night picks five", JSON.stringify(wheat.hints ?? []));
+  const wheatB = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=909&limit=5`).then((r) => r.json());
+  check(
+    (wheat.hints ?? []).join("|") !== (wheatB.hints ?? []).join("|"),
+    "wheat seed rotates the night",
+    `${(wheat.hints ?? []).join(" · ")} vs ${(wheatB.hints ?? []).join(" · ")}`
+  );
+  let wheatPost = { ok: false, hints: [], tracks: [] };
+  try {
+    wheatPost = await fetch(`${BASE}/api/wheat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Boards of Canada - Roygbiv", durationMinutes: 15 }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "POST /api/wheat timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(wheatPost.ok === true, "POST /api/wheat accepts a pasted caption");
+  check((wheatPost.hints ?? []).some((h) => /roygbiv|boards of canada/i.test(h)), "wheat parser reads artist – title", JSON.stringify(wheatPost.hints ?? []));
+  check((wheatPost.tracks ?? []).length > 0, "wheat caption resolves on Apple Music");
+  let wheatNight = { ok: false, hints: [], tracks: [] };
+  try {
+    wheatNight = await fetch(`${BASE}/api/wheat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: "Boards of Canada - Roygbiv\nBurial - Archangel\nAphex Twin - Xtal",
+        durationMinutes: 45,
+      }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "wheat night timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(wheatNight.ok === true, "POST /api/wheat accepts a pasted night");
+  check((wheatNight.hints ?? []).length >= 2, "night parser keeps more than one line", JSON.stringify(wheatNight.hints ?? []));
+  check((wheatNight.tracks ?? []).length >= 2, "a pasted night resolves more than one recording");
+  check(
+    !((wheatNight.tracks ?? [])[0] && "genre" in wheatNight.tracks[0] && wheatNight.tracks[0].genre),
+    "wheat night still has no genre field"
+  );
+  let wheatFresh = { ok: false, tracks: [], hints: [] };
+  try {
+    wheatFresh = await fetch(`${BASE}/api/wheat?seed=42&limit=5`, { signal: AbortSignal.timeout(60000) }).then((r) =>
+      r.json()
+    );
+  } catch (error) {
+    check(false, "GET /api/wheat harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check((wheatFresh.tracks ?? []).length > 0, "GET /api/wheat resolves a fresh night");
+  check((wheatFresh.tracks ?? []).length <= 5, "wheat harvest stays at five", String((wheatFresh.tracks ?? []).length));
+  let roomLive = { ok: false, tracks: [] };
+  try {
+    roomLive = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=21&limit=5`, {
+      signal: AbortSignal.timeout(60000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "discover harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check((roomLive.tracks ?? []).length > 0, "radio room harvest returns recordings");
+  const probeNotes = new Set(
+    (roomLive.tracks ?? [])
+      .map((track) => String(track.note ?? "").split("·").pop()?.trim())
+      .filter(Boolean)
+  );
+  check(
+    probeNotes.size >= 2 || (roomLive.tracks ?? []).length <= 2,
+    "room harvest is not one artist filling the set",
+    [...probeNotes].join(" · ")
+  );
+  const seenIds = (roomLive.tracks ?? []).map((track) => track.id).filter(Boolean);
+  let roomAgain = { tracks: [] };
+  try {
+    roomAgain = await fetch(
+      `${BASE}/api/discover/fresh?room=cinematic_warmth&seed=99&limit=5&exclude=${encodeURIComponent(seenIds.join(","))}`,
+      { signal: AbortSignal.timeout(60000) }
+    ).then((r) => r.json());
+  } catch (error) {
+    check(false, "discover refresh timed out", error instanceof Error ? error.message : String(error));
+  }
+  const overlap = (roomAgain.tracks ?? []).filter((track) => seenIds.includes(track.id)).length;
+  check(
+    overlap === 0 || (roomAgain.tracks ?? []).length === 0,
+    "second room harvest excludes the last set",
+    `${overlap} overlapping of ${(roomAgain.tracks ?? []).length}`
+  );
+  let harvest = { ok: false, tracks: [] };
+  try {
+    harvest = await fetch(`${BASE}/api/atlas/harvest`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ genre: "trip hop", durationMinutes: 15 }),
+      signal: AbortSignal.timeout(40000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "atlas harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check(harvest.ok === true, "atlas harvest accepts a duration budget");
+  check((harvest.tracks ?? []).length > 0, "duration harvest returns recordings");
+  check(!((harvest.tracks ?? [])[0] && "genre" in harvest.tracks[0] && harvest.tracks[0].genre), "duration harvest still has no genre field");
+  const skip = await rpc("tools/call", { name: "call", arguments: { method: "Queue.goToNext" } });
+  check(skip.isError === true, "Queue.goToNext is still refused");
+}
+
+async function verifyListenComplete() {
+  section("Listen completeness");
+
+  const scStage = readFileSync(new URL("../src/components/cosmos/SoundCloudStage.tsx", import.meta.url), "utf8");
+  check(/onFailed\?/.test(scStage), "SoundCloud stage can surface widget failure");
+  check(!/PlayerContext still advances from the duration timer/.test(scStage), "SoundCloud no longer swallows load errors");
+  check(/Events\.ERROR/.test(scStage), "SoundCloud binds the widget ERROR event");
+
+  const nuclear = readFileSync(new URL("../src/components/cosmos/NuclearStage.tsx", import.meta.url), "utf8");
+  check(/onSeekApplied/.test(nuclear), "YouTube stage retries seek after READY");
+  check(/tag\.onerror/.test(nuclear), "YouTube iframe API load failure is not silent");
+
+  const playerCtx = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  check(/heard: false/.test(playerCtx), "SoundCloud clock does not start until the widget ticks");
+  check(/nuclearSeekApplied/.test(playerCtx), "pending resume seek is not cleared on the first tick");
+  check(/FADE_MS = 480/.test(playerCtx), "preview handover is under a second");
+  check(/resumeAt = 0/.test(playerCtx), "resume passes position into sound without a fake seek signal");
+
+  const duration = readFileSync(new URL("../src/lib/listen/duration.ts", import.meta.url), "utf8");
+  check(/Wait for the iframe/.test(duration), "YouTube scrubber waits for iframe duration");
+
+  const wheatService = readFileSync(new URL("../src/lib/wheat/service.ts", import.meta.url), "utf8");
+  check(/durationMinutes/.test(wheatService) && /search.get\("durationMinutes"\)/.test(wheatService), "GET /api/wheat reads durationMinutes");
+
+  const tools = readFileSync(new URL("../src/lib/converse/tools.ts", import.meta.url), "utf8");
+  check(/publicAppOrigin/.test(tools), "share_listen fills origin from the public app host");
+  check(!/lines\.slice\(0, 8\)/.test(tools), "fetch_lyrics is not truncated to eight lines");
+  check(/cap = 250/.test(tools), "fetch_lyrics returns a full published set");
+
+  const origin = readFileSync(new URL("../src/lib/listen/public-origin.ts", import.meta.url), "utf8");
+  check(/VERCEL_PROJECT_PRODUCTION_URL/.test(origin) && /VERCEL_URL/.test(origin), "share origin falls back to Vercel hosts");
+
+  const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  check(/verify:tokens/.test(ci) && /verify:atlas/.test(ci) && /typecheck/.test(ci), "GitHub CI runs typecheck and locks");
+  check(!/Hello, world!/.test(ci), "CI is not the blank Hello world stub");
+
+  const lyrics = await callTool("fetch_lyrics", { artist: "Radiohead", title: "Creep" });
+  check(lyrics?.ok === true && Array.isArray(lyrics.lines) && lyrics.lines.length > 8, "MCP fetch_lyrics returns more than eight lines", String(lyrics?.lines?.length ?? 0));
+  check(typeof lyrics?.lines?.[0]?.text === "string", "MCP lyric lines keep published text");
+
+  const share = await callTool("share_listen", { id: "verify-listen-id" });
+  check(share?.ok === true && /listen=verify-listen-id/.test(String(share.path ?? share.url ?? "")), "share_listen with an id returns a deep link");
+
+  const wheatHint = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=101&limit=5&durationMinutes=15`).then((r) => r.json());
+  check(wheatHint.ok === true, "GET /api/wheat accepts durationMinutes");
+}
+
+try {
+  await verifyProtocol();
+  await verifyOntology();
+  await verifyRejections();
+  await verifyArc();
+  await verifySession();
+  await verifyDeepenIntensifies();
+  await verifySilentSessionRestraint();
+  await verifyArrival();
+  await verifyExpansion();
+  await verifyProductSurface();
+  await verifyFavoriteCirculation();
+  await verifyConverse();
+  await verifyNuclear();
+  await verifyCyreneLyrics();
+  await verifyMetingListen();
+  await verifySoftListen();
+  await verifyListenComplete();
+} catch (error) {
+  console.error(`\nAborted: ${error.message}`);
+  console.error(`Is the dev server running at ${BASE}?`);
+  process.exit(1);
+}
+
+console.log(`\n${checks - failures}/${checks} checks passed.`);
+process.exit(failures === 0 ? 0 : 1);

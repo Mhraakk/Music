@@ -1,0 +1,88 @@
+"use client";
+
+import { memo, useState, type CSSProperties } from "react";
+import type { LibraryTrack } from "@/lib/library";
+import { PauseIcon, PlayIcon } from "./icons";
+import { Artwork } from "./Artwork";
+
+const SIZES =
+  "(min-width: 1440px) 16vw, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 46vw";
+
+export const TrackTile = memo(function TrackTile({
+  track,
+  active = false,
+  playing = false,
+  onSelect,
+  priority = false,
+  size = "md",
+  liked = false,
+}: {
+  track: LibraryTrack;
+  active?: boolean;
+  playing?: boolean;
+  onSelect: (track: LibraryTrack) => void;
+  priority?: boolean;
+  size?: "md" | "lg";
+  liked?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <button
+      type="button"
+      className="cx-album"
+      data-active={active ? "true" : undefined}
+      data-size={size}
+      style={{ ["--tile-tint"]: track.tint } as CSSProperties}
+      onClick={() => onSelect(track)}
+      aria-label={`${track.title} by ${track.artist}`}
+    >
+      <span className="cx-album-art" style={{ backgroundColor: track.tint }}>
+        {track.artworkUrl ? (
+          <Artwork
+            src={track.artworkUrl}
+            sizes={size === "lg" ? "(min-width: 700px) 28vw, 90vw" : SIZES}
+            loaded={loaded}
+            priority={priority}
+            onLoad={() => setLoaded(true)}
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-end p-3">
+            <span className="cx-label" style={{ color: track.isDark ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.55)" }}>
+              {track.artist}
+            </span>
+          </span>
+        )}
+
+        {playing && (
+          <span className="cx-tile-badge">
+            <PlayingBars />
+            Playing
+          </span>
+        )}
+        {!playing && liked && <span className="cx-tile-badge">Loved</span>}
+        {!playing && !liked && track.origin === "expansion" && <span className="cx-tile-badge">New</span>}
+        {!playing && !liked && track.origin === "favorite" && <span className="cx-tile-badge">Yours</span>}
+
+        <span className="cx-play-fab" aria-hidden>
+          {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
+        </span>
+      </span>
+
+      <span className="cx-album-meta">
+        <span className="cx-album-title cx-truncate">{track.title}</span>
+        <span className="cx-album-sub cx-truncate">{track.artist}</span>
+      </span>
+    </button>
+  );
+});
+
+function PlayingBars() {
+  return (
+    <span className="cx-playing-bars" aria-hidden>
+      <span className="cx-playing-bar" />
+      <span className="cx-playing-bar" />
+      <span className="cx-playing-bar" />
+    </span>
+  );
+}
