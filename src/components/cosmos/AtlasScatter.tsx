@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import Link from "next/link";
 import type { AtlasCanvas } from "@/lib/everynoise/types";
 
@@ -19,7 +19,32 @@ export type ScatterNode = {
 };
 
 const CULL_AFTER = 400;
-const CULL_PAD = 280;
+
+function letterId(letter: string): string {
+  if (letter === "0–9") return "atlas-letter-0-9";
+  return `atlas-letter-${letter}`;
+}
+
+function letterOf(label: string): string {
+  const trimmed = label.trim();
+  const match = trimmed.match(/[\p{L}\p{N}]/u);
+  const ch = match?.[0] ?? "";
+  if (!ch) return "#";
+  if (/\d/.test(ch)) return "0–9";
+  return ch.toLocaleUpperCase();
+}
+
+function groupByLetter(items: ScatterNode[]) {
+  const sorted = [...items].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  const groups: { letter: string; items: ScatterNode[] }[] = [];
+  for (const item of sorted) {
+    const letter = letterOf(item.label);
+    const last = groups[groups.length - 1];
+    if (!last || last.letter !== letter) groups.push({ letter, items: [item] });
+    else last.items.push(item);
+  }
+  return groups;
+}
 
 export function AtlasScatter({
   items,
@@ -38,146 +63,50 @@ export function AtlasScatter({
   label: string;
   onPreview?: (item: ScatterNode) => void;
 }) {
+  void canvas;
+  void fit;
   const portRef = useRef<HTMLDivElement>(null);
   const lastPreview = useRef<string | null>(null);
-  const hasCentered = useRef(false);
-  const mapKey = `${fit}:${items.length}`;
-  const prevMapKey = useRef(mapKey);
-  if (prevMapKey.current !== mapKey) {
-    prevMapKey.current = mapKey;
-    hasCentered.current = false;
-  }
-  const [portWidth, setPortWidth] = useState(0);
-  const [view, setView] = useState({ left: 0, top: 0, w: 0, h: 0 });
+  const [shown, setShown] = useState(() => Math.min(CULL_AFTER, items.length));
+  const pendingJump = useRef<string | null>(null);
 
-  const bounds = useMemo(() => {
-    if (fit === "canvas" && canvas.width > 0 && canvas.height > 0) {
-      return { minX: 0, maxX: canvas.width, minY: 0, maxY: canvas.height };
+  const groups = useMemo(() => groupByLetter(items), [items]);
+  const letters = useMemo(() => groups.map((group) => group.letter), [groups]);
+
+  const visibleGroups = useMemo(() => {
+    let remaining = shown;
+    const next: { letter: string; items: ScatterNode[] }[] = [];
+    for (const group of groups) {
+      if (remaining <= 0) break;
+      const slice = group.items.slice(0, remaining);
+      remaining -= slice.length;
+      if (slice.length) next.push({ letter: group.letter, items: slice });
     }
-    if (!items.length) return { minX: 0, maxX: canvas.width || 1, minY: 0, maxY: canvas.height || 1 };
-    const xs = items.map((item) => item.x);
-    const ys = items.map((item) => item.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const padX = Math.max(24, (maxX - minX) * 0.06);
-    const padY = Math.max(24, (maxY - minY) * 0.08);
-    return {
-      minX: minX - padX,
-      maxX: maxX + padX,
-      minY: minY - padY,
-      maxY: maxY + padY,
-    };
-  }, [items, canvas, fit]);
-
-  const spanX = Math.max(1, bounds.maxX - bounds.minX);
-  const spanY = Math.max(1, bounds.maxY - bounds.minY);
-  const plotWidth = portWidth || 800;
-  const nativeRatio = spanY / spanX;
-  const height =
-    fit === "canvas"
-      ? Math.max(plotWidth * nativeRatio, 480)
-      : Math.max(280, Math.min(640, plotWidth * Math.min(nativeRatio, 0.85)));
-
-  const heavyCenter = useMemo(() => {
-    if (!items.length) return { x: bounds.minX + spanX / 2, y: bounds.minY + spanY / 2 };
-    const heavy = items.slice().sort((a, b) => b.weight - a.weight).slice(0, 120);
-    return {
-      x: heavy.reduce((sum, item) => sum + item.x, 0) / heavy.length,
-      y: heavy.reduce((sum, item) => sum + item.y, 0) / heavy.length,
-    };
-  }, [items, bounds.minX, bounds.minY, spanX, spanY]);
+    return next;
+  }, [groups, shown]);
 
   useLayoutEffect(() => {
     const el = portRef.current;
     if (!el) return;
-    const nextWidth = el.clientWidth;
-    if (nextWidth && nextWidth !== portWidth) setPortWidth(nextWidth);
-    if (fit === "canvas" && items.length) {
-      const left = ((heavyCenter.x - bounds.minX) / spanX) * el.scrollWidth;
-      const top = ((heavyCenter.y - bounds.minY) / spanY) * el.scrollHeight;
-      el.scrollLeft = Math.max(0, left - el.clientWidth / 2);
-      el.scrollTop = Math.max(0, top - el.clientHeight / 2);
-    } else {
-      el.scrollLeft = 0;
-      el.scrollTop = 0;
-    }
-    if (items.length) hasCentered.current = true;
-    // Programmatic scroll does not always fire `scroll`. Publish the cull
-    // window here or the dense cluster stays off-screen and the map paints empty.
-    const nextView = {
-      left: el.scrollLeft,
-      top: el.scrollTop,
-      w: el.clientWidth,
-      h: el.clientHeight,
-    };
-    setView((prev) =>
-      prev.left === nextView.left && prev.top === nextView.top && prev.w === nextView.w && prev.h === nextView.h
-        ? prev
-        : nextView
-    );
-  }, [fit, items.length, heavyCenter.x, heavyCenter.y, bounds.minX, bounds.minY, spanX, spanY, height, portWidth]);
+    el.scrollTop = 0;
+    setShown(Math.min(CULL_AFTER, items.length));
+  }, [items.length, items[0]?.id]);
+
+  useLayoutEffect(() => {
+    const letter = pendingJump.current;
+    if (!letter) return;
+    pendingJump.current = null;
+    document.getElementById(letterId(letter))?.scrollIntoView({ block: "start" });
+  }, [shown]);
 
   useEffect(() => {
-    const el = portRef.current;
-    if (!el) return;
-    let frame = 0;
-    const publish = () => {
-      frame = 0;
-      const next = {
-        left: el.scrollLeft,
-        top: el.scrollTop,
-        w: el.clientWidth,
-        h: el.clientHeight,
-      };
-      if (next.w && next.w !== portWidth) setPortWidth(next.w);
-      startTransition(() => {
-        setView((prev) =>
-          prev.left === next.left && prev.top === next.top && prev.w === next.w && prev.h === next.h ? prev : next
-        );
-      });
-    };
-    const observer = new ResizeObserver(publish);
-    observer.observe(el);
     const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(publish);
+      if (window.innerHeight + window.scrollY < document.documentElement.scrollHeight - 1200) return;
+      setShown((n) => Math.min(n + CULL_AFTER, items.length));
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      observer.disconnect();
-      el.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [items.length, portWidth]);
-
-  const visible = useMemo(() => {
-    if (items.length < CULL_AFTER) return items;
-    const vw = view.w || plotWidth;
-    const vh = view.h || Math.min(720, height);
-    const predictedLeft = Math.max(0, ((heavyCenter.x - bounds.minX) / spanX) * plotWidth - vw / 2);
-    const predictedTop = Math.max(0, ((heavyCenter.y - bounds.minY) / spanY) * height - vh / 2);
-    const settled = hasCentered.current && view.w > 0;
-    const left = settled ? view.left : predictedLeft;
-    const top = settled ? view.top : predictedTop;
-    const hits = items.filter((item) => {
-      const px = ((item.x - bounds.minX) / spanX) * plotWidth;
-      const py = ((item.y - bounds.minY) / spanY) * height;
-      return px >= left - CULL_PAD && px <= left + vw + CULL_PAD && py >= top - CULL_PAD && py <= top + vh + CULL_PAD;
-    });
-    if (hits.length > 0) return hits;
-    return items.filter((item) => {
-      const px = ((item.x - bounds.minX) / spanX) * plotWidth;
-      const py = ((item.y - bounds.minY) / spanY) * height;
-      return (
-        px >= predictedLeft - CULL_PAD &&
-        px <= predictedLeft + vw + CULL_PAD &&
-        py >= predictedTop - CULL_PAD &&
-        py <= predictedTop + vh + CULL_PAD
-      );
-    });
-  }, [items, bounds.minX, bounds.minY, spanX, spanY, plotWidth, height, view, heavyCenter.x, heavyCenter.y]);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [items.length]);
 
   const byId = useMemo(() => {
     const map = new Map<string, ScatterNode>();
@@ -198,31 +127,56 @@ export function AtlasScatter({
 
   return (
     <div ref={portRef} className={`cx-atlas-field is-${tone}`} aria-label={label}>
+      {letters.length > 1 ? (
+        <nav className="cx-atlas-az" aria-label="Jump to a letter">
+          {letters.map((letter) => (
+            <button
+              key={letter}
+              type="button"
+              onClick={() => {
+                const index = groups.findIndex((group) => group.letter === letter);
+                if (index < 0) return;
+                const count = groups.slice(0, index + 1).reduce((sum, group) => sum + group.items.length, 0);
+                if (count <= shown) {
+                  document.getElementById(letterId(letter))?.scrollIntoView({ block: "start" });
+                  return;
+                }
+                pendingJump.current = letter;
+                setShown(count);
+              }}
+            >
+              {letter}
+            </button>
+          ))}
+        </nav>
+      ) : null}
       <div
         className="cx-atlas-canvas"
-        style={{ width: "100%", height }}
         onMouseOver={handleOver}
         onMouseLeave={() => {
           lastPreview.current = null;
         }}
       >
-        {visible.map((item) => {
-          const left = ((item.x - bounds.minX) / spanX) * 100;
-          const top = ((item.y - bounds.minY) / spanY) * 100;
-          const size = Math.max(9, Math.min(22, (item.weight / 100) * 13));
-          return (
-            <ScatterMark
-              key={item.id}
-              item={item}
-              mode={mode}
-              left={left}
-              top={top}
-              size={size}
-              onPreview={onPreview}
-            />
-          );
-        })}
+        {visibleGroups.map((group) => (
+          <section key={group.letter} className="cx-atlas-letter-block" id={letterId(group.letter)}>
+            <h2 className="cx-atlas-letter">{group.letter}</h2>
+            <div className="cx-atlas-grid">
+              {group.items.map((item) => (
+                <ScatterMark key={item.id} item={item} mode={mode} onPreview={onPreview} />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
+      {shown < items.length ? (
+        <button
+          type="button"
+          className="cx-atlas-more"
+          onClick={() => setShown((n) => Math.min(n + CULL_AFTER, items.length))}
+        >
+          More branches · {shown.toLocaleString()} of {items.length.toLocaleString()}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -230,41 +184,32 @@ export function AtlasScatter({
 const ScatterMark = memo(function ScatterMark({
   item,
   mode,
-  left,
-  top,
-  size,
   onPreview,
 }: {
   item: ScatterNode;
   mode: "open" | "preview";
-  left: number;
-  top: number;
-  size: number;
   onPreview?: (item: ScatterNode) => void;
 }) {
   const title = item.title ?? item.label;
   const className = `cx-atlas-node${item.played ? " is-played" : ""}`;
-  const style = {
-    left: `${left}%`,
-    top: `${top}%`,
-    color: item.color,
-    fontSize: `${size}px`,
-  } as const;
+  const style = { "--branch": item.color } as CSSProperties;
   if (mode === "preview") {
     return (
       <span className={className} style={style} title={title} data-scatter-id={item.id}>
+        <span className="cx-atlas-node-swatch" aria-hidden />
         <button type="button" className="cx-atlas-node-play" onClick={() => onPreview?.(item)}>
           {item.label}
         </button>
         <Link href={item.moreHref || item.href} className="cx-atlas-node-more" aria-label={`Open ${item.label}`} prefetch={false}>
-          »
+          Open
         </Link>
       </span>
     );
   }
   return (
     <Link href={item.href} className={className} style={style} title={title} data-scatter-id={item.id} prefetch={false}>
-      {item.label}
+      <span className="cx-atlas-node-swatch" aria-hidden />
+      <span className="cx-atlas-node-label">{item.label}</span>
     </Link>
   );
 });

@@ -165,10 +165,10 @@ export function AtlasGenreView({ id }: { id: string }) {
           {scanning ? "stop" : "scan"}
         </button>
         <button type="button" className="cx-atlas-tab" onClick={() => setView("map")} aria-pressed={view === "map"}>
-          map
+          Directory
         </button>
         <button type="button" className="cx-atlas-tab" onClick={() => setView("list")} aria-pressed={view === "list"}>
-          list
+          Examples
         </button>
         {page.playlists.map((playlist) => (
           <Link

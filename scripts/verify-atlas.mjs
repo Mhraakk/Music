@@ -57,8 +57,8 @@ check(!/NetEase|KuGou|Kuwo/.test(fixture), "fixture does not dump Chinese catalo
 const { readFileSync } = await import("node:fs");
 const scatterUi = readFileSync(new URL("../src/components/cosmos/AtlasScatter.tsx", import.meta.url), "utf8");
 check(
-  /CULL_AFTER/.test(scatterUi) && /data-scatter-id/.test(scatterUi) && /useLayoutEffect/.test(scatterUi),
-  "atlas scatter viewport-culls dense maps, centers in layout, and delegates hover"
+  /CULL_AFTER/.test(scatterUi) && /data-scatter-id/.test(scatterUi) && /useLayoutEffect/.test(scatterUi) && /cx-atlas-grid/.test(scatterUi),
+  "atlas directory rows are readable, paginated, and keep hover preview"
 );
 const surfaceUi = readFileSync(new URL("../src/components/cosmos/AtlasSurface.tsx", import.meta.url), "utf8");
 check(/fields", "map"/.test(surfaceUi) && /AtlasBranchList/.test(surfaceUi), "atlas map fetch is slim and list is not mounted on the map");
