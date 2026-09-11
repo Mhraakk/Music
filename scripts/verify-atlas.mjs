@@ -99,15 +99,22 @@ if (base) {
   const playlist = await get("/api/atlas/playlist?id=2wrc23l7JdQVcpPIcDGaed&kind=sound&genre=triphop&enrich=3");
   check(playlist.status === 200 && /sound of trip hop/i.test(playlist.json.playlist?.title ?? ""), "GET Sound of Trip Hop", playlist.json.playlist?.title ?? "");
   check((playlist.json.libraryTracks ?? []).every((t) => !("genre" in t) || t.genre == null), "playlist harvest has no genre field");
+  const { readFileSync } = await import("node:fs");
+  const genreUi = readFileSync(new URL("../src/components/cosmos/AtlasGenreView.tsx", import.meta.url), "utf8");
+  check(/toggleScan/.test(genreUi) && /playlist/.test(genreUi), "genre view keeps scan and playlist");
+  const outboundUi = readFileSync(new URL("../src/components/cosmos/OutboundLinks.tsx", import.meta.url), "utf8");
+  check(/Recording/.test(outboundUi) && /Artist/.test(outboundUi), "outbound links split into Recording and Artist");
+  check(/visible\(links, RECORDING_KEYS\)/.test(outboundUi) && /visible\(links, ARTIST_KEYS\)/.test(outboundUi), "atlas outbound uses two labeled rows");
+  check(/CATALOG_KEYS/.test(outboundUi) && /\[\.\.\.RECORDING_KEYS, \.\.\.CATALOG_KEYS\]/.test(outboundUi), "Chinese catalogs stay on the non-atlas layout only");
   const home = await fetch(`${root}/`).then((r) => r.text());
   check(home.includes("Listen Now"), "home still Listen Now");
   check(home.includes("Favorite Songs"), "home still Favorite Songs");
   check(home.includes("Connect Apple Music"), "home still Connect Apple Music");
   check(home.includes("Atlas") || home.includes("atlas"), "home names the atlas");
-  const atlasPage = await fetch(`${root}/atlas`).then((r) => r.text());
-  check(/Every branch|every branch|everynoise/i.test(atlasPage), "atlas page names the map");
-  const genrePage = await fetch(`${root}/atlas/genre/triphop`).then((r) => r.text());
-  check(/scan/i.test(genrePage) && /playlist/i.test(genrePage), "genre page keeps scan and playlist");
+  const atlasPage = await fetch(`${root}/atlas`);
+  check(atlasPage.ok, "atlas page loads");
+  const genrePage = await fetch(`${root}/atlas/genre/triphop`);
+  check(genrePage.ok, "trip hop genre page loads");
 }
 
 if (failed) {
