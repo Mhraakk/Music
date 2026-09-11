@@ -4,6 +4,7 @@ import type { LibraryTrack } from "@/lib/library";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { clock } from "@/lib/format";
 import { LoveControl } from "./LoveControl";
+import { DislikeControl } from "./DislikeControl";
 import { Artwork } from "./Artwork";
 
 export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[]; showAlbum?: boolean }) {
@@ -33,6 +34,9 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
             </th>
             <th style={{ width: 36 }}>
               <span className="sr-only">Love</span>
+            </th>
+            <th style={{ width: 36 }}>
+              <span className="sr-only">Refuse</span>
             </th>
           </tr>
         </thead>
@@ -73,6 +77,9 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
                 <td className="cx-mono text-right">{clock(track.duration)}</td>
                 <td onClick={(event) => event.stopPropagation()}>
                   <LoveControl track={track} />
+                </td>
+                <td onClick={(event) => event.stopPropagation()}>
+                  <DislikeControl track={track} />
                 </td>
               </tr>
             );

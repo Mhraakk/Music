@@ -5,6 +5,7 @@ import type { AtlasTrackCard } from "@/lib/everynoise/types";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { OutboundLinks, outboundFromAtlas, outboundFromTrack } from "./OutboundLinks";
 import { LoveControl } from "./LoveControl";
+import { DislikeControl } from "./DislikeControl";
 
 export function AtlasTrackRow({
   card,
@@ -41,7 +42,12 @@ export function AtlasTrackRow({
           </span>
           <span className="cx-atlas-play-label">{track ? (active ? "Listening" : "Play") : "Open"}</span>
         </button>
-        {track ? <LoveControl track={track} /> : null}
+          {track ? (
+            <div className="cx-atlas-row-actions">
+              <LoveControl track={track} />
+              <DislikeControl track={track} />
+            </div>
+          ) : null}
       </div>
       <OutboundLinks links={track ? outboundFromTrack(track) : outboundFromAtlas(card.outbound)} />
     </article>

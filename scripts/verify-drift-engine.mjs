@@ -1009,14 +1009,31 @@ async function verifySoftListen() {
   check(/aria-label="Minimize"/.test(player), "mini-player has minimize");
   check(/aria-label="Close"/.test(player), "mini-player has close");
   check(/Love this recording/.test(player), "mini-player has a like control");
+  check(/Not this recording or mood/.test(player), "mini-player has a dislike control");
+  check(/Won.t lean this way next/.test(player), "dislike whispers without skipping");
   check(/setDocked\(true\)/.test(player), "minimize docks the listening window");
   check(!/SkipForward|goToNext|aria-label=\"Skip/.test(player), "mini-player still has no skip");
   const love = readFileSync(new URL("../src/components/cosmos/LoveControl.tsx", import.meta.url), "utf8");
   check(/toggleLike/.test(love), "like control teaches without skipping");
+  const dislike = readFileSync(new URL("../src/components/cosmos/DislikeControl.tsx", import.meta.url), "utf8");
+  check(/toggleDislike/.test(dislike), "dislike control is wired");
+  check(!/advance\(|goToNext/.test(dislike), "dislike control does not skip");
+  const wheatUi = readFileSync(new URL("../src/components/cosmos/WheatSurface.tsx", import.meta.url), "utf8");
+  check(/Refresh tonight/.test(wheatUi), "wheat has a refresh control");
+  check(/excludeQueries/.test(wheatUi), "wheat refresh excludes the last night");
+  const radioUi = readFileSync(new URL("../src/components/cosmos/RadioSurface.tsx", import.meta.url), "utf8");
+  check(/exclude/.test(radioUi) && /nextOpenRoom/.test(radioUi), "radio harvest excludes last set and refused rooms");
+  const liveRoom = readFileSync(new URL("../src/lib/converse/live-room.ts", import.meta.url), "utf8");
+  check(/PER_PROBE/.test(liveRoom) && /exclude/.test(liveRoom), "room harvest takes two per artist and honours exclude");
+  const playerCtx = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  const dislikeFn = playerCtx.match(/const toggleDislike = useCallback\([\s\S]*?\n  \);/);
+  check(Boolean(dislikeFn), "player exposes toggleDislike");
+  check(dislikeFn && !/advanceRef|void advance\(/.test(dislikeFn[0]), "toggleDislike does not skip to the next track");
   const duration = readFileSync(new URL("../src/lib/listen/duration.ts", import.meta.url), "utf8");
   check(/LISTEN_MINUTES = \[15, 30, 45, 60\]/.test(duration), "atlas listen lengths are 15–60 minutes");
   const resonance = readFileSync(new URL("../src/lib/drift/resonance.ts", import.meta.url), "utf8");
   check(/explicit_like/.test(resonance), "resonance records an explicit like");
+  check(/explicit_dislike/.test(resonance), "resonance records an explicit dislike");
   const overlay = readFileSync(new URL("../src/lib/apple/overlay.ts", import.meta.url), "utf8");
   check(/f-\|l-\|w-/.test(overlay) || /\^\(f-\|l-\|w-\)/.test(overlay), "overlay admits loved web recordings");
   const home = await fetch(`${BASE}/`).then((r) => r.text());
@@ -1027,8 +1044,15 @@ async function verifySoftListen() {
   const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
   check(/wheat1/.test(radio), "radio names wheat1");
   check(/land on this page/.test(radio), "radio puts the night on the page");
-  const wheat = await fetch(`${BASE}/api/wheat`).then((r) => r.json());
+  const wheat = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=101&limit=5`).then((r) => r.json());
   check(wheat.ok === true && wheat.channel === "wheat1", "GET /api/wheat is wired");
+  check((wheat.hints ?? []).length >= 5, "wheat night picks five", JSON.stringify(wheat.hints ?? []));
+  const wheatB = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=909&limit=5`).then((r) => r.json());
+  check(
+    (wheat.hints ?? []).join("|") !== (wheatB.hints ?? []).join("|"),
+    "wheat seed rotates the night",
+    `${(wheat.hints ?? []).join(" · ")} vs ${(wheatB.hints ?? []).join(" · ")}`
+  );
   let wheatPost = { ok: false, hints: [], tracks: [] };
   try {
     wheatPost = await fetch(`${BASE}/api/wheat`, {
@@ -1063,6 +1087,51 @@ async function verifySoftListen() {
   check(
     !((wheatNight.tracks ?? [])[0] && "genre" in wheatNight.tracks[0] && wheatNight.tracks[0].genre),
     "wheat night still has no genre field"
+  );
+  let wheatFresh = { ok: false, tracks: [], hints: [] };
+  try {
+    wheatFresh = await fetch(`${BASE}/api/wheat?seed=42&limit=5`, { signal: AbortSignal.timeout(60000) }).then((r) =>
+      r.json()
+    );
+  } catch (error) {
+    check(false, "GET /api/wheat harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check((wheatFresh.tracks ?? []).length > 0, "GET /api/wheat resolves a fresh night");
+  check((wheatFresh.tracks ?? []).length <= 5, "wheat harvest stays at five", String((wheatFresh.tracks ?? []).length));
+  let roomLive = { ok: false, tracks: [] };
+  try {
+    roomLive = await fetch(`${BASE}/api/discover/fresh?room=cinematic_warmth&seed=21&limit=5`, {
+      signal: AbortSignal.timeout(60000),
+    }).then((r) => r.json());
+  } catch (error) {
+    check(false, "discover harvest timed out", error instanceof Error ? error.message : String(error));
+  }
+  check((roomLive.tracks ?? []).length > 0, "radio room harvest returns recordings");
+  const probeNotes = new Set(
+    (roomLive.tracks ?? [])
+      .map((track) => String(track.note ?? "").split("·").pop()?.trim())
+      .filter(Boolean)
+  );
+  check(
+    probeNotes.size >= 2 || (roomLive.tracks ?? []).length <= 2,
+    "room harvest is not one artist filling the set",
+    [...probeNotes].join(" · ")
+  );
+  const seenIds = (roomLive.tracks ?? []).map((track) => track.id).filter(Boolean);
+  let roomAgain = { tracks: [] };
+  try {
+    roomAgain = await fetch(
+      `${BASE}/api/discover/fresh?room=cinematic_warmth&seed=99&limit=5&exclude=${encodeURIComponent(seenIds.join(","))}`,
+      { signal: AbortSignal.timeout(60000) }
+    ).then((r) => r.json());
+  } catch (error) {
+    check(false, "discover refresh timed out", error instanceof Error ? error.message : String(error));
+  }
+  const overlap = (roomAgain.tracks ?? []).filter((track) => seenIds.includes(track.id)).length;
+  check(
+    overlap === 0 || (roomAgain.tracks ?? []).length === 0,
+    "second room harvest excludes the last set",
+    `${overlap} overlapping of ${(roomAgain.tracks ?? []).length}`
   );
   let harvest = { ok: false, tracks: [] };
   try {
