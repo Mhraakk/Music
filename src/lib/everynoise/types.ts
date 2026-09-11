@@ -120,7 +120,7 @@ export function playlistIdFromRef(value: string): string {
 
 export function isSearchUrl(url: string | null | undefined): boolean {
   if (!url) return false;
-  return /\/search(\?|\/)/i.test(url) || /[?&]term=/i.test(url);
+  return /\/search(\?|\/)/i.test(url) || /[?&]term=/i.test(url) || /search\.html/i.test(url);
 }
 
 export function searchUrls(artist: string, title?: string | null): AtlasOutbound {

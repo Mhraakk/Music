@@ -103,9 +103,13 @@ if (base) {
   const genreUi = readFileSync(new URL("../src/components/cosmos/AtlasGenreView.tsx", import.meta.url), "utf8");
   check(/toggleScan/.test(genreUi) && /playlist/.test(genreUi), "genre view keeps scan and playlist");
   const outboundUi = readFileSync(new URL("../src/components/cosmos/OutboundLinks.tsx", import.meta.url), "utf8");
-  check(/Recording/.test(outboundUi) && /Artist/.test(outboundUi), "outbound links split into Recording and Artist");
-  check(/visible\(links, RECORDING_KEYS\)/.test(outboundUi) && /visible\(links, ARTIST_KEYS\)/.test(outboundUi), "atlas outbound uses two labeled rows");
-  check(/CATALOG_KEYS/.test(outboundUi) && /\[\.\.\.RECORDING_KEYS, \.\.\.CATALOG_KEYS\]/.test(outboundUi), "Chinese catalogs stay on the non-atlas layout only");
+  check(/Recording/.test(outboundUi) && /Artist/.test(outboundUi) && /Catalog/.test(outboundUi), "outbound links split into Recording, Artist, and Catalog");
+  check(/RECORDING_KEYS/.test(outboundUi) && /ARTIST_KEYS/.test(outboundUi) && /CATALOG_KEYS/.test(outboundUi), "atlas outbound keeps all three destination rows");
+  check(/fillOutbound/.test(outboundUi) && /youtubeMusicArtist/.test(outboundUi) && /soundcloudArtist/.test(outboundUi), "atlas fills every destination when a canonical id is missing");
+  check(/layout === "atlas"/.test(outboundUi) && /LinkRow label="Catalog"/.test(outboundUi), "atlas catalog row stays on the map layout");
+  const outboundCss = readFileSync(new URL("../src/app/(cosmos)/cosmos.css", import.meta.url), "utf8");
+  check(/min-height:\s*44px/.test(outboundCss), "outbound chips have a 44px tap target");
+  check(/\.cx-outbound \{[\s\S]*?gap:\s*12px/.test(outboundCss), "outbound chips keep 12px gaps");
   const home = await fetch(`${root}/`).then((r) => r.text());
   check(home.includes("Listen Now"), "home still Listen Now");
   check(home.includes("Favorite Songs"), "home still Favorite Songs");

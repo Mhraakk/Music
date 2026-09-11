@@ -131,7 +131,12 @@ export function AtlasArtistView({ name }: { name: string }) {
 
       <AtlasPlay artist={page.artist.name} fallbackTracks={page.libraryTracks} title={page.artist.name} label="Play this artist" />
       <div className="cx-atlas-toolbar">
-        <OutboundLinks links={outboundFromAtlas(page.artist.outbound)} artist layout="atlas" />
+        <OutboundLinks
+          links={outboundFromAtlas(page.artist.outbound)}
+          artist
+          layout="atlas"
+          artistName={page.artist.name}
+        />
         {page.artist.profileUrl ? (
           <a href={page.artist.profileUrl} target="_blank" rel="noreferrer noopener" className="cx-outbound-link">
             Every Noise profile
