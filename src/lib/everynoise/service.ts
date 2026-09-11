@@ -50,6 +50,7 @@ export async function listAtlasGenres(input: {
   q?: string;
   family?: AtlasFamily;
   limit?: number;
+  fields?: "map" | "full";
 }): Promise<{
   genres: AtlasGenre[];
   listed: AtlasGenre[];
@@ -70,12 +71,24 @@ export async function listAtlasGenres(input: {
     );
   });
   const cap = Math.max(12, Math.min(8000, input.limit ?? 8000));
-  const genres = filtered.slice(0, cap);
+  const slice = filtered.slice(0, cap);
   const listed = filtered
     .slice()
     .sort((a, b) => b.weight - a.weight)
     .slice(0, Math.min(160, filtered.length));
-  return { genres, listed, total: filtered.length, family, canvas };
+  const genres =
+    input.fields === "map"
+      ? slice.map((genre) => ({
+          id: genre.id,
+          label: genre.label,
+          color: genre.color,
+          x: genre.x,
+          y: genre.y,
+          weight: genre.weight,
+          previewUrl: genre.previewUrl,
+        }))
+      : slice;
+  return { genres: genres as AtlasGenre[], listed, total: filtered.length, family, canvas };
 }
 
 function pinFromGenre(genre: AtlasGenre): AtlasPin {

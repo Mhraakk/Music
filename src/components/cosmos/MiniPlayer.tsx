@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import dynamic from "next/dynamic";
+import { usePlayer, usePlayerActions, usePlayerClock } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
 import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
@@ -14,9 +15,12 @@ import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, SpinnerGl
 import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
 import { DislikeControl } from "./DislikeControl";
-import { NuclearStage } from "./NuclearStage";
-import { LyricsStage } from "./LyricsStage";
 import type { LyricLine } from "@/lib/lyrics/lrclib";
+
+const NuclearStage = dynamic(() => import("./NuclearStage").then((mod) => ({ default: mod.NuclearStage })), {
+  ssr: false,
+});
+const LyricsStage = dynamic(() => import("./LyricsStage").then((mod) => ({ default: mod.LyricsStage })), { ssr: false });
 
 const MODE_LABEL: Record<string, string> = {
   deepen: "More like this",
@@ -25,8 +29,9 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds, dislikedIds } =
+  const { current, playing, volume, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds, dislikedIds } =
     usePlayer();
+  const { progress, fragilityNow } = usePlayerClock();
   const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [docked, setDocked] = useState(false);
@@ -66,6 +71,8 @@ export function MiniPlayer() {
         : current.duration
     : 0;
   const elapsed = progress * total;
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -91,12 +98,12 @@ export function MiniPlayer() {
       if (!current || !total) return;
       if (event.code === "ArrowLeft") {
         event.preventDefault();
-        seek(Math.max(0, progress - 5 / total));
+        seek(Math.max(0, progressRef.current - 5 / total));
         return;
       }
       if (event.code === "ArrowRight") {
         event.preventDefault();
-        seek(Math.min(1, progress + 5 / total));
+        seek(Math.min(1, progressRef.current + 5 / total));
         return;
       }
       if (event.code === "ArrowUp") {
@@ -111,7 +118,7 @@ export function MiniPlayer() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, docked, expanded, progress, setVolume, seek, stop, toggle, total, volume]);
+  }, [current, docked, expanded, setVolume, seek, stop, toggle, total, volume]);
 
   useEffect(() => {
     if (!current) {

@@ -2,8 +2,9 @@
 
 import type { LibraryTrack } from "@/lib/library";
 import type { AtlasTrackCard } from "@/lib/everynoise/types";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayerActions } from "@/context/PlayerContext";
 import { OutboundLinks, outboundFromAtlas, outboundFromTrack, pickOutbound } from "./OutboundLinks";
+import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
 import { DislikeControl } from "./DislikeControl";
 
@@ -14,9 +15,9 @@ export function AtlasTrackRow({
   card: AtlasTrackCard;
   track?: LibraryTrack | null;
 }) {
-  const { current, playing } = usePlayer();
+  const { currentId, playing } = useNowPlaying();
   const { play, ingest } = usePlayerActions();
-  const active = Boolean(track && current?.id === track.id && playing);
+  const active = Boolean(track && currentId === track.id && playing);
 
   const onPlay = () => {
     if (!track) return;
@@ -30,8 +31,7 @@ export function AtlasTrackRow({
         <button type="button" className="cx-atlas-row-main" onClick={onPlay} disabled={!track}>
           <span className="cx-atlas-art" aria-hidden>
             {card.artworkUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={card.artworkUrl} alt="" />
+              <Artwork src={card.artworkUrl} sizes="56px" />
             ) : (
               <span className="cx-atlas-art-empty" />
             )}

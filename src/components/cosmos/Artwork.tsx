@@ -52,6 +52,8 @@ export function Artwork({
       data-loaded={loaded ? "true" : "false"}
       onLoad={onLoad}
       onError={onLoad}
+      decoding="async"
+      loading={priority ? "eager" : "lazy"}
     />
   );
 }

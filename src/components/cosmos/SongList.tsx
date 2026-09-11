@@ -1,14 +1,15 @@
 "use client";
 
+import { memo } from "react";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayerActions } from "@/context/PlayerContext";
 import { clock } from "@/lib/format";
 import { LoveControl } from "./LoveControl";
 import { DislikeControl } from "./DislikeControl";
 import { Artwork } from "./Artwork";
 
 export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[]; showAlbum?: boolean }) {
-  const { current, playing } = usePlayer();
+  const { currentId, playing } = useNowPlaying();
   const { play } = usePlayerActions();
 
   if (tracks.length === 0) {
@@ -41,51 +42,67 @@ export function SongList({ tracks, showAlbum = true }: { tracks: LibraryTrack[];
           </tr>
         </thead>
         <tbody>
-          {tracks.map((track, i) => {
-            const active = current?.id === track.id;
-            return (
-              <tr
-                key={track.id}
-                className="cx-song"
-                data-active={active ? "true" : undefined}
-                onClick={() => play(track)}
-              >
-                <td className="cx-mono">{active && playing ? "▶" : i + 1}</td>
-                <td>
-                  <span className="cx-song-title">
-                    <span className="cx-song-art" style={{ backgroundColor: track.tint }}>
-                      <Artwork src={track.artworkUrl} sizes="40px" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="cx-truncate block font-medium">{track.title}</span>
-                      <span className="cx-truncate block text-[12px] text-[var(--ink-3)] sm:hidden">
-                        {track.artist}
-                      </span>
-                    </span>
-                  </span>
-                </td>
-                <td className="hidden sm:table-cell">
-                  <span className="cx-truncate block max-w-[28ch]">{track.artist}</span>
-                </td>
-                {showAlbum && (
-                  <td className="hidden md:table-cell">
-                    <span className="cx-truncate block max-w-[32ch] text-[var(--ink-3)]">
-                      {track.album ?? "-"}
-                    </span>
-                  </td>
-                )}
-                <td className="cx-mono text-right">{clock(track.duration)}</td>
-                <td onClick={(event) => event.stopPropagation()}>
-                  <LoveControl track={track} />
-                </td>
-                <td onClick={(event) => event.stopPropagation()}>
-                  <DislikeControl track={track} />
-                </td>
-              </tr>
-            );
-          })}
+          {tracks.map((track, i) => (
+            <SongRow
+              key={track.id}
+              track={track}
+              index={i}
+              active={currentId === track.id}
+              playing={currentId === track.id && playing}
+              showAlbum={showAlbum}
+              onPlay={play}
+            />
+          ))}
         </tbody>
       </table>
     </div>
   );
 }
+
+const SongRow = memo(function SongRow({
+  track,
+  index,
+  active,
+  playing,
+  showAlbum,
+  onPlay,
+}: {
+  track: LibraryTrack;
+  index: number;
+  active: boolean;
+  playing: boolean;
+  showAlbum: boolean;
+  onPlay: (track: LibraryTrack) => void;
+}) {
+  return (
+    <tr className="cx-song" data-active={active ? "true" : undefined} onClick={() => onPlay(track)}>
+      <td className="cx-mono">{active && playing ? "▶" : index + 1}</td>
+      <td>
+        <span className="cx-song-title">
+          <span className="cx-song-art" style={{ backgroundColor: track.tint }}>
+            <Artwork src={track.artworkUrl} sizes="40px" />
+          </span>
+          <span className="min-w-0">
+            <span className="cx-truncate block font-medium">{track.title}</span>
+            <span className="cx-truncate block text-[12px] text-[var(--ink-3)] sm:hidden">{track.artist}</span>
+          </span>
+        </span>
+      </td>
+      <td className="hidden sm:table-cell">
+        <span className="cx-truncate block max-w-[28ch]">{track.artist}</span>
+      </td>
+      {showAlbum && (
+        <td className="hidden md:table-cell">
+          <span className="cx-truncate block max-w-[32ch] text-[var(--ink-3)]">{track.album ?? "-"}</span>
+        </td>
+      )}
+      <td className="cx-mono text-right">{clock(track.duration)}</td>
+      <td onClick={(event) => event.stopPropagation()}>
+        <LoveControl track={track} />
+      </td>
+      <td onClick={(event) => event.stopPropagation()}>
+        <DislikeControl track={track} />
+      </td>
+    </tr>
+  );
+});

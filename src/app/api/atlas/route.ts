@@ -12,10 +12,21 @@ export async function GET(request: Request) {
   const familyRaw = (url.searchParams.get("family") ?? "all") as AtlasFamily;
   const family = FAMILIES.includes(familyRaw) ? familyRaw : "all";
   const limit = Number(url.searchParams.get("limit") ?? 8000);
-  const payload = await listAtlasGenres({ q, family, limit });
-  return NextResponse.json({
-    ok: true,
-    source: "everynoise",
-    ...payload,
-  });
+  const fields = url.searchParams.get("fields") === "map" ? "map" : "full";
+  const payload = await listAtlasGenres({ q, family, limit, fields });
+  const mapFresh = fields === "map" && !q;
+  return NextResponse.json(
+    {
+      ok: true,
+      source: "everynoise",
+      ...payload,
+    },
+    {
+      headers: {
+        "Cache-Control": mapFresh
+          ? "public, s-maxage=300, stale-while-revalidate=3600"
+          : "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    }
+  );
 }

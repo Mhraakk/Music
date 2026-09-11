@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AtlasCanvas, AtlasFamily, AtlasGenre } from "@/lib/everynoise/types";
@@ -43,6 +43,7 @@ export function AtlasSurface() {
     setError(null);
     const params = new URLSearchParams({ family, limit: "8000" });
     if (debounced) params.set("q", debounced);
+    else params.set("fields", "map");
     void fetch(`/api/atlas?${params}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`atlas ${response.status}`);
@@ -83,6 +84,13 @@ export function AtlasSurface() {
     [genres]
   );
 
+  const onPreview = useCallback(
+    (item: ScatterNode) => {
+      preview(item.previewUrl, item.id);
+    },
+    [preview]
+  );
+
   const fit = family === "all" && !debounced ? "canvas" : "bounds";
 
   const openArtist = (name: string) => {
@@ -90,6 +98,8 @@ export function AtlasSurface() {
     if (!trimmed) return;
     router.push(`/atlas/artist?name=${encodeURIComponent(trimmed)}`);
   };
+
+  const listRows = debounced ? genres : listed.length ? listed : genres;
 
   return (
     <div className="cx-atlas">
@@ -167,25 +177,49 @@ export function AtlasSurface() {
           tone="paper"
           mode="open"
           label="Every Noise genre map"
-          onPreview={(item) => preview(item.previewUrl, item.id)}
+          onPreview={onPreview}
         />
-      ) : null}
-
-      <ol className="cx-atlas-list" hidden={view === "map"}>
-        {(debounced ? genres : listed).map((genre) => (
-          <li key={`list-${genre.id}`}>
-            <Link href={`/atlas/genre/${genre.id}`} className="cx-atlas-list-row">
-              <span className="cx-atlas-dot" style={{ background: genre.color }} />
-              <span className="cx-atlas-list-label">{genre.label}</span>
-              <span className="cx-atlas-list-eg">
-                {genre.exampleArtist && genre.exampleTitle
-                  ? `${genre.exampleArtist}: ${genre.exampleTitle}`
-                  : "Open branch"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ol>
+      ) : (
+        <AtlasBranchList genres={listRows} />
+      )}
     </div>
+  );
+}
+
+function AtlasBranchList({ genres }: { genres: AtlasGenre[] }) {
+  const [shown, setShown] = useState(80);
+
+  useEffect(() => {
+    setShown(80);
+  }, [genres]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1200) {
+        setShown((n) => Math.min(n + 80, genres.length));
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [genres.length]);
+
+  const slice = genres.slice(0, shown);
+
+  return (
+    <ol className="cx-atlas-list">
+      {slice.map((genre) => (
+        <li key={`list-${genre.id}`}>
+          <Link href={`/atlas/genre/${genre.id}`} className="cx-atlas-list-row" prefetch={false}>
+            <span className="cx-atlas-dot" style={{ background: genre.color }} />
+            <span className="cx-atlas-list-label">{genre.label}</span>
+            <span className="cx-atlas-list-eg">
+              {genre.exampleArtist && genre.exampleTitle
+                ? `${genre.exampleArtist}: ${genre.exampleTitle}`
+                : "Open branch"}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ol>
   );
 }
