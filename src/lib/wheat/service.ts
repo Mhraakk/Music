@@ -1,10 +1,22 @@
 import { findMusic } from "@/lib/converse/anywhere";
 import { capToDuration } from "@/lib/listen/duration";
 import type { LibraryTrack } from "@/lib/library";
+import { parseIdList, rotate, seededShuffle } from "@/lib/fresh/rotate";
 import { extractWheatHints, parseTelegramWidget } from "./parse";
+import { hintQuery, pickWheatNight, roomForQuery, type NightHint } from "./night-pool";
 
 export const WHEAT_CHANNEL = "wheat1";
 export const WHEAT_URL = "https://t.me/wheat1";
+
+export type WheatHarvestInput = {
+  text?: string;
+  durationMinutes?: number;
+  limit?: number;
+  seed?: number;
+  exclude?: string[];
+  excludeQueries?: string[];
+  refuseRooms?: string[];
+};
 
 async function fetchPreview(): Promise<string | null> {
   const urls = [
@@ -35,19 +47,25 @@ async function fetchPreview(): Promise<string | null> {
   return null;
 }
 
-export async function harvestWheat(input: {
-  text?: string;
-  durationMinutes?: number;
-  limit?: number;
-}): Promise<{
+export async function harvestWheat(input: WheatHarvestInput): Promise<{
   tracks: LibraryTrack[];
   title: string;
   publicPreview: boolean;
   hints: string[];
   durationSeconds: number;
+  fresh: boolean;
 }> {
+  const seed = Number.isFinite(input.seed) ? Number(input.seed) : Date.now();
+  const exclude = new Set((input.exclude ?? []).map((id) => id.trim()).filter(Boolean));
+  const queryExclude = new Set(
+    (input.excludeQueries ?? []).map((query) => query.trim().toLowerCase()).filter(Boolean)
+  );
+  const refuseRooms = new Set((input.refuseRooms ?? []).map((id) => id.trim()).filter(Boolean));
+  const limit = Math.max(1, Math.min(8, input.limit ?? 5));
+
   const captions: string[] = [];
   let publicPreview = false;
+  let fresh = false;
   const pasted = input.text?.trim();
   if (pasted) captions.push(pasted);
 
@@ -59,17 +77,32 @@ export async function harvestWheat(input: {
     }
   }
 
-  const hints = captions.flatMap((caption) => extractWheatHints(caption)).slice(0, 16);
-  const limit = Math.max(1, Math.min(16, input.limit ?? (hints.length || 8)));
+  let hintQueries = captions.flatMap((caption) => extractWheatHints(caption)).map((h) => h.query);
+  let pooled: NightHint[] = [];
+
+  if (hintQueries.length) {
+    hintQueries = rotate(seededShuffle(hintQueries, seed), seed).slice(0, 16);
+  } else {
+    pooled = pickWheatNight(seed, Math.max(limit + 8, 12), queryExclude, refuseRooms);
+    hintQueries = pooled.map(hintQuery);
+    fresh = true;
+  }
+
   const tracks: LibraryTrack[] = [];
-  const seen = new Set<string>();
-  for (const hint of hints) {
-    const found = await findMusic(hint.query, 4);
-    const track = pickForHint(hint.query, found);
-    if (!track || seen.has(track.id)) continue;
+  const seen = new Set<string>(exclude);
+  for (const query of hintQueries) {
+    const found = await findMusic(query, 4);
+    const track = pickForHint(query, found);
+    if (!track) continue;
+    const key = `${track.artist}::${track.title}`.toLowerCase();
+    if (seen.has(track.id) || seen.has(key)) continue;
+    const room = pooled.find((row) => hintQuery(row) === query)?.room ?? roomForQuery(query);
+    if (room && refuseRooms.has(room) && !pasted) continue;
     seen.add(track.id);
+    seen.add(key);
     tracks.push({
       ...track,
+      region: room ?? track.region,
       note: track.note ? `${track.note} · From wheat1` : "From wheat1",
     });
     if (tracks.length >= limit) break;
@@ -82,10 +115,25 @@ export async function harvestWheat(input: {
 
   return {
     tracks: capped,
-    title: pasted && pasted.includes("\n") ? "Tonight" : "wheat1",
+    title: pasted && pasted.includes("\n") ? "Tonight" : fresh ? "Tonight" : "wheat1",
     publicPreview,
-    hints: hints.map((h) => h.query),
+    hints: hintQueries,
     durationSeconds,
+    fresh,
+  };
+}
+
+export function wheatExcludeFromSearch(
+  search: URLSearchParams
+): Pick<WheatHarvestInput, "seed" | "limit" | "exclude" | "excludeQueries" | "refuseRooms"> {
+  const seed = Number(search.get("seed") ?? Date.now());
+  const limit = Number(search.get("limit") ?? 5);
+  return {
+    seed: Number.isFinite(seed) ? seed : Date.now(),
+    limit: Number.isFinite(limit) ? limit : 5,
+    exclude: parseIdList(search.get("exclude")),
+    excludeQueries: parseIdList(search.get("excludeQueries")).map((part) => part.replace(/\|/g, " ")),
+    refuseRooms: parseIdList(search.get("refuseRooms")),
   };
 }
 

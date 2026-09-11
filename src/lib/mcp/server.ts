@@ -69,6 +69,8 @@ const SIGNAL_KINDS: ResonanceSignalKind[] = [
   "seek_back",
   "seek_forward",
   "stillness",
+  "explicit_like",
+  "explicit_dislike",
 ];
 
 export const TOOLS: readonly ToolDescriptor[] = [

@@ -18,7 +18,8 @@ export default function RadioPage() {
           <em>Radio.</em>
         </h1>
         <p className="cx-body">
-          Nine stations, plus wheat1. Paste a night. The recordings land on this page. No skip, no shuffle.
+          Nine stations, plus wheat1. Each tap harvests five new recordings. The recordings land on this
+          page. Refuse a track and that mood walks away. No skip, no shuffle.
         </p>
         <Link href="/drift" className="cx-see-all">
           Open the map

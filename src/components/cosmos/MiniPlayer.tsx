@@ -13,6 +13,7 @@ import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/a
 import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, SpinnerGlyph, VolumeGlyph } from "./icons";
 import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
+import { DislikeControl } from "./DislikeControl";
 import { NuclearStage } from "./NuclearStage";
 import { LyricsStage } from "./LyricsStage";
 import type { LyricLine } from "@/lib/lyrics/lrclib";
@@ -24,17 +25,20 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds } =
+  const { current, playing, progress, volume, fragilityNow, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds, dislikedIds } =
     usePlayer();
-  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike } = usePlayerActions();
+  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [docked, setDocked] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
   const [lyricsStatus, setLyricsStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [lovedHint, setLovedHint] = useState<string | null>(null);
+  const [refusedHint, setRefusedHint] = useState<string | null>(null);
   const prevLiked = useRef(false);
+  const prevRefused = useRef(false);
   const liked = Boolean(current && likedIds.includes(current.id));
+  const refused = Boolean(current && dislikedIds.includes(current.id));
 
   const minimize = () => {
     if (expanded) {
@@ -147,7 +151,9 @@ export function MiniPlayer() {
 
   useEffect(() => {
     prevLiked.current = Boolean(current && likedIds.includes(current.id));
+    prevRefused.current = Boolean(current && dislikedIds.includes(current.id));
     setLovedHint(null);
+    setRefusedHint(null);
     // Snapshot at track change only — a later like must still be able to whisper.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
@@ -156,12 +162,25 @@ export function MiniPlayer() {
     if (!current) return;
     if (liked && !prevLiked.current) {
       setLovedHint("Loved. The next drift leans this way.");
+      setRefusedHint(null);
       prevLiked.current = true;
       const timer = window.setTimeout(() => setLovedHint(null), 3200);
       return () => window.clearTimeout(timer);
     }
     prevLiked.current = liked;
   }, [current, liked]);
+
+  useEffect(() => {
+    if (!current) return;
+    if (refused && !prevRefused.current) {
+      setRefusedHint("Won’t lean this way next.");
+      setLovedHint(null);
+      prevRefused.current = true;
+      const timer = window.setTimeout(() => setRefusedHint(null), 3200);
+      return () => window.clearTimeout(timer);
+    }
+    prevRefused.current = refused;
+  }, [current, refused]);
 
   if (!current) return null;
 
@@ -199,6 +218,7 @@ export function MiniPlayer() {
           </button>
           <div className="cx-window-chrome">
             <LoveControl track={current} />
+            <DislikeControl track={current} />
             <button type="button" className="cx-window-ctrl" aria-label="Restore" onClick={restore}>
               <RestoreGlyph />
             </button>
@@ -297,6 +317,7 @@ export function MiniPlayer() {
 
           <div className="cx-window-chrome">
             <LoveControl track={current} />
+            <DislikeControl track={current} />
             <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
               <MinimizeGlyph />
             </button>
@@ -332,6 +353,7 @@ export function MiniPlayer() {
           <p className="cx-window-name">Now playing</p>
           <div className="cx-window-chrome">
             <LoveControl track={current} />
+            <DislikeControl track={current} />
             <button type="button" className="cx-window-ctrl" aria-label="Minimize" onClick={minimize}>
               <MinimizeGlyph />
             </button>
@@ -372,8 +394,18 @@ export function MiniPlayer() {
               >
                 {liked ? "Loved" : "Love this"}
               </button>
+              <button
+                type="button"
+                className={`cx-pill cx-pill-compact ${refused ? "cx-pill-dark" : "cx-pill-ghost"}`}
+                aria-pressed={refused}
+                aria-label={refused ? "Refused" : "Not this recording or mood"}
+                onClick={() => toggleDislike()}
+              >
+                {refused ? "Refused" : "Not this"}
+              </button>
             </div>
             {lovedHint && <p className="cx-meta mt-2">{lovedHint}</p>}
+            {refusedHint && <p className="cx-meta mt-2">{refusedHint}</p>}
           </div>
         </div>
       )}

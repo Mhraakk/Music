@@ -23,7 +23,8 @@ export type ResonanceSignalKind =
   | "seek_back"
   | "seek_forward"
   | "stillness"
-  | "explicit_like";
+  | "explicit_like"
+  | "explicit_dislike";
 
 export type ResonanceSignal = {
   kind: ResonanceSignalKind;
@@ -70,6 +71,7 @@ const BASE_WEIGHT: Record<ResonanceSignalKind, number> = {
   // into a conviction strong enough to redirect a drift the listener asked for.
   stillness: 0.14,
   explicit_like: 0.78,
+  explicit_dislike: -0.86,
 };
 
 /** Signals whose meaning depends on landing inside a fragility window. */
@@ -139,6 +141,8 @@ function noteFor(signal: ResonanceSignal): string {
       return "listened without touching anything";
     case "explicit_like":
       return "marked this as a favorite";
+    case "explicit_dislike":
+      return "refused this recording and its mood";
   }
 }
 

@@ -32,7 +32,7 @@ export function DiscoverSurface({
   artists: Pick<Curator, "slug" | "name" | "covers" | "tint">[];
   catalogTotal: number;
 }) {
-  const { extras, destination } = usePlayer();
+  const { extras, destination, dislikedIds } = usePlayer();
   const { ingest, setDestination } = usePlayerActions();
   const { circulating, searchLocal, colorLocal, synced } = useLibrary();
   const [mode, setMode] = useState<SearchMode>({ kind: "none" });
@@ -131,9 +131,16 @@ export function DiscoverSurface({
     setRefreshNote(null);
     try {
       const seed = Date.now();
-      const response = await fetch(`/api/discover/fresh?room=${encodeURIComponent(room)}&seed=${seed}&limit=10`);
+      const exclude = [...new Set([...arrived.map((track) => track.id), ...dislikedIds])];
+      const params = new URLSearchParams({
+        room,
+        seed: String(seed),
+        limit: "8",
+      });
+      if (exclude.length) params.set("exclude", exclude.join(","));
+      const response = await fetch(`/api/discover/fresh?${params}`);
       const payload = (await response.json()) as { ok?: boolean; tracks?: LibraryTrack[]; error?: string };
-      const tracks = payload.tracks ?? [];
+      const tracks = (payload.tracks ?? []).filter((track) => !dislikedIds.includes(track.id));
       if (!tracks.length) {
         setRefreshNote(payload.error || "Apple Music did not return new recordings just now.");
         return;
@@ -151,7 +158,8 @@ export function DiscoverSurface({
   const searching = mode.kind !== "none";
   const canShowMore = searching && results.length < total;
   const arrivedIds = new Set(arrived.map((t) => t.id));
-  const otherFresh = fresh.filter((t) => !arrivedIds.has(t.id));
+  const visibleArrived = arrived.filter((t) => !dislikedIds.includes(t.id));
+  const otherFresh = fresh.filter((t) => !arrivedIds.has(t.id) && !dislikedIds.includes(t.id));
 
   return (
     <>
@@ -194,7 +202,7 @@ export function DiscoverSurface({
                 Emotional <em>map.</em>
               </h2>
               <p className="cx-body">
-                Tap a room. Refresh pulls new Apple Music recordings for that feeling, not the static shelf.
+                Tap a room. Refresh pulls a new Apple Music set for that feeling, not the same five again.
               </p>
               <button
                 type="button"
@@ -215,15 +223,15 @@ export function DiscoverSurface({
             {refreshNote && <p className="cx-meta mt-3">{refreshNote}</p>}
           </section>
 
-          {arrived.length > 0 && (
+          {visibleArrived.length > 0 && (
             <section className="cx-section">
               <div className="cx-section-head">
                 <h2 className="cx-title">
                   Just <em>arrived.</em>
                 </h2>
               </div>
-              {arrived[0]?.note && <p className="cx-meta mb-3">{arrived[0].note}</p>}
-              <AlbumRow tracks={arrived} />
+              {visibleArrived[0]?.note && <p className="cx-meta mb-3">{visibleArrived[0].note}</p>}
+              <AlbumRow tracks={visibleArrived} />
             </section>
           )}
 

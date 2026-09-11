@@ -457,6 +457,8 @@ export async function executeConverseTool(
       const harvested = await harvestWheat({
         text: asString(args.text) || undefined,
         durationMinutes: minutes >= 8 ? minutes : 30,
+        seed: Date.now(),
+        limit: 5,
       });
       const tracks = harvested.tracks;
       rememberSearch(ctx, tracks);
@@ -565,7 +567,7 @@ export async function executeConverseTool(
       const room = asRoom(args.room);
       if (!room) return { ok: false, error: "Unknown room." };
       pushDestination(ctx, room);
-      const live = await harvestRoom(room, Date.now(), 8);
+      const live = await harvestRoom(room, Date.now(), 5);
       if (live.length) {
         rememberSearch(ctx, live);
         ctx.ingest.push(...live);

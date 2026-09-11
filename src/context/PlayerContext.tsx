@@ -40,6 +40,7 @@ import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftConte
 import { compactOverlay, publishLoved } from "@/lib/apple/publish";
 import { isSoundcloudTrack, youtubeVideoId } from "@/lib/converse/anywhere";
 import { loadLoved, toggleLoved } from "@/lib/likes/store";
+import { loadRefused, roomsFromRefused, toggleRefused } from "@/lib/refuse/store";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
 const FADE_MS = 2200;
@@ -90,6 +91,10 @@ export type PlayerState = {
   nuclearSeekAt: number | null;
   /** Recordings the listener marked on Resonant. Feeds the next drift. */
   likedIds: string[];
+  /** Recordings the listener refused. Harvests exclude these. Does not skip. */
+  dislikedIds: string[];
+  /** Map rooms refused with those recordings. */
+  refusedRooms: CoordinateId[];
 };
 
 export type PlayerActions = {
@@ -112,6 +117,8 @@ export type PlayerActions = {
   nuclearFailed: () => void;
   /** Heart the current recording, or a specific one. Does not skip. */
   toggleLike: (track?: LibraryTrack) => void;
+  /** Refuse this recording and its mood. Does not skip. */
+  toggleDislike: (track?: LibraryTrack) => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -142,6 +149,8 @@ const INITIAL: PlayerState = {
   nuclearDuration: null,
   nuclearSeekAt: null,
   likedIds: [],
+  dislikedIds: [],
+  refusedRooms: [],
 };
 
 /**
@@ -280,6 +289,7 @@ export function PlayerProvider({
     fromEngine: false,
     fromAsk: false,
   });
+  const dislikedRef = useRef<string[]>([]);
   const playGen = useRef(0);
   const skipYoutubeFor = useRef<string | null>(null);
 
@@ -348,10 +358,11 @@ export function PlayerProvider({
 
   const recordSignal = useCallback((kind: ResonanceSignalKind, overrides: Partial<ResonanceSignal> = {}) => {
     const track = live.current.current;
-    if (!track) return;
+    const trackId = overrides.trackId ?? track?.id;
+    if (!trackId) return;
     const signal: ResonanceSignal = {
       kind,
-      trackId: track.id,
+      trackId,
       progress: live.current.progress,
       fragility: live.current.fragilityNow,
       magnitude: 0.5,
@@ -531,7 +542,7 @@ export function PlayerProvider({
 
         // Rolling window: a session has no end, so an unbounded exclusion list
         // would eventually exhaust the pool and force repeats.
-        const recentIds = live.current.historyIds.slice(-24);
+        const recentIds = [...new Set([...live.current.historyIds.slice(-24), ...dislikedRef.current])];
         const destination = live.current.destination;
         const outcome = await getNextEmotionalDrift({
           sessionId: live.current.sessionId || newSessionId(),
@@ -614,20 +625,80 @@ export function PlayerProvider({
     }
   }, []);
 
+  const applyRefuseState = useCallback((records: { id: string; region: CoordinateId }[]) => {
+    const dislikedIds = records.map((row) => row.id);
+    const refusedRooms = roomsFromRefused(records);
+    dislikedRef.current = dislikedIds;
+    setState((s) => ({ ...s, dislikedIds, refusedRooms, branches: { ...live.current.branches } }));
+  }, []);
+
   const toggleLike = useCallback(
     (track?: LibraryTrack) => {
       const target = track ?? live.current.current;
       if (!target) return;
-      void toggleLoved(target).then(({ tracks, liked }) => {
+      void (async () => {
+        if (dislikedRef.current.includes(target.id)) {
+          const { records } = await toggleRefused(target);
+          const prior = live.current.branches[target.region];
+          if (!records.some((row) => row.region === target.region) && prior?.status === "pruned") {
+            live.current.branches = {
+              ...live.current.branches,
+              [target.region]: { status: "open", visits: prior.visits },
+            };
+          }
+          applyRefuseState(records);
+        }
+        const { tracks, liked } = await toggleLoved(target);
         publishLoved(tracks);
         setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
         ingest(tracks);
-        if (liked && live.current.current?.id === target.id) {
-          recordSignal("explicit_like", { magnitude: 1 });
+        if (liked) {
+          recordSignal("explicit_like", { magnitude: 1, trackId: target.id });
         }
-      });
+      })();
     },
-    [ingest, recordSignal]
+    [applyRefuseState, ingest, recordSignal]
+  );
+
+  const toggleDislike = useCallback(
+    (track?: LibraryTrack) => {
+      const target = track ?? live.current.current;
+      if (!target) return;
+      void (async () => {
+        const { records, refused } = await toggleRefused(target);
+        if (refused) {
+          const lovedTracks = await loadLoved();
+          if (lovedTracks.some((row) => row.id === target.id)) {
+            const { tracks } = await toggleLoved(target);
+            publishLoved(tracks);
+            setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
+          }
+          const prior = live.current.branches[target.region];
+          live.current.branches = {
+            ...live.current.branches,
+            [target.region]: { status: "pruned", visits: (prior?.visits ?? 0) + 1 },
+          };
+          live.current.queue = live.current.queue.filter((row) => row.id !== target.id);
+          recordSignal("explicit_dislike", { magnitude: 1, trackId: target.id });
+          setState((s) => ({
+            ...s,
+            queue: live.current.queue,
+            queueTitle: live.current.queue.length ? live.current.queueTitle : null,
+            branches: { ...live.current.branches },
+          }));
+        } else {
+          const prior = live.current.branches[target.region];
+          if (!records.some((row) => row.region === target.region) && prior?.status === "pruned") {
+            live.current.branches = {
+              ...live.current.branches,
+              [target.region]: { status: "open", visits: prior.visits },
+            };
+          }
+        }
+        applyRefuseState(records);
+      })();
+    },
+    [applyRefuseState, recordSignal]
   );
 
   useEffect(() => {
@@ -638,10 +709,21 @@ export function PlayerProvider({
       ingest(tracks);
       setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
     });
+    void loadRefused().then((records) => {
+      if (cancelled) return;
+      for (const row of records) {
+        const prior = live.current.branches[row.region];
+        live.current.branches = {
+          ...live.current.branches,
+          [row.region]: { status: "pruned", visits: (prior?.visits ?? 0) + 1 },
+        };
+      }
+      applyRefuseState(records);
+    });
     return () => {
       cancelled = true;
     };
-  }, [ingest]);
+  }, [applyRefuseState, ingest]);
 
   const play = useCallback(
     (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => {
@@ -901,8 +983,9 @@ export function PlayerProvider({
       nuclearEnded,
       nuclearFailed,
       toggleLike,
+      toggleDislike,
     }),
-    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike]
+    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike]
   );
 
   return (

@@ -1,10 +1,12 @@
 /**
  * Discover live harvest — Apple Music recordings for a map room.
  * Seed rotates the probe window so refresh is actually new.
+ * Exclude keeps the last harvest and refused recordings out.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { harvestRoom } from "@/lib/converse/live-room";
+import { parseIdList } from "@/lib/fresh/rotate";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
 
 export const runtime = "nodejs";
@@ -17,10 +19,11 @@ export async function GET(request: NextRequest) {
   const roomParam = request.nextUrl.searchParams.get("room") ?? "cinematic_warmth";
   const room = (ROOMS.has(roomParam as CoordinateId) ? roomParam : "cinematic_warmth") as CoordinateId;
   const seed = Number(request.nextUrl.searchParams.get("seed") ?? Date.now());
-  const limit = Math.max(6, Math.min(12, Number(request.nextUrl.searchParams.get("limit") ?? 10) || 10));
+  const limit = Math.max(5, Math.min(12, Number(request.nextUrl.searchParams.get("limit") ?? 6) || 6));
+  const exclude = new Set(parseIdList(request.nextUrl.searchParams.get("exclude")));
 
   try {
-    const tracks = await harvestRoom(room, Number.isFinite(seed) ? seed : Date.now(), limit);
+    const tracks = await harvestRoom(room, Number.isFinite(seed) ? seed : Date.now(), limit, exclude);
     return NextResponse.json({
       ok: true,
       room,

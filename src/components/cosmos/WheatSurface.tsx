@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { durationLabel, type ListenMinutes } from "@/lib/listen/duration";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
-import { SAMPLE_NIGHT } from "@/lib/wheat/parse";
 import { DurationChips } from "./AtlasPlay";
 import { Artwork } from "./Artwork";
+import { DislikeControl } from "./DislikeControl";
 import { LoveControl } from "./LoveControl";
 import { OutboundLinks, outboundFromTrack } from "./OutboundLinks";
 
@@ -25,12 +25,14 @@ type Harvest = {
 
 export function WheatSurface() {
   const { ingest, playQueue } = usePlayerActions();
-  const { current, playing } = usePlayer();
+  const { current, playing, dislikedIds, refusedRooms } = usePlayer();
   const [minutes, setMinutes] = useState<ListenMinutes>(30);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [tracks, setTracks] = useState<LibraryTrack[]>([]);
+  const liveRef = useRef({ tracks, dislikedIds, refusedRooms });
+  liveRef.current = { tracks, dislikedIds, refusedRooms };
 
   function persist(next: LibraryTrack[]) {
     setTracks(next);
@@ -44,18 +46,31 @@ export function WheatSurface() {
   async function harvest(text: string | undefined, autoplay: boolean) {
     setBusy(true);
     setNote(null);
+    const { tracks: currentTracks, dislikedIds: refusedIds, refusedRooms: rooms } = liveRef.current;
+    const seed = Date.now();
+    const exclude = [...new Set([...currentTracks.map((track) => track.id), ...refusedIds])];
+    const excludeQueries = currentTracks.map((track) => `${track.artist} ${track.title}`);
     try {
       const response = await fetch("/api/wheat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: text?.trim() || undefined, durationMinutes: minutes }),
+        body: JSON.stringify({
+          text: text?.trim() || undefined,
+          durationMinutes: minutes,
+          limit: 5,
+          seed,
+          exclude,
+          excludeQueries,
+          refuseRooms: rooms,
+        }),
       });
       const payload = (await response.json()) as Harvest;
       if (payload.tracks?.length) {
-        ingest(payload.tracks);
-        persist(payload.tracks);
-        if (autoplay) playQueue(payload.tracks, payload.title || "wheat1");
-        setNote(`${payload.tracks.length} recordings · ${durationLabel(minutes)}`);
+        const next = payload.tracks.filter((track) => !refusedIds.includes(track.id));
+        ingest(next);
+        persist(next);
+        if (autoplay) playQueue(next, payload.title || "wheat1");
+        setNote(`${next.length} new recordings · ${durationLabel(minutes)}`);
         return;
       }
       setNote(
@@ -77,51 +92,33 @@ export function WheatSurface() {
         const cached = sessionStorage.getItem(CACHE);
         if (cached) {
           const parsed = JSON.parse(cached) as LibraryTrack[];
-          if (Array.isArray(parsed) && parsed.length) {
-            if (!cancelled) setTracks(parsed);
-            return;
+          if (Array.isArray(parsed) && parsed.length && !cancelled) {
+            setTracks(parsed);
+            liveRef.current = { ...liveRef.current, tracks: parsed };
           }
         }
       } catch {
         /* empty cache */
       }
-      setBusy(true);
-      try {
-        const publicHarvest = (await fetch("/api/wheat").then((r) => r.json())) as Harvest;
-        if (cancelled) return;
-        if (publicHarvest.tracks?.length) {
-          persist(publicHarvest.tracks);
-          setNote(`${publicHarvest.tracks.length} recordings from wheat1`);
-          return;
-        }
-        const sample = (await fetch("/api/wheat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text: SAMPLE_NIGHT, durationMinutes: 30 }),
-        }).then((r) => r.json())) as Harvest;
-        if (cancelled) return;
-        if (sample.tracks?.length) {
-          persist(sample.tracks);
-          setNote(`${sample.tracks.length} recordings on the page. Paste wheat1 for the real channel.`);
-        }
-      } catch {
-        if (!cancelled) setNote("Paste a wheat1 night. The recordings land here.");
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
+      if (!cancelled) await harvest(undefined, false);
     }
     void boot();
     return () => {
       cancelled = true;
     };
+    // First paint plus a live harvest. Later taps call harvest directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function playFrom(index: number) {
-    const slice = tracks.slice(index);
+    const visible = tracks.filter((track) => !dislikedIds.includes(track.id));
+    const slice = visible.slice(index);
     if (!slice.length) return;
-    ingest(tracks);
+    ingest(visible);
     playQueue(slice, "Tonight");
   }
+
+  const visible = tracks.filter((track) => !dislikedIds.includes(track.id));
 
   return (
     <section className="cx-section">
@@ -131,8 +128,8 @@ export function WheatSurface() {
         </h2>
       </div>
       <p className="cx-body">
-        Paste a post, or a whole night of artist – title lines. Resonant finds the same recordings on
-        Apple Music and puts them on this page. After the last one, the engine keeps walking. No skip.
+        Five recordings each tap, not the same five. Paste a post, or refresh for a new night.
+        After the last one, the engine keeps walking. No skip.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <DurationChips value={minutes} onChange={setMinutes} />
@@ -158,9 +155,17 @@ export function WheatSurface() {
             ? "Finding…"
             : draft.trim()
               ? `Play this night · ${durationLabel(minutes)}`
-              : `Try public posts · ${durationLabel(minutes)}`}
+              : `New night · ${durationLabel(minutes)}`}
         </button>
-        {tracks.length > 0 && (
+        <button
+          type="button"
+          className="cx-pill cx-pill-ghost"
+          disabled={busy}
+          onClick={() => void harvest(undefined, false)}
+        >
+          {busy ? "Finding…" : "Refresh tonight"}
+        </button>
+        {visible.length > 0 && (
           <button
             type="button"
             className="cx-pill cx-pill-ghost"
@@ -173,9 +178,9 @@ export function WheatSurface() {
       </div>
       {note && <p className="cx-meta mt-3">{note}</p>}
 
-      {tracks.length > 0 && (
+      {visible.length > 0 && (
         <div className="cx-atlas-tracks mt-6" aria-label="Tonight">
-          {tracks.map((track, index) => {
+          {visible.map((track, index) => {
             const active = current?.id === track.id && playing;
             return (
               <article key={track.id} className={`cx-atlas-row${active ? " is-active" : ""}`}>
@@ -195,7 +200,10 @@ export function WheatSurface() {
                     </span>
                     <span className="cx-atlas-play-label">{active ? "Listening" : "Play"}</span>
                   </button>
-                  <LoveControl track={track} />
+                  <div className="cx-atlas-row-actions">
+                    <LoveControl track={track} />
+                    <DislikeControl track={track} />
+                  </div>
                 </div>
                 <OutboundLinks links={outboundFromTrack(track)} />
               </article>

@@ -112,6 +112,15 @@ export function CloseGlyph() {
   );
 }
 
+export function RefuseGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7.8 7.8l8.4 8.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="square" />
+    </svg>
+  );
+}
+
 export function BackGlyph() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
