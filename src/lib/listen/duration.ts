@@ -55,11 +55,14 @@ export function playbackSeconds(input: {
   previewUrl?: string | null;
   duration: number;
 }): number {
-  if (input.listenVia === "youtube" && input.nuclearDuration && input.nuclearDuration > 0) {
-    return input.nuclearDuration;
+  if (input.listenVia === "youtube") {
+    if (input.nuclearDuration && input.nuclearDuration > 0) return input.nuclearDuration;
+    if (input.mediaDuration && input.mediaDuration > 0) return input.mediaDuration;
+    // Catalog duration is often a 30s Apple preview. Wait for the iframe.
+    return 0;
   }
   if (input.mediaDuration && input.mediaDuration > 0) return input.mediaDuration;
   if (input.listenVia === "soundcloud") return trackSeconds({ duration: input.duration });
-  if (input.previewUrl && input.listenVia !== "youtube") return 30;
+  if (input.previewUrl) return 30;
   return input.duration > 0 ? input.duration : FALLBACK_SECONDS;
 }

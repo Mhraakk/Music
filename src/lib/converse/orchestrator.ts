@@ -127,9 +127,9 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
 
   if (ctx.lastLyrics?.ok) {
     const sample = ctx.lastLyrics.lines
-      .slice(0, 6)
+      .slice(0, 48)
       .map((line) => line.text)
-      .join(" / ");
+      .join("\n");
     if (lang === "fa") {
       return `متن «${ctx.lastLyrics.artist} — ${ctx.lastLyrics.title}»: ${sample}`;
     }

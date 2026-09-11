@@ -13,6 +13,7 @@ import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import { wantsMetingPlatform } from "@/lib/meting/platforms";
 import { harvestWheat } from "@/lib/wheat/service";
 import { capToDuration } from "@/lib/listen/duration";
+import { publicAppOrigin } from "@/lib/listen/public-origin";
 import { resolveRecording } from "@/lib/everynoise/enrich";
 import { researchRecording, type RecordingResearch } from "./research";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
@@ -582,14 +583,16 @@ export async function executeConverseTool(
       const query = asString(args.query);
       const lyrics = await fetchLyrics({ artist, title, query });
       ctx.lastLyrics = lyrics;
-      const preview = lyrics.lines.slice(0, 8).map((line) => line.text);
+      const cap = 250;
+      const lines = lyrics.lines.slice(0, cap).map((line) => ({ timeMs: line.timeMs, text: line.text }));
       return {
         ok: lyrics.ok,
         artist: lyrics.artist,
         title: lyrics.title,
         synced: lyrics.synced,
-        lines: preview,
-        more: Math.max(0, lyrics.lines.length - preview.length),
+        lines,
+        count: lyrics.lines.length,
+        truncated: lyrics.lines.length > lines.length,
         note: lyrics.note,
       };
     }
@@ -817,8 +820,8 @@ export async function executeConverseTool(
         return { ok: false, error: "Nothing to share. Play a recording first." };
       }
       const path = `/?listen=${encodeURIComponent(id)}`;
-      const origin = asString(args.origin) || ctx.session.origin || "";
-      const url = origin ? `${origin.replace(/\/$/, "")}${path}` : path;
+      const origin = publicAppOrigin(asString(args.origin) || ctx.session.origin);
+      const url = origin ? `${origin}${path}` : path;
       ctx.lastShare = { path, url, trackId: id };
       ctx.effects.push({ type: "share", path, trackId: id });
       return {

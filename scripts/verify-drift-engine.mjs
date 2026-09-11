@@ -1194,6 +1194,53 @@ async function verifySoftListen() {
   check(skip.isError === true, "Queue.goToNext is still refused");
 }
 
+async function verifyListenComplete() {
+  section("Listen completeness");
+
+  const scStage = readFileSync(new URL("../src/components/cosmos/SoundCloudStage.tsx", import.meta.url), "utf8");
+  check(/onFailed\?/.test(scStage), "SoundCloud stage can surface widget failure");
+  check(!/PlayerContext still advances from the duration timer/.test(scStage), "SoundCloud no longer swallows load errors");
+  check(/Events\.ERROR/.test(scStage), "SoundCloud binds the widget ERROR event");
+
+  const nuclear = readFileSync(new URL("../src/components/cosmos/NuclearStage.tsx", import.meta.url), "utf8");
+  check(/onSeekApplied/.test(nuclear), "YouTube stage retries seek after READY");
+  check(/tag\.onerror/.test(nuclear), "YouTube iframe API load failure is not silent");
+
+  const playerCtx = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+  check(/heard: false/.test(playerCtx), "SoundCloud clock does not start until the widget ticks");
+  check(/nuclearSeekApplied/.test(playerCtx), "pending resume seek is not cleared on the first tick");
+  check(/FADE_MS = 480/.test(playerCtx), "preview handover is under a second");
+  check(/resumeAt = 0/.test(playerCtx), "resume passes position into sound without a fake seek signal");
+
+  const duration = readFileSync(new URL("../src/lib/listen/duration.ts", import.meta.url), "utf8");
+  check(/Wait for the iframe/.test(duration), "YouTube scrubber waits for iframe duration");
+
+  const wheatService = readFileSync(new URL("../src/lib/wheat/service.ts", import.meta.url), "utf8");
+  check(/durationMinutes/.test(wheatService) && /search.get\("durationMinutes"\)/.test(wheatService), "GET /api/wheat reads durationMinutes");
+
+  const tools = readFileSync(new URL("../src/lib/converse/tools.ts", import.meta.url), "utf8");
+  check(/publicAppOrigin/.test(tools), "share_listen fills origin from the public app host");
+  check(!/lines\.slice\(0, 8\)/.test(tools), "fetch_lyrics is not truncated to eight lines");
+  check(/cap = 250/.test(tools), "fetch_lyrics returns a full published set");
+
+  const origin = readFileSync(new URL("../src/lib/listen/public-origin.ts", import.meta.url), "utf8");
+  check(/VERCEL_PROJECT_PRODUCTION_URL/.test(origin) && /VERCEL_URL/.test(origin), "share origin falls back to Vercel hosts");
+
+  const ci = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  check(/verify:tokens/.test(ci) && /verify:atlas/.test(ci) && /typecheck/.test(ci), "GitHub CI runs typecheck and locks");
+  check(!/Hello, world!/.test(ci), "CI is not the blank Hello world stub");
+
+  const lyrics = await callTool("fetch_lyrics", { artist: "Radiohead", title: "Creep" });
+  check(lyrics?.ok === true && Array.isArray(lyrics.lines) && lyrics.lines.length > 8, "MCP fetch_lyrics returns more than eight lines", String(lyrics?.lines?.length ?? 0));
+  check(typeof lyrics?.lines?.[0]?.text === "string", "MCP lyric lines keep published text");
+
+  const share = await callTool("share_listen", { id: "verify-listen-id" });
+  check(share?.ok === true && /listen=verify-listen-id/.test(String(share.path ?? share.url ?? "")), "share_listen with an id returns a deep link");
+
+  const wheatHint = await fetch(`${BASE}/api/wheat?hintsOnly=1&seed=101&limit=5&durationMinutes=15`).then((r) => r.json());
+  check(wheatHint.ok === true, "GET /api/wheat accepts durationMinutes");
+}
+
 try {
   await verifyProtocol();
   await verifyOntology();
@@ -1211,6 +1258,7 @@ try {
   await verifyCyreneLyrics();
   await verifyMetingListen();
   await verifySoftListen();
+  await verifyListenComplete();
 } catch (error) {
   console.error(`\nAborted: ${error.message}`);
   console.error(`Is the dev server running at ${BASE}?`);

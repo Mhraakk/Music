@@ -125,12 +125,16 @@ export async function harvestWheat(input: WheatHarvestInput): Promise<{
 
 export function wheatExcludeFromSearch(
   search: URLSearchParams
-): Pick<WheatHarvestInput, "seed" | "limit" | "exclude" | "excludeQueries" | "refuseRooms"> {
+): Pick<WheatHarvestInput, "seed" | "limit" | "exclude" | "excludeQueries" | "refuseRooms" | "durationMinutes"> {
   const seed = Number(search.get("seed") ?? Date.now());
   const limit = Number(search.get("limit") ?? 5);
+  const rawMinutes = search.get("durationMinutes") ?? search.get("minutes");
+  const parsedMinutes = rawMinutes != null && rawMinutes !== "" ? Number(rawMinutes) : NaN;
   return {
     seed: Number.isFinite(seed) ? seed : Date.now(),
     limit: Number.isFinite(limit) ? limit : 5,
+    durationMinutes:
+      Number.isFinite(parsedMinutes) && parsedMinutes > 0 ? Math.max(8, Math.min(180, parsedMinutes)) : 30,
     exclude: parseIdList(search.get("exclude")),
     excludeQueries: parseIdList(search.get("excludeQueries")).map((part) => part.replace(/\|/g, " ")),
     refuseRooms: parseIdList(search.get("refuseRooms")),

@@ -7,6 +7,7 @@
  */
 
 import { CONVERSE_TOOLS, createToolContext, executeConverseTool } from "@/lib/converse/tools";
+import { publicAppOrigin } from "@/lib/listen/public-origin";
 import type { ConverseSession } from "@/lib/converse/types";
 import type { GeminiSchema } from "@/lib/mcp/gemini";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
@@ -99,7 +100,7 @@ export function sessionFromArgs(args: Record<string, unknown>): ConverseSession 
     destination: asRoom(args.destination) ?? "cinematic_warmth",
     destinationLocked: args.destinationLocked === true,
     historyIds: asStringArray(args.historyIds),
-    origin: asString(args.origin) || null,
+    origin: publicAppOrigin(asString(args.origin)) || null,
   };
 }
 

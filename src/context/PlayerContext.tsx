@@ -51,8 +51,8 @@ import {
   type ListenSnapshot,
 } from "@/lib/listen/resume";
 
-/** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
-const FADE_MS = 2200;
+/** Crossfade overlap. Keep this well under a second so handover is not a hidden skip. */
+const FADE_MS = 480;
 
 /** A volume drag is one statement, not fifty. */
 const GESTURE_SETTLE_MS = 420;
@@ -126,8 +126,10 @@ export type PlayerActions = {
   /** YouTube full-listen progress (Nuclear-style embed). */
   nuclearTick: (progress: number, durationSec: number) => void;
   nuclearEnded: () => void;
-  /** YouTube embed blocked — fall back to the Apple preview if we have one. */
+  /** YouTube embed blocked — fall back to the Apple preview if we have one. SoundCloud surfaces an error. */
   nuclearFailed: () => void;
+  /** Embed applied a pending resume/scrub. Clears nuclearSeekAt without recording a seek signal. */
+  nuclearSeekApplied: () => void;
   /** Heart the current recording, or a specific one. Does not skip. */
   toggleLike: (track?: LibraryTrack) => void;
   /** Refuse this recording and its mood. Does not skip. */
@@ -329,7 +331,8 @@ export function PlayerProvider({
   const prefsReady = useRef(false);
   const skipPrefsSave = useRef(true);
   const lastMediaTickAt = useRef(0);
-  const scClock = useRef({ origin: 0, frozen: 0, duration: FALLBACK_SECONDS });
+  const scClock = useRef({ origin: 0, frozen: 0, duration: FALLBACK_SECONDS, armedAt: 0, heard: false });
+  const nuclearFailedRef = useRef<() => void>(() => undefined);
   const pendingResumeRef = useRef<ListenSnapshot | null>(null);
   const toggleRef = useRef<() => void>(() => undefined);
   const pauseRef = useRef<() => void>(() => undefined);
@@ -416,7 +419,7 @@ export function PlayerProvider({
 
   /** Start a track. Prefer a Nuclear-style full YouTube listen when we can. */
   const sound = useCallback(
-    async (track: LibraryTrack, fromEngine: boolean, fromAsk = false) => {
+    async (track: LibraryTrack, fromEngine: boolean, fromAsk = false, resumeAt = 0) => {
       const gen = ++playGen.current;
       clearFades();
       const pair = ensureLanes();
@@ -474,6 +477,7 @@ export function PlayerProvider({
       if (gen !== playGen.current) return;
 
       const yt = skipYoutube ? null : youtubeVideoId(hydrated);
+      const pendingSeek = resumeAt > 0.03 ? Math.max(0, Math.min(0.99, resumeAt)) : null;
       if (yt) {
         pair.forEach((el) => {
           el.pause();
@@ -482,6 +486,10 @@ export function PlayerProvider({
         live.current.current = hydrated;
         live.current.listenVia = "youtube";
         live.current.playing = true;
+        if (pendingSeek != null) {
+          live.current.progress = pendingSeek;
+          pushClockRef.current(pendingSeek, fragilityFromWindows(live.current.windows, pendingSeek));
+        }
         setState((s) => ({
           ...s,
           current: hydrated,
@@ -489,6 +497,7 @@ export function PlayerProvider({
           loading: false,
           error: null,
           listenVia: "youtube",
+          nuclearSeekAt: pendingSeek,
         }));
         return;
       }
@@ -501,8 +510,18 @@ export function PlayerProvider({
         live.current.listenVia = "soundcloud";
         live.current.playing = true;
         const duration = trackSeconds(hydrated);
-        scClock.current = { origin: Date.now(), frozen: 0, duration };
+        scClock.current = {
+          origin: Date.now(),
+          frozen: pendingSeek != null ? pendingSeek * duration : 0,
+          duration,
+          armedAt: Date.now(),
+          heard: false,
+        };
         lastMediaTickAt.current = 0;
+        if (pendingSeek != null) {
+          live.current.progress = pendingSeek;
+          pushClockRef.current(pendingSeek, fragilityFromWindows(live.current.windows, pendingSeek));
+        }
         setState((s) => ({
           ...s,
           current: hydrated,
@@ -511,6 +530,7 @@ export function PlayerProvider({
           error: null,
           listenVia: "soundcloud",
           mediaDuration: duration,
+          nuclearSeekAt: pendingSeek,
         }));
         return;
       }
@@ -554,8 +574,15 @@ export function PlayerProvider({
 
       if (gen !== playGen.current) return;
       const measured = el.duration;
+      const applyPreviewResume = (duration: number) => {
+        if (pendingSeek == null || !Number.isFinite(duration) || duration <= 0) return;
+        el.currentTime = pendingSeek * duration;
+        const fragilityNow = fragilityFromWindows(live.current.windows, pendingSeek);
+        pushClockRef.current(pendingSeek, fragilityNow);
+      };
       if (Number.isFinite(measured) && measured > 0) {
         setState((s) => ({ ...s, mediaDuration: measured }));
+        applyPreviewResume(measured);
       } else {
         el.addEventListener(
           "loadedmetadata",
@@ -563,6 +590,7 @@ export function PlayerProvider({
             const d = el.duration;
             if (Number.isFinite(d) && d > 0) {
               setState((s) => (s.mediaDuration === d ? s : { ...s, mediaDuration: d }));
+              applyPreviewResume(d);
             }
           },
           { once: true }
@@ -970,24 +998,20 @@ export function PlayerProvider({
     const fragilityNow = fragilityFromWindows(live.current.windows, progress);
     pushClockRef.current(progress, fragilityNow);
     if (live.current.listenVia === "soundcloud" && durationSec > 0) {
+      scClock.current.heard = true;
       scClock.current.duration = durationSec;
       scClock.current.frozen = progress * durationSec;
       scClock.current.origin = Date.now();
     }
     setState((s) => {
       const youtube = live.current.listenVia === "youtube";
-      if (
-        s.mediaDuration === durationSec &&
-        s.nuclearSeekAt === null &&
-        (!youtube || s.nuclearDuration === durationSec)
-      ) {
+      if (s.mediaDuration === durationSec && (!youtube || s.nuclearDuration === durationSec)) {
         return s;
       }
       return {
         ...s,
         nuclearDuration: youtube ? durationSec : s.nuclearDuration,
         mediaDuration: durationSec,
-        nuclearSeekAt: null,
       };
     });
   }, []);
@@ -1001,10 +1025,24 @@ export function PlayerProvider({
   const nuclearFailed = useCallback(() => {
     const track = live.current.current;
     if (!track) return;
+    if (live.current.listenVia === "soundcloud") {
+      live.current.playing = false;
+      setState((s) => ({
+        ...s,
+        playing: false,
+        loading: false,
+        error: "SoundCloud did not start — open it from the card.",
+      }));
+      return;
+    }
     if (skipYoutubeFor.current === track.id) return;
     skipYoutubeFor.current = track.id;
     void sound(track, live.current.fromEngine, live.current.fromAsk);
   }, [sound]);
+
+  const nuclearSeekApplied = useCallback(() => {
+    setState((s) => (s.nuclearSeekAt === null ? s : { ...s, nuclearSeekAt: null }));
+  }, []);
 
   const stop = useCallback(() => {
     playGen.current += 1;
@@ -1043,6 +1081,12 @@ export function PlayerProvider({
       if (!pair || !track) return;
       if (live.current.listenVia === "youtube") return;
       if (live.current.listenVia === "soundcloud") {
+        if (!scClock.current.heard) {
+          if (live.current.playing && Date.now() - scClock.current.armedAt > 12000) {
+            nuclearFailedRef.current();
+          }
+          return;
+        }
         if (Date.now() - lastMediaTickAt.current < 900) return;
         if (!live.current.playing) return;
         const elapsed = scClock.current.frozen + (Date.now() - scClock.current.origin) / 1000;
@@ -1155,11 +1199,8 @@ export function PlayerProvider({
       pendingResume: null,
     }));
     rememberTrack(pending.track);
-    void (async () => {
-      await sound(pending.track, false, false);
-      if (pending.progress > 0.03) seek(pending.progress);
-    })();
-  }, [rememberTrack, sound, seek]);
+    void sound(pending.track, false, false, pending.progress);
+  }, [rememberTrack, sound]);
 
   useEffect(() => {
     const prefs = loadPrefs({
@@ -1285,6 +1326,7 @@ export function PlayerProvider({
   toggleRef.current = toggle;
   pauseRef.current = pause;
   seekRef.current = seek;
+  nuclearFailedRef.current = nuclearFailed;
 
   const actions = useMemo<PlayerActions>(
     () => ({
@@ -1300,6 +1342,7 @@ export function PlayerProvider({
       nuclearTick,
       nuclearEnded,
       nuclearFailed,
+      nuclearSeekApplied,
       toggleLike,
       toggleDislike,
       retryAdvance,
@@ -1319,6 +1362,7 @@ export function PlayerProvider({
       nuclearTick,
       nuclearEnded,
       nuclearFailed,
+      nuclearSeekApplied,
       toggleLike,
       toggleDislike,
       retryAdvance,

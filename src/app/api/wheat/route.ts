@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
     });
   }
   const result = await harvestWheat({
-    durationMinutes: 30,
     ...extras,
     limit: extras.limit ?? 5,
   });

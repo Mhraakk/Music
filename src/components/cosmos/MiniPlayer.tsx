@@ -36,7 +36,7 @@ export function MiniPlayer() {
   const { current, playing, volume, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, mediaDuration, nuclearSeekAt, likedIds, dislikedIds, pendingResume } =
     usePlayer();
   const { progress, fragilityNow } = usePlayerClock();
-  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike, retryAdvance, resumeListen, dismissResume } = usePlayerActions();
+  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, nuclearSeekApplied, toggleLike, toggleDislike, retryAdvance, resumeListen, dismissResume } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [docked, setDocked] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
@@ -365,6 +365,7 @@ export function MiniPlayer() {
               value={Math.round(progress * 1000)}
               onChange={(e) => seek(Number(e.target.value) / 1000)}
               aria-label="Position"
+              disabled={!total}
             />
           </div>
 
@@ -411,6 +412,7 @@ export function MiniPlayer() {
           onTick={nuclearTick}
           onEnded={nuclearEnded}
           onFailed={nuclearFailed}
+          onSeekApplied={nuclearSeekApplied}
         />
       )}
       {listenVia === "soundcloud" && (current.soundcloudUrl || current.openUrl) && (
@@ -421,6 +423,8 @@ export function MiniPlayer() {
           seekAt={nuclearSeekAt}
           onTick={nuclearTick}
           onEnded={nuclearEnded}
+          onFailed={nuclearFailed}
+          onSeekApplied={nuclearSeekApplied}
         />
       )}
 
@@ -528,6 +532,7 @@ export function MiniPlayer() {
               value={Math.round(progress * 1000)}
               onChange={(e) => seek(Number(e.target.value) / 1000)}
               aria-label="Position"
+              disabled={!total}
             />
             <div className="mt-2 flex items-center gap-3">
               <VolumeGlyph />

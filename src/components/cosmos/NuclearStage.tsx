@@ -36,23 +36,35 @@ function loadYoutubeApi(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   if (window.YT?.Player) return Promise.resolve();
   if (apiReady) return apiReady;
-  apiReady = new Promise((resolve) => {
-    const existing = document.querySelector("script[data-yt-api]");
-    const done = () => resolve();
+  apiReady = new Promise((resolve, reject) => {
+    let settled = false;
+    const done = () => {
+      if (settled || !window.YT?.Player) return;
+      settled = true;
+      window.clearInterval(wait);
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(wait);
+      window.clearTimeout(timeout);
+      apiReady = null;
+      reject(new Error("YouTube iframe API failed to load"));
+    };
     window.onYouTubeIframeAPIReady = done;
+    const existing = document.querySelector("script[data-yt-api]");
     if (!existing) {
       const tag = document.createElement("script");
       tag.src = "https://www.youtube.com/iframe_api";
       tag.async = true;
       tag.dataset.ytApi = "true";
+      tag.onerror = fail;
       document.head.appendChild(tag);
     }
-    const wait = window.setInterval(() => {
-      if (window.YT?.Player) {
-        window.clearInterval(wait);
-        done();
-      }
-    }, 80);
+    const wait = window.setInterval(done, 80);
+    const timeout = window.setTimeout(fail, 12000);
   });
   return apiReady;
 }
@@ -65,6 +77,7 @@ export function NuclearStage({
   onTick,
   onEnded,
   onFailed,
+  onSeekApplied,
 }: {
   videoId: string;
   playing: boolean;
@@ -73,50 +86,78 @@ export function NuclearStage({
   onTick: (progress: number, durationSec: number) => void;
   onEnded: () => void;
   onFailed?: () => void;
+  onSeekApplied?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const player = useRef<YTPlayer | null>(null);
   const ended = useRef(false);
+  const seekAtRef = useRef(seekAt);
+  const appliedSeek = useRef<number | null>(null);
+  const onFailedRef = useRef(onFailed);
+  const onSeekAppliedRef = useRef(onSeekApplied);
+  seekAtRef.current = seekAt;
+  onFailedRef.current = onFailed;
+  onSeekAppliedRef.current = onSeekApplied;
+
+  const applySeek = (p: YTPlayer) => {
+    const at = seekAtRef.current;
+    if (at == null) return;
+    const duration = p.getDuration();
+    if (!duration) return;
+    if (appliedSeek.current === at) return;
+    p.seekTo(at * duration, true);
+    appliedSeek.current = at;
+    onSeekAppliedRef.current?.();
+  };
 
   useEffect(() => {
     ended.current = false;
+    appliedSeek.current = null;
     let cancelled = false;
     const wrapper = host.current;
     if (!wrapper) return;
-    void loadYoutubeApi().then(() => {
-      if (cancelled || !window.YT?.Player) return;
-      wrapper.replaceChildren();
-      const mount = document.createElement("div");
-      mount.style.width = "100%";
-      mount.style.height = "100%";
-      wrapper.appendChild(mount);
-      player.current = new window.YT.Player(mount, {
-        videoId,
-        playerVars: {
-          autoplay: playing ? 1 : 0,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (event) => {
-            event.target.setVolume(Math.round(volume * 100));
-            if (playing) event.target.playVideo();
+    void loadYoutubeApi()
+      .then(() => {
+        if (cancelled || !window.YT?.Player) {
+          if (!cancelled) onFailedRef.current?.();
+          return;
+        }
+        wrapper.replaceChildren();
+        const mount = document.createElement("div");
+        mount.style.width = "100%";
+        mount.style.height = "100%";
+        wrapper.appendChild(mount);
+        player.current = new window.YT.Player(mount, {
+          videoId,
+          playerVars: {
+            autoplay: playing ? 1 : 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            origin: window.location.origin,
           },
-          onStateChange: (event) => {
-            if (event.data === window.YT?.PlayerState?.ENDED) {
-              if (ended.current) return;
-              ended.current = true;
-              onEnded();
-            }
+          events: {
+            onReady: (event) => {
+              event.target.setVolume(Math.round(volume * 100));
+              applySeek(event.target);
+              if (playing) event.target.playVideo();
+            },
+            onStateChange: (event) => {
+              if (event.data === window.YT?.PlayerState?.ENDED) {
+                if (ended.current) return;
+                ended.current = true;
+                onEnded();
+              }
+            },
+            onError: () => {
+              if (!cancelled) onFailedRef.current?.();
+            },
           },
-          onError: () => {
-            if (!cancelled) onFailed?.();
-          },
-        },
+        });
+      })
+      .catch(() => {
+        if (!cancelled) onFailedRef.current?.();
       });
-    });
     return () => {
       cancelled = true;
       try {
@@ -144,17 +185,16 @@ export function NuclearStage({
 
   useEffect(() => {
     if (seekAt === null) return;
+    appliedSeek.current = null;
     const p = player.current;
-    if (!p) return;
-    const duration = p.getDuration();
-    if (!duration) return;
-    p.seekTo(seekAt * duration, true);
+    if (p) applySeek(p);
   }, [seekAt]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       const p = player.current;
       if (!p || typeof p.getDuration !== "function") return;
+      applySeek(p);
       const duration = p.getDuration();
       if (!duration) return;
       onTick(Math.max(0, Math.min(1, p.getCurrentTime() / duration)), duration);
