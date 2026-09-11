@@ -1,5 +1,6 @@
 import type { LibraryTrack } from "@/lib/library";
 import type { AtlasOutbound } from "@/lib/everynoise/types";
+import { isSearchUrl } from "@/lib/everynoise/types";
 
 export type OutboundSource = {
   apple?: string | null;
@@ -14,22 +15,23 @@ export type OutboundSource = {
   kuwo?: string | null;
 };
 
-const LINKS: { key: keyof OutboundSource; label: string }[] = [
+const RECORDING_KEYS: { key: keyof OutboundSource; label: string }[] = [
   { key: "apple", label: "Apple Music" },
   { key: "spotify", label: "Spotify" },
   { key: "youtubeMusic", label: "YouTube Music" },
   { key: "soundcloud", label: "SoundCloud" },
+];
+
+const ARTIST_KEYS: { key: keyof OutboundSource; label: string }[] = [
+  { key: "appleArtist", label: "Apple Music" },
+  { key: "spotifyArtist", label: "Spotify" },
+];
+
+const CATALOG_KEYS: { key: keyof OutboundSource; label: string }[] = [
   { key: "netease", label: "NetEase" },
   { key: "qqMusic", label: "QQ Music" },
   { key: "kugou", label: "KuGou" },
   { key: "kuwo", label: "Kuwo" },
-];
-
-const ARTIST_LINKS: { key: keyof OutboundSource; label: string }[] = [
-  { key: "appleArtist", label: "Apple Music" },
-  { key: "spotifyArtist", label: "Spotify" },
-  { key: "youtubeMusic", label: "YouTube Music" },
-  { key: "soundcloud", label: "SoundCloud" },
 ];
 
 export function outboundFromTrack(track: LibraryTrack): OutboundSource {
@@ -56,28 +58,70 @@ export function outboundFromAtlas(links: AtlasOutbound): OutboundSource {
   };
 }
 
+function visible(
+  links: OutboundSource,
+  keys: { key: keyof OutboundSource; label: string }[]
+): { key: string; label: string; href: string }[] {
+  const out: { key: string; label: string; href: string }[] = [];
+  for (const item of keys) {
+    const href = links[item.key];
+    if (!href) continue;
+    out.push({
+      key: item.key,
+      href,
+      label: isSearchUrl(href) ? `${item.label} search` : item.label,
+    });
+  }
+  return out;
+}
+
+function LinkRow({
+  label,
+  items,
+}: {
+  label?: string;
+  items: { key: string; label: string; href: string }[];
+}) {
+  if (!items.length) return null;
+  return (
+    <div className="cx-outbound-row">
+      {label ? <span className="cx-outbound-kicker">{label}</span> : null}
+      <nav className="cx-outbound" aria-label={label ?? "Open this recording"}>
+        {items.map((item) => (
+          <a key={item.key} href={item.href} target="_blank" rel="noreferrer noopener" className="cx-outbound-link">
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
 export function OutboundLinks({
   links,
   artist,
+  layout,
 }: {
   links: OutboundSource;
   artist?: boolean;
+  layout?: "flat" | "atlas";
 }) {
-  const items = (artist ? ARTIST_LINKS : LINKS).filter((item) => links[item.key]);
+  if (layout === "atlas" || artist) {
+    const recording = visible(links, RECORDING_KEYS);
+    const people = visible(links, ARTIST_KEYS);
+    if (artist) {
+      return <LinkRow label="Artist" items={people.length ? people : recording} />;
+    }
+    if (!recording.length && !people.length) return null;
+    return (
+      <div className="cx-outbound-stack">
+        <LinkRow label="Recording" items={recording} />
+        <LinkRow label="Artist" items={people} />
+      </div>
+    );
+  }
+
+  const items = visible(links, [...RECORDING_KEYS, ...CATALOG_KEYS]);
   if (!items.length) return null;
-  return (
-    <nav className="cx-outbound" aria-label={artist ? "Open this artist" : "Open this recording"}>
-      {items.map((item) => (
-        <a
-          key={item.key}
-          href={links[item.key] ?? "#"}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="cx-outbound-link"
-        >
-          {item.label}
-        </a>
-      ))}
-    </nav>
-  );
+  return <LinkRow items={items} />;
 }

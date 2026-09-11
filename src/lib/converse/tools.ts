@@ -179,8 +179,8 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "browse_atlas",
     description:
-      "Open the Every Noise atlas: electronic branches, an artist such as DJ Krush, or a named map room (trip hop, techno). " +
-      "Returns real recordings plus tappable neighbour artists and branches. Then play_tracks.",
+      "Open the Every Noise atlas: the full map, a named branch (trip hop), an artist (DJ Krush), or a Sound/Intro/Pulse/Edge playlist. " +
+      "Returns real Apple recordings. Genre is navigation only — never written onto catalog records. Then play_tracks.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -191,6 +191,11 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
         duration_minutes: {
           type: "INTEGER",
           description: "Listening length in minutes (15, 30, 45, 60). Caps the set by duration, not genre.",
+        },
+        playlist: { type: "STRING", description: "Every Noise / Spotify playlist id, or a title like The Sound of Trip Hop." },
+        playlist_kind: {
+          type: "STRING",
+          description: "sound, intro, pulse, edge, or new.",
         },
       },
     },
@@ -429,11 +434,18 @@ export async function executeConverseTool(
       const artist = asString(args.artist);
       const genre = asString(args.genre);
       const query = asString(args.query);
+      const playlist = asString(args.playlist);
+      const playlistKindRaw = asString(args.playlist_kind).toLowerCase();
+      const playlistKind = ["sound", "intro", "pulse", "edge", "new", "other"].includes(playlistKindRaw)
+        ? (playlistKindRaw as "sound" | "intro" | "pulse" | "edge" | "new" | "other")
+        : undefined;
       const minutes = asNumber(args.duration_minutes, 0);
       const harvested = await harvestAtlas({
         artist: artist || undefined,
         genre: genre || undefined,
-        query: !artist && !genre ? query || "electronic" : undefined,
+        query: !artist && !genre && !playlist ? query || undefined : query || undefined,
+        playlist: playlist || undefined,
+        playlistKind,
         limit: asNumber(args.limit, 8),
         durationMinutes: minutes >= 8 ? minutes : undefined,
       });

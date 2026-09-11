@@ -3,26 +3,34 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AtlasFamily, AtlasGenre } from "@/lib/everynoise/types";
+import type { AtlasCanvas, AtlasFamily, AtlasGenre } from "@/lib/everynoise/types";
 import { AtlasPlay } from "./AtlasPlay";
+import { AtlasScatter, type ScatterNode } from "./AtlasScatter";
+import { useAtlasPreview } from "./useAtlasPreview";
 
 const FAMILIES: { id: AtlasFamily; label: string }[] = [
+  { id: "all", label: "Every branch" },
   { id: "electronic", label: "Electronic" },
   { id: "ambient", label: "Ambient" },
   { id: "club", label: "Club" },
-  { id: "all", label: "Every branch" },
 ];
+
+const EMPTY_CANVAS: AtlasCanvas = { width: 1610, height: 22683 };
 
 export function AtlasSurface() {
   const router = useRouter();
-  const [family, setFamily] = useState<AtlasFamily>("electronic");
+  const { preview } = useAtlasPreview();
+  const [family, setFamily] = useState<AtlasFamily>("all");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [genres, setGenres] = useState<AtlasGenre[]>([]);
+  const [listed, setListed] = useState<AtlasGenre[]>([]);
+  const [canvas, setCanvas] = useState<AtlasCanvas>(EMPTY_CANVAS);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [artistDraft, setArtistDraft] = useState("");
+  const [view, setView] = useState<"map" | "list">("map");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 220);
@@ -33,16 +41,23 @@ export function AtlasSurface() {
     const controller = new AbortController();
     setBusy(true);
     setError(null);
-    const params = new URLSearchParams({ family, limit: "480" });
+    const params = new URLSearchParams({ family, limit: "8000" });
     if (debounced) params.set("q", debounced);
     void fetch(`/api/atlas?${params}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`atlas ${response.status}`);
-        return response.json() as Promise<{ genres: AtlasGenre[]; total: number }>;
+        return response.json() as Promise<{
+          genres: AtlasGenre[];
+          listed?: AtlasGenre[];
+          total: number;
+          canvas?: AtlasCanvas;
+        }>;
       })
       .then((payload) => {
         setGenres(payload.genres ?? []);
+        setListed(payload.listed ?? payload.genres ?? []);
         setTotal(payload.total ?? 0);
+        if (payload.canvas?.width && payload.canvas?.height) setCanvas(payload.canvas);
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === "AbortError") return;
@@ -52,27 +67,23 @@ export function AtlasSurface() {
     return () => controller.abort();
   }, [family, debounced]);
 
-  const bounds = useMemo(() => {
-    if (!genres.length) return { minX: 0, maxX: 1, minY: 0, maxY: 1 };
-    const xs = genres.map((g) => g.x);
-    const ys = genres.map((g) => g.y);
-    return {
-      minX: Math.min(...xs),
-      maxX: Math.max(...xs),
-      minY: Math.min(...ys),
-      maxY: Math.max(...ys),
-    };
-  }, [genres]);
+  const nodes: ScatterNode[] = useMemo(
+    () =>
+      genres.map((genre) => ({
+        id: genre.id,
+        label: genre.label,
+        href: `/atlas/genre/${genre.id}`,
+        color: genre.color,
+        x: genre.x,
+        y: genre.y,
+        weight: genre.weight,
+        previewUrl: genre.previewUrl,
+        title: genre.exampleTitle ? `${genre.label} — ${genre.exampleArtist}: ${genre.exampleTitle}` : genre.label,
+      })),
+    [genres]
+  );
 
-  const plotted = useMemo(() => {
-    const spanX = Math.max(1, bounds.maxX - bounds.minX);
-    const spanY = Math.max(1, bounds.maxY - bounds.minY);
-    return genres.slice(0, 360).map((genre) => ({
-      ...genre,
-      nx: (genre.x - bounds.minX) / spanX,
-      ny: (genre.y - bounds.minY) / spanY,
-    }));
-  }, [genres, bounds]);
+  const fit = family === "all" && !debounced ? "canvas" : "bounds";
 
   const openArtist = (name: string) => {
     const trimmed = name.trim();
@@ -87,8 +98,8 @@ export function AtlasSurface() {
           Every <em>branch.</em>
         </h1>
         <p className="cx-body cx-atlas-lede">
-          Six thousand rooms from everynoise.com. Tap a branch or an artist, pick how long you want to listen,
-          and the engine continues after that. Navigation only: genre never lands on the catalog.
+          The everynoise.com map, inside Resonant. Tap a branch, an artist, or The Sound / Intro / Pulse / Edge.
+          Apple Music first. Genre never lands on the catalog.
         </p>
       </header>
 
@@ -128,34 +139,40 @@ export function AtlasSurface() {
             type="text"
             value={artistDraft}
             onChange={(event) => setArtistDraft(event.target.value)}
-            placeholder="Open DJ Krush"
+            placeholder="find artist"
           />
         </form>
-        <AtlasPlay query={debounced || family} fallbackTracks={[]} title="Atlas" label="Play this family" />
+        <div className="cx-atlas-tabs" role="tablist" aria-label="Map or list">
+          <button type="button" className="cx-atlas-tab" role="tab" aria-selected={view === "map"} onClick={() => setView("map")}>
+            map
+          </button>
+          <button type="button" className="cx-atlas-tab" role="tab" aria-selected={view === "list"} onClick={() => setView("list")}>
+            list
+          </button>
+        </div>
+        <AtlasPlay query={debounced || (family === "all" ? "" : family)} fallbackTracks={[]} title="Atlas" label="Play this view" />
       </div>
 
       <p className="cx-meta">
-        {busy ? "Reading the map…" : `${total.toLocaleString()} branches in view`}
+        {busy ? "Reading the map…" : `${total.toLocaleString()} branches on everynoise.com`}
+        {!busy && genres.length !== total ? ` · ${genres.length.toLocaleString()} in this frame` : ""}
         {error ? ` · ${error}` : ""}
       </p>
 
-      <div className="cx-atlas-field" aria-label="Genre map">
-        {plotted.map((genre) => (
-          <Link
-            key={genre.id}
-            href={`/atlas/genre/${genre.id}`}
-            className="cx-atlas-node"
-            style={{ left: `${genre.nx * 100}%`, top: `${genre.ny * 100}%` }}
-            title={genre.exampleTitle ? `${genre.exampleArtist}: ${genre.exampleTitle}` : genre.label}
-          >
-            <span className="cx-atlas-dot" style={{ background: genre.color }} />
-            <span>{genre.label}</span>
-          </Link>
-        ))}
-      </div>
+      {view === "map" ? (
+        <AtlasScatter
+          items={nodes}
+          canvas={canvas}
+          fit={fit}
+          tone="paper"
+          mode="open"
+          label="Every Noise genre map"
+          onPreview={(item) => preview(item.previewUrl, item.id)}
+        />
+      ) : null}
 
-      <ol className="cx-atlas-list">
-        {genres.slice(0, 80).map((genre) => (
+      <ol className="cx-atlas-list" hidden={view === "map"}>
+        {(debounced ? genres : listed).map((genre) => (
           <li key={`list-${genre.id}`}>
             <Link href={`/atlas/genre/${genre.id}`} className="cx-atlas-list-row">
               <span className="cx-atlas-dot" style={{ background: genre.color }} />

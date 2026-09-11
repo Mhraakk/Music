@@ -119,6 +119,8 @@ export type PlayerActions = {
   toggleLike: (track?: LibraryTrack) => void;
   /** Refuse this recording and its mood. Does not skip. */
   toggleDislike: (track?: LibraryTrack) => void;
+  /** Pause the main listen so an atlas preview can sound alone. Does not skip. */
+  pause: () => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -788,6 +790,16 @@ export function PlayerProvider({
     }
   }, []);
 
+  const pause = useCallback(() => {
+    if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") {
+      setState((s) => ({ ...s, playing: false }));
+      return;
+    }
+    const pair = lanes.current;
+    pair?.[activeLane.current]?.pause();
+    setState((s) => ({ ...s, playing: false }));
+  }, []);
+
   const setVolume = useCallback(
     (value: number) => {
       const clamped = Math.max(0, Math.min(1, value));
@@ -974,6 +986,7 @@ export function PlayerProvider({
       play,
       playQueue,
       toggle,
+      pause,
       setVolume,
       seek,
       stop,
@@ -985,7 +998,7 @@ export function PlayerProvider({
       toggleLike,
       toggleDislike,
     }),
-    [play, playQueue, toggle, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike]
+    [play, playQueue, toggle, pause, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike]
   );
 
   return (

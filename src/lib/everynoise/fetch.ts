@@ -61,11 +61,12 @@ export async function fetchEveryNoise(path: string, ttlMs: number): Promise<stri
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 18000);
     try {
+      const json = /\.json(?:$|\?)/i.test(url);
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
           "user-agent": UA,
-          accept: "text/html,application/xhtml+xml",
+          accept: json ? "application/json,text/plain;q=0.9" : "text/html,application/xhtml+xml",
           "accept-language": "en-US,en;q=0.9",
           referer: "https://everynoise.com/",
         },

@@ -49,7 +49,14 @@ export function AtlasTrackRow({
             </div>
           ) : null}
       </div>
-      <OutboundLinks links={track ? outboundFromTrack(track) : outboundFromAtlas(card.outbound)} />
+      <OutboundLinks
+        links={
+          track
+            ? { ...outboundFromAtlas(card.outbound), ...outboundFromTrack(track) }
+            : outboundFromAtlas(card.outbound)
+        }
+        layout="atlas"
+      />
     </article>
   );
 }

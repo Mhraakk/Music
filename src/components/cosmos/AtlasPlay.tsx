@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { LibraryTrack } from "@/lib/library";
+import type { AtlasPlaylistKind } from "@/lib/everynoise/types";
 import { LISTEN_MINUTES, durationLabel, type ListenMinutes } from "@/lib/listen/duration";
 import { usePlayerActions } from "@/context/PlayerContext";
 
@@ -33,6 +34,8 @@ export function AtlasPlay({
   artist,
   genre,
   query,
+  playlist,
+  playlistKind,
   fallbackTracks,
   title,
   label,
@@ -40,6 +43,8 @@ export function AtlasPlay({
   artist?: string;
   genre?: string;
   query?: string;
+  playlist?: string;
+  playlistKind?: AtlasPlaylistKind;
   fallbackTracks: LibraryTrack[];
   title: string;
   label: string;
@@ -54,7 +59,14 @@ export function AtlasPlay({
       const response = await fetch("/api/atlas/harvest", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ artist, genre, query, durationMinutes: minutes }),
+        body: JSON.stringify({
+          artist,
+          genre,
+          query,
+          playlist,
+          playlistKind,
+          durationMinutes: minutes,
+        }),
       });
       const payload = (await response.json()) as { tracks?: LibraryTrack[]; title?: string };
       const tracks = payload.tracks?.length ? payload.tracks : fallbackTracks;

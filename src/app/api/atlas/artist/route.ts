@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     artist: page.artist,
     features: page.features,
     nearbyGenres: page.nearbyGenres,
+    branches: page.branches,
     tracks: page.tracks,
     libraryTracks: page.libraryTracks,
   });

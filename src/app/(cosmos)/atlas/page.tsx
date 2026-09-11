@@ -3,7 +3,7 @@ import { AtlasSurface } from "@/components/cosmos/AtlasSurface";
 
 export const metadata: Metadata = {
   title: "Atlas - Resonant",
-  description: "Every Noise at Once, inside Resonant. Electronic branches with real Apple, Spotify, YouTube Music, and SoundCloud links.",
+  description: "Every Noise at Once, inside Resonant. The full map, then genre, artist, and playlist rooms with real Apple, Spotify, YouTube Music, and SoundCloud links.",
 };
 
 export default function AtlasPage() {

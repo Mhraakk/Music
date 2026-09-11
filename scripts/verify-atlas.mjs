@@ -4,10 +4,16 @@
  */
 
 const fixture = `
-<div id=item1 preview_url="https://p.scdn.co/mp3-preview/abc" class="genre scanme" style="color: #ad8907; top: 100px; left: 80px; font-size: 160%" onclick="playx(&quot;1V6gIisPpYqgFeWbMLI0bA&quot;, &quot;trip hop&quot;, this);" title="e.g. The Herbaliser &quot;The Sensual Woman&quot;">trip hop<a class=navlink href="engenremap-triphop.html">&raquo;</a></div>
-<div id=item2 preview_url="https://p.scdn.co/mp3-preview/def" class="genre scanme" style="color: #9994a5; top: 220px; left: 610px; font-size: 150%" onclick="playx(&quot;67Hna13dNDkZvBpTXRIaOJ&quot;, &quot;Massive Attack&quot;, this);" title="e.g. Massive Attack &quot;Teardrop&quot;">Massive Attack<a class=navlink href="artistprofile.html?id=6FXMGgJwohJLUSr5nVlf9X">&raquo;</a></div>
+<div class=canvas role=main style="width: 1532px; height: 936px; top: 64px">
+<div id=item1 preview_url="https://p.scdn.co/mp3-preview/abc" class="genre scanme" scan=true style="color: #ad8907; top: 100px; left: 80px; font-size: 160%" onclick="playx(&quot;1V6gIisPpYqgFeWbMLI0bA&quot;, &quot;trip hop&quot;, this);" title="e.g. The Herbaliser &quot;The Sensual Woman&quot;">trip hop<a class=navlink href="engenremap-triphop.html">&raquo;</a></div>
+<div id=item2 preview_url="https://p.scdn.co/mp3-preview/def" class="genre scanme" scan=true style="color: #9994a5; top: 220px; left: 610px; font-size: 150%" onclick="playx(&quot;67Hna13dNDkZvBpTXRIaOJ&quot;, &quot;Massive Attack&quot;, this);" title="e.g. Massive Attack &quot;Teardrop&quot;">Massive Attack<a class=navlink href="artistprofile.html?id=6FXMGgJwohJLUSr5nVlf9X">&raquo;</a></div>
 <div id=nearbyitem1 class="genre" style="color: #9f876f; top: 10px; left: 20px; font-size: 120%" onclick="playx(&quot;abcabcabcabcabcabcabca&quot;, &quot;downtempo&quot;, this);">downtempo<a class=navlink href="engenremap-downtempo.html#tunnel">&raquo;</a></div>
+<div id=mirroritem1 class="genre" style="color: #c0c166; top: 181px; left: 108px; font-size: 160%" onclick="playx(&quot;7hZRgQiZEKf1e8KTEVIkQN&quot;, &quot;gospel&quot;, this);">gospel<a class=navlink href="engenremap-gospel.html#tunnel">&raquo;</a></div>
 <a href="https://open.spotify.com/playlist/2wrc23l7JdQVcpPIcDGaed" title="listen to The Sound of Trip Hop on Spotify">playlist</a>
+<a href="https://open.spotify.com/user/particledetector/playlist/4ulIuRZHRfr110SYS4t2ja" title="listen to a shorter introduction to this genre">intro</a>
+<a href="https://open.spotify.com/user/particledetector/playlist/4Shfw6GieZBQ4SE56JdtlB" title="listen to this genre's fans' current favorites">pulse</a>
+<a href="https://open.spotify.com/user/particledetector/playlist/25fg4SKVqbC1JMoKRkE1ct" title="listen to this genre's fans' new discoveries">edge</a>
+<a href="nrbg.html?genre=trip%20hop">new</a>
 `;
 
 const lookup = `
@@ -37,11 +43,16 @@ check(/playx\(&quot;1V6gIisPpYqgFeWbMLI0bA&quot;, &quot;trip hop&quot;/.test(fix
 check(/artistprofile\.html\?id=6FXMGgJwohJLUSr5nVlf9X/.test(fixture), "artist keeps Spotify artist id");
 check(/title="e\.g\. Massive Attack/.test(fixture), "example recording is named");
 check(/engenremap-downtempo\.html/.test(fixture), "nearby downtempo branch");
+check(/id=mirroritem1/.test(fixture), "mirror gospel branch");
 check(/playlist\/2wrc23l7JdQVcpPIcDGaed/.test(fixture), "spotify playlist id");
+check(/title="listen to The Sound of Trip Hop on Spotify"/.test(fixture), "playlist keeps The Sound of Trip Hop title");
+check(/nrbg\.html\?genre=trip%20hop/.test(fixture), "new releases link");
+check(/width: 1532px; height: 936px/.test(fixture), "genre canvas size");
 check(/00G1NTDAoU7rBpjG4KoYAM/.test(lookup), "lookup keeps DJ Krush Spotify id");
 check(/engenremap-triphop\.html/.test(lookup), "lookup lists trip hop");
 const eg = decode('e.g. DJ Krush &quot;Zen Approach&quot;').match(/^e\.g\. (.+) "([^"]+)"$/);
 check(eg?.[1] === "DJ Krush" && eg?.[2] === "Zen Approach", "example title decodes quotes");
+check(!/NetEase|KuGou|Kuwo/.test(fixture), "fixture does not dump Chinese catalogs into atlas HTML");
 
 const base = process.argv[2];
 if (base) {
@@ -54,19 +65,49 @@ if (base) {
   const list = await get("/api/atlas?family=electronic&limit=40");
   check(list.status === 200 && Array.isArray(list.json.genres), "GET /api/atlas", `HTTP ${list.status}`);
   check((list.json.genres?.length ?? 0) > 8, "electronic family has branches", String(list.json.genres?.length ?? 0));
+  const all = await get("/api/atlas?family=all&limit=80");
+  check((all.json.total ?? 0) > 5000, "full map has the Every Noise database", String(all.json.total ?? 0));
+  check(all.json.canvas?.width > 100 && all.json.canvas?.height > 100, "map returns canvas size", JSON.stringify(all.json.canvas ?? {}));
   const genre = await get("/api/atlas/genre/triphop?enrich=4");
-  check(genre.status === 200 && (genre.json.artists?.length ?? 0) > 4, "GET trip hop artists", String(genre.json.artists?.length ?? 0));
+  check(genre.status === 200 && (genre.json.artists?.length ?? 0) > 20, "GET trip hop artists", String(genre.json.artists?.length ?? 0));
+  const withXY = (genre.json.artists ?? []).filter((a) => typeof a.x === "number" && typeof a.y === "number");
+  check(withXY.length > 20, "trip hop artists keep scatter x/y", String(withXY.length));
+  check((genre.json.mirrors?.length ?? 0) > 0, "trip hop has mirror branches", String(genre.json.mirrors?.length ?? 0));
+  check((genre.json.nearby?.length ?? 0) > 4, "trip hop has nearby branches", String(genre.json.nearby?.length ?? 0));
+  const titles = (genre.json.playlists ?? []).map((p) => p.title ?? "");
+  check(
+    titles.some((t) => /sound of trip hop/i.test(t)),
+    "playlists include The Sound of Trip Hop",
+    titles.join(" · ")
+  );
+  check(
+    titles.some((t) => /intro to trip hop/i.test(t)),
+    "playlists include Intro to Trip Hop",
+    titles.join(" · ")
+  );
   check((genre.json.libraryTracks ?? []).every((t) => !("genre" in t) || t.genre == null), "harvested tracks have no genre field");
   check((genre.json.tracks?.[0]?.outbound?.apple || genre.json.tracks?.[0]?.outbound?.spotify), "trip hop rows carry outbound links");
   const artist = await get("/api/atlas/artist?name=DJ%20Krush&enrich=4");
   check(artist.status === 200 && artist.json.artist?.name, "GET DJ Krush", artist.json.artist?.name ?? "");
   check((artist.json.nearbyGenres?.length ?? 0) >= 1, "DJ Krush has Every Noise branches");
+  check(
+    (artist.json.nearbyGenres ?? []).some((g) => g.id === "triphop" || /trip hop/i.test(g.label ?? "")),
+    "DJ Krush lookup still has trip hop"
+  );
   check((artist.json.libraryTracks?.length ?? 0) >= 1, "DJ Krush resolves real recordings", String(artist.json.libraryTracks?.length ?? 0));
+  check((artist.json.features?.length ?? 0) === 0, "artist page is lookup, not fake features from the first genre");
+  const playlist = await get("/api/atlas/playlist?id=2wrc23l7JdQVcpPIcDGaed&kind=sound&genre=triphop&enrich=3");
+  check(playlist.status === 200 && /sound of trip hop/i.test(playlist.json.playlist?.title ?? ""), "GET Sound of Trip Hop", playlist.json.playlist?.title ?? "");
+  check((playlist.json.libraryTracks ?? []).every((t) => !("genre" in t) || t.genre == null), "playlist harvest has no genre field");
   const home = await fetch(`${root}/`).then((r) => r.text());
   check(home.includes("Listen Now"), "home still Listen Now");
   check(home.includes("Favorite Songs"), "home still Favorite Songs");
   check(home.includes("Connect Apple Music"), "home still Connect Apple Music");
   check(home.includes("Atlas") || home.includes("atlas"), "home names the atlas");
+  const atlasPage = await fetch(`${root}/atlas`).then((r) => r.text());
+  check(/Every branch|every branch|everynoise/i.test(atlasPage), "atlas page names the map");
+  const genrePage = await fetch(`${root}/atlas/genre/triphop`).then((r) => r.text());
+  check(/scan/i.test(genrePage) && /playlist/i.test(genrePage), "genre page keeps scan and playlist");
 }
 
 if (failed) {
