@@ -8,7 +8,6 @@
 
 import type { CoordinateId } from "@/lib/drift/topography";
 import type { LibraryTrack } from "@/lib/library";
-import { rotate, seededShuffle } from "@/lib/fresh/rotate";
 import { findMusic } from "./anywhere";
 import { probesForRoom } from "./probes";
 
@@ -22,7 +21,7 @@ export async function harvestRoom(
   limit = 10,
   exclude: ReadonlySet<string> = new Set()
 ): Promise<LibraryTrack[]> {
-  const probes = seededShuffle(rotate(probesForRoom(room, seed), seed), seed + 17);
+  const probes = probesForRoom(room, seed);
   const want = Math.max(5, Math.min(12, limit));
   const seen = new Set<string>(exclude);
   const out: LibraryTrack[] = [];
