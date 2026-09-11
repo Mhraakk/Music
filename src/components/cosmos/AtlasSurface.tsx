@@ -99,7 +99,7 @@ export function AtlasSurface() {
     router.push(`/atlas/artist?name=${encodeURIComponent(trimmed)}`);
   };
 
-  const listRows = debounced ? genres : listed;
+  const listRows = debounced ? genres : listed.length ? listed : genres;
 
   return (
     <div className="cx-atlas">

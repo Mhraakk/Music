@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo } from "react";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayer, usePlayerActions, useTaste } from "@/context/PlayerContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { LibraryConnect } from "./LibraryConnect";
 import { AlbumRow, MasonryGrid } from "./MasonryGrid";
@@ -320,8 +320,9 @@ export function DiscoverSurface({
   );
 }
 
-function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
-  const { current, playing } = usePlayer();
+const FeaturedPicks = memo(function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
+  const { currentId, playing } = useNowPlaying();
+  const { likedIds } = useTaste();
   const { play } = usePlayerActions();
   if (!tracks.length) return null;
 
@@ -333,8 +334,9 @@ function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
         <TrackTile
           track={lead}
           size="lg"
-          active={current?.id === lead.id}
-          playing={current?.id === lead.id && playing}
+          active={currentId === lead.id}
+          playing={currentId === lead.id && playing}
+          liked={likedIds.includes(lead.id)}
           onSelect={play}
           priority
         />
@@ -346,8 +348,9 @@ function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
               key={track.id}
               track={track}
               size="md"
-              active={current?.id === track.id}
-              playing={current?.id === track.id && playing}
+              active={currentId === track.id}
+              playing={currentId === track.id && playing}
+              liked={likedIds.includes(track.id)}
               onSelect={play}
             />
           ))}
@@ -355,4 +358,4 @@ function FeaturedPicks({ tracks }: { tracks: LibraryTrack[] }) {
       )}
     </div>
   );
-}
+});

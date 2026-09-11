@@ -2,7 +2,6 @@
 
 import { memo, useState, type CSSProperties } from "react";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer } from "@/context/PlayerContext";
 import { PauseIcon, PlayIcon } from "./icons";
 import { Artwork } from "./Artwork";
 
@@ -16,6 +15,7 @@ export const TrackTile = memo(function TrackTile({
   onSelect,
   priority = false,
   size = "md",
+  liked = false,
 }: {
   track: LibraryTrack;
   active?: boolean;
@@ -23,10 +23,9 @@ export const TrackTile = memo(function TrackTile({
   onSelect: (track: LibraryTrack) => void;
   priority?: boolean;
   size?: "md" | "lg";
+  liked?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
-  const { likedIds } = usePlayer();
-  const liked = likedIds.includes(track.id);
 
   return (
     <button

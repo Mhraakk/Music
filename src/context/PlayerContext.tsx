@@ -125,6 +125,8 @@ export type PlayerActions = {
 
 const StateContext = createContext<PlayerState | null>(null);
 const ClockContext = createContext({ progress: 0, fragilityNow: 0 });
+const NowPlayingContext = createContext({ currentId: null as string | null, playing: false });
+const TasteContext = createContext({ likedIds: [] as string[], dislikedIds: [] as string[] });
 const ActionsContext = createContext<PlayerActions | null>(null);
 
 const INITIAL: PlayerState = {
@@ -1008,11 +1010,24 @@ export function PlayerProvider({
     [play, playQueue, toggle, pause, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike]
   );
 
+  const nowPlaying = useMemo(
+    () => ({ currentId: state.current?.id ?? null, playing: state.playing }),
+    [state.current?.id, state.playing]
+  );
+  const taste = useMemo(
+    () => ({ likedIds: state.likedIds, dislikedIds: state.dislikedIds }),
+    [state.likedIds, state.dislikedIds]
+  );
+
   return (
     <StateContext.Provider value={state}>
-      <ClockContext.Provider value={clock}>
-        <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
-      </ClockContext.Provider>
+      <NowPlayingContext.Provider value={nowPlaying}>
+        <TasteContext.Provider value={taste}>
+          <ClockContext.Provider value={clock}>
+            <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
+          </ClockContext.Provider>
+        </TasteContext.Provider>
+      </NowPlayingContext.Provider>
     </StateContext.Provider>
   );
 }
@@ -1033,6 +1048,14 @@ export function usePlayer(): PlayerState {
 
 export function usePlayerClock() {
   return useContext(ClockContext);
+}
+
+export function useNowPlaying() {
+  return useContext(NowPlayingContext);
+}
+
+export function useTaste() {
+  return useContext(TasteContext);
 }
 
 export function usePlayerActions(): PlayerActions {

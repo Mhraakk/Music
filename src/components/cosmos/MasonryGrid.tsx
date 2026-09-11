@@ -1,19 +1,21 @@
 "use client";
 
+import { memo } from "react";
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayerActions, useTaste } from "@/context/PlayerContext";
 import { TrackTile } from "./TrackTile";
 
 const PRIORITY_COUNT = 10;
 
-export function MasonryGrid({
+export const MasonryGrid = memo(function MasonryGrid({
   tracks,
   size = "md",
 }: {
   tracks: LibraryTrack[];
   size?: "md" | "lg";
 }) {
-  const { current, playing } = usePlayer();
+  const { currentId, playing } = useNowPlaying();
+  const { likedIds } = useTaste();
   const { play } = usePlayerActions();
 
   if (tracks.length === 0) {
@@ -32,18 +34,20 @@ export function MasonryGrid({
           key={track.id}
           track={track}
           size={size}
-          active={current?.id === track.id}
-          playing={current?.id === track.id && playing}
+          active={currentId === track.id}
+          playing={currentId === track.id && playing}
+          liked={likedIds.includes(track.id)}
           onSelect={play}
           priority={i < PRIORITY_COUNT}
         />
       ))}
     </div>
   );
-}
+});
 
-export function AlbumRow({ tracks, size = "md" }: { tracks: LibraryTrack[]; size?: "md" | "lg" }) {
-  const { current, playing } = usePlayer();
+export const AlbumRow = memo(function AlbumRow({ tracks, size = "md" }: { tracks: LibraryTrack[]; size?: "md" | "lg" }) {
+  const { currentId, playing } = useNowPlaying();
+  const { likedIds } = useTaste();
   const { play } = usePlayerActions();
 
   if (tracks.length === 0) return null;
@@ -55,8 +59,9 @@ export function AlbumRow({ tracks, size = "md" }: { tracks: LibraryTrack[]; size
           <TrackTile
             track={track}
             size={size}
-            active={current?.id === track.id}
-            playing={current?.id === track.id && playing}
+            active={currentId === track.id}
+            playing={currentId === track.id && playing}
+            liked={likedIds.includes(track.id)}
             onSelect={play}
             priority={i < 6}
           />
@@ -64,4 +69,5 @@ export function AlbumRow({ tracks, size = "md" }: { tracks: LibraryTrack[]; size
       ))}
     </div>
   );
-}
+});
+

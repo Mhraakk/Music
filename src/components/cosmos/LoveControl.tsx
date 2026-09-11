@@ -1,7 +1,7 @@
 "use client";
 
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { usePlayerActions, useTaste } from "@/context/PlayerContext";
 import { HeartGlyph } from "./icons";
 
 export function LoveControl({
@@ -11,7 +11,7 @@ export function LoveControl({
   track?: LibraryTrack | null;
   label?: string;
 }) {
-  const { likedIds } = usePlayer();
+  const { likedIds } = useTaste();
   const { toggleLike } = usePlayerActions();
   const liked = Boolean(track && likedIds.includes(track.id));
 

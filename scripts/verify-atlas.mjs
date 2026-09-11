@@ -56,11 +56,15 @@ check(!/NetEase|KuGou|Kuwo/.test(fixture), "fixture does not dump Chinese catalo
 
 const { readFileSync } = await import("node:fs");
 const scatterUi = readFileSync(new URL("../src/components/cosmos/AtlasScatter.tsx", import.meta.url), "utf8");
-check(/CULL_AFTER/.test(scatterUi) && /data-scatter-id/.test(scatterUi), "atlas scatter viewport-culls dense maps and delegates hover");
+check(
+  /CULL_AFTER/.test(scatterUi) && /data-scatter-id/.test(scatterUi) && /useLayoutEffect/.test(scatterUi),
+  "atlas scatter viewport-culls dense maps, centers in layout, and delegates hover"
+);
 const surfaceUi = readFileSync(new URL("../src/components/cosmos/AtlasSurface.tsx", import.meta.url), "utf8");
 check(/fields", "map"/.test(surfaceUi) && /AtlasBranchList/.test(surfaceUi), "atlas map fetch is slim and list is not mounted on the map");
 const playerUi = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
 check(/usePlayerClock/.test(playerUi) && /ClockContext/.test(playerUi), "progress ticks stay off the tile tree");
+check(/useNowPlaying/.test(playerUi) && /useTaste/.test(playerUi), "tiles subscribe to now-playing and taste, not the whole player");
 const tokenCss = readFileSync(new URL("../src/app/(cosmos)/cosmos.css", import.meta.url), "utf8");
 check(/prefers-reduced-motion/.test(tokenCss) && /outline:\s*2px solid var\(--color-sand\)/.test(tokenCss), "cosmos keeps reduced-motion and a visible sand focus ring");
 

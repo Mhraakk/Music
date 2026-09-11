@@ -910,6 +910,8 @@
 
 .cx-song {
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
 }
 
 .cx-song:hover td {
@@ -1988,6 +1990,7 @@
 .cx-atlas-canvas {
   position: relative;
   min-height: 100%;
+  contain: layout;
 }
 
 .cx-atlas-node {

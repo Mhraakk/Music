@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayerActions } from "@/context/PlayerContext";
 
 export function useAtlasPreview() {
   const { pause } = usePlayerActions();
-  const { playing, current } = usePlayer();
+  const { playing, currentId } = useNowPlaying();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pending = useRef<number | null>(null);
   const nowRef = useRef<string | null>(null);
@@ -27,8 +27,8 @@ export function useAtlasPreview() {
   }, []);
 
   useEffect(() => {
-    if (playing && current) stop();
-  }, [playing, current, stop]);
+    if (playing && currentId) stop();
+  }, [playing, currentId, stop]);
 
   useEffect(() => () => stop(), [stop]);
 

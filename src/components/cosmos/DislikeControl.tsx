@@ -1,7 +1,7 @@
 "use client";
 
 import type { LibraryTrack } from "@/lib/library";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { usePlayerActions, useTaste } from "@/context/PlayerContext";
 import { RefuseGlyph } from "./icons";
 
 export function DislikeControl({
@@ -11,7 +11,7 @@ export function DislikeControl({
   track?: LibraryTrack | null;
   label?: string;
 }) {
-  const { dislikedIds } = usePlayer();
+  const { dislikedIds } = useTaste();
   const { toggleDislike } = usePlayerActions();
   const refused = Boolean(track && dislikedIds.includes(track.id));
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, startTransition, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { memo, startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import type { AtlasCanvas } from "@/lib/everynoise/types";
 
@@ -40,38 +40,15 @@ export function AtlasScatter({
 }) {
   const portRef = useRef<HTMLDivElement>(null);
   const lastPreview = useRef<string | null>(null);
+  const hasCentered = useRef(false);
+  const mapKey = `${fit}:${items.length}`;
+  const prevMapKey = useRef(mapKey);
+  if (prevMapKey.current !== mapKey) {
+    prevMapKey.current = mapKey;
+    hasCentered.current = false;
+  }
   const [portWidth, setPortWidth] = useState(0);
   const [view, setView] = useState({ left: 0, top: 0, w: 0, h: 0 });
-
-  useEffect(() => {
-    const el = portRef.current;
-    if (!el) return;
-    let frame = 0;
-    const publish = () => {
-      frame = 0;
-      const next = {
-        left: el.scrollLeft,
-        top: el.scrollTop,
-        w: el.clientWidth,
-        h: el.clientHeight,
-      };
-      setPortWidth(next.w);
-      startTransition(() => setView(next));
-    };
-    publish();
-    const observer = new ResizeObserver(publish);
-    observer.observe(el);
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(publish);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      observer.disconnect();
-      el.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [items.length]);
 
   const bounds = useMemo(() => {
     if (fit === "canvas" && canvas.width > 0 && canvas.height > 0) {
@@ -96,12 +73,12 @@ export function AtlasScatter({
 
   const spanX = Math.max(1, bounds.maxX - bounds.minX);
   const spanY = Math.max(1, bounds.maxY - bounds.minY);
-  const width = portWidth || canvas.width || 800;
+  const plotWidth = portWidth || 800;
   const nativeRatio = spanY / spanX;
   const height =
     fit === "canvas"
-      ? Math.max(width * nativeRatio, 480)
-      : Math.max(280, Math.min(640, width * Math.min(nativeRatio, 0.85)));
+      ? Math.max(plotWidth * nativeRatio, 480)
+      : Math.max(280, Math.min(640, plotWidth * Math.min(nativeRatio, 0.85)));
 
   const heavyCenter = useMemo(() => {
     if (!items.length) return { x: bounds.minX + spanX / 2, y: bounds.minY + spanY / 2 };
@@ -112,37 +89,95 @@ export function AtlasScatter({
     };
   }, [items, bounds.minX, bounds.minY, spanX, spanY]);
 
-  useEffect(() => {
-    if (fit !== "canvas" || !items.length) return;
+  useLayoutEffect(() => {
     const el = portRef.current;
     if (!el) return;
-    if (el.scrollHeight <= el.clientHeight * 1.2 && el.scrollWidth <= el.clientWidth * 1.2) return;
-    const left = ((heavyCenter.x - bounds.minX) / spanX) * el.scrollWidth;
-    const top = ((heavyCenter.y - bounds.minY) / spanY) * el.scrollHeight;
-    el.scrollTo({
-      left: Math.max(0, left - el.clientWidth / 2),
-      top: Math.max(0, top - el.clientHeight / 2),
-    });
+    const nextWidth = el.clientWidth;
+    if (nextWidth && nextWidth !== portWidth) setPortWidth(nextWidth);
+    if (fit === "canvas" && items.length) {
+      const left = ((heavyCenter.x - bounds.minX) / spanX) * el.scrollWidth;
+      const top = ((heavyCenter.y - bounds.minY) / spanY) * el.scrollHeight;
+      el.scrollLeft = Math.max(0, left - el.clientWidth / 2);
+      el.scrollTop = Math.max(0, top - el.clientHeight / 2);
+    } else {
+      el.scrollLeft = 0;
+      el.scrollTop = 0;
+    }
+    if (items.length) hasCentered.current = true;
+    // Programmatic scroll does not always fire `scroll`. Publish the cull
+    // window here or the dense cluster stays off-screen and the map paints empty.
+    const nextView = {
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      w: el.clientWidth,
+      h: el.clientHeight,
+    };
+    setView((prev) =>
+      prev.left === nextView.left && prev.top === nextView.top && prev.w === nextView.w && prev.h === nextView.h
+        ? prev
+        : nextView
+    );
   }, [fit, items.length, heavyCenter.x, heavyCenter.y, bounds.minX, bounds.minY, spanX, spanY, height, portWidth]);
+
+  useEffect(() => {
+    const el = portRef.current;
+    if (!el) return;
+    let frame = 0;
+    const publish = () => {
+      frame = 0;
+      const next = {
+        left: el.scrollLeft,
+        top: el.scrollTop,
+        w: el.clientWidth,
+        h: el.clientHeight,
+      };
+      if (next.w && next.w !== portWidth) setPortWidth(next.w);
+      startTransition(() => {
+        setView((prev) =>
+          prev.left === next.left && prev.top === next.top && prev.w === next.w && prev.h === next.h ? prev : next
+        );
+      });
+    };
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(publish);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [items.length, portWidth]);
 
   const visible = useMemo(() => {
     if (items.length < CULL_AFTER) return items;
-    const vw = view.w || width;
-    const vh = view.h || Math.min(720, width);
-    let left = view.left;
-    let top = view.top;
-    if (!view.w) {
-      const cx = ((heavyCenter.x - bounds.minX) / spanX) * width;
-      const cy = ((heavyCenter.y - bounds.minY) / spanY) * height;
-      left = Math.max(0, cx - vw / 2);
-      top = Math.max(0, cy - vh / 2);
-    }
-    return items.filter((item) => {
-      const px = ((item.x - bounds.minX) / spanX) * width;
+    const vw = view.w || plotWidth;
+    const vh = view.h || Math.min(720, height);
+    const predictedLeft = Math.max(0, ((heavyCenter.x - bounds.minX) / spanX) * plotWidth - vw / 2);
+    const predictedTop = Math.max(0, ((heavyCenter.y - bounds.minY) / spanY) * height - vh / 2);
+    const settled = hasCentered.current && view.w > 0;
+    const left = settled ? view.left : predictedLeft;
+    const top = settled ? view.top : predictedTop;
+    const hits = items.filter((item) => {
+      const px = ((item.x - bounds.minX) / spanX) * plotWidth;
       const py = ((item.y - bounds.minY) / spanY) * height;
       return px >= left - CULL_PAD && px <= left + vw + CULL_PAD && py >= top - CULL_PAD && py <= top + vh + CULL_PAD;
     });
-  }, [items, bounds.minX, bounds.minY, spanX, spanY, width, height, view, heavyCenter.x, heavyCenter.y]);
+    if (hits.length > 0) return hits;
+    return items.filter((item) => {
+      const px = ((item.x - bounds.minX) / spanX) * plotWidth;
+      const py = ((item.y - bounds.minY) / spanY) * height;
+      return (
+        px >= predictedLeft - CULL_PAD &&
+        px <= predictedLeft + vw + CULL_PAD &&
+        py >= predictedTop - CULL_PAD &&
+        py <= predictedTop + vh + CULL_PAD
+      );
+    });
+  }, [items, bounds.minX, bounds.minY, spanX, spanY, plotWidth, height, view, heavyCenter.x, heavyCenter.y]);
 
   const byId = useMemo(() => {
     const map = new Map<string, ScatterNode>();

@@ -79,12 +79,16 @@ export async function listAtlasGenres(input: {
   const genres =
     input.fields === "map"
       ? slice.map((genre) => ({
-          ...genre,
-          exampleArtist: null,
-          exampleTitle: null,
+          id: genre.id,
+          label: genre.label,
+          color: genre.color,
+          x: genre.x,
+          y: genre.y,
+          weight: genre.weight,
+          previewUrl: genre.previewUrl,
         }))
       : slice;
-  return { genres, listed, total: filtered.length, family, canvas };
+  return { genres: genres as AtlasGenre[], listed, total: filtered.length, family, canvas };
 }
 
 function pinFromGenre(genre: AtlasGenre): AtlasPin {

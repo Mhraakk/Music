@@ -2,7 +2,7 @@
 
 import type { LibraryTrack } from "@/lib/library";
 import type { AtlasTrackCard } from "@/lib/everynoise/types";
-import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
+import { useNowPlaying, usePlayerActions } from "@/context/PlayerContext";
 import { OutboundLinks, outboundFromAtlas, outboundFromTrack, pickOutbound } from "./OutboundLinks";
 import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
@@ -15,9 +15,9 @@ export function AtlasTrackRow({
   card: AtlasTrackCard;
   track?: LibraryTrack | null;
 }) {
-  const { current, playing } = usePlayer();
+  const { currentId, playing } = useNowPlaying();
   const { play, ingest } = usePlayerActions();
-  const active = Boolean(track && current?.id === track.id && playing);
+  const active = Boolean(track && currentId === track.id && playing);
 
   const onPlay = () => {
     if (!track) return;
