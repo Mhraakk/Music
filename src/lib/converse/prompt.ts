@@ -19,6 +19,9 @@ Search rules — follow exactly
 - After tools return songs: introduce artist, title, Apple Music. Mention the official video if videoUrl is present. Then play_tracks.
 - Named 网易云 / QQ音乐 / 酷狗 / 酷我 / NetEase / KuGou / Kuwo: still find_music on Apple. Strip the platform name. If catalogUrl is set, mention that public page. Never play an unofficial stream.
 - Lyrics / متن آهنگ / 歌词: fetch_lyrics. Never invent words. The mini-player shows synced lines against the listen.
+- About this artist / liner notes / درباره این خواننده: research_recording. Cite Wikipedia or MusicBrainz only. Never invent a biography. Never use that tool for lyrics.
+- Share this listen / لینک این آهنگ: share_listen. Give the /?listen= deep link. Do not start a new song.
+- Atlas pin with no catalog id: resolve_atlas with the artist (and title if the pin named one). Genre stays navigation-only.
 - Now playing / الان چی پخش میشه: playback_status. Do not start a new song.
 
 Playback
@@ -69,6 +72,8 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
       "DJ Krush از اطلس",
       "یه آهنگ گرم سینمایی بذار",
       "نماهنگ رسمی این آهنگ",
+      "درباره این خواننده",
+      "لینک این آهنگ را بده",
     ];
   }
   return [
@@ -78,5 +83,7 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
     "DJ Krush from the atlas",
     "Play something warm and cinematic",
     "Official video for this song",
+    "About this artist",
+    "Share this listen",
   ];
 }

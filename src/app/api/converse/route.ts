@@ -109,6 +109,7 @@ function parseSession(raw: unknown): ConverseSession {
       : [],
     overlay: parseFavoriteOverlay(rec.overlay),
     tasteVectors: parseTasteVectors(rec.tasteVectors),
+    origin: typeof rec.origin === "string" && rec.origin.startsWith("http") ? rec.origin.slice(0, 200) : null,
   };
 }
 

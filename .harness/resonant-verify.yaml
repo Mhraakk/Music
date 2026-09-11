@@ -1,0 +1,41 @@
+# Import in Harness after OAuth. Replace orgIdentifier / projectIdentifier
+# and attach a GitHub connector for Mhraakk/Music.
+pipeline:
+  name: Resonant verify
+  identifier: resonant_verify
+  orgIdentifier: default
+  projectIdentifier: resonant
+  tags:
+    product: Resonant
+  stages:
+    - stage:
+        name: Verify
+        identifier: verify
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Install
+                  identifier: install
+                  spec:
+                    shell: Sh
+                    command: npm ci
+              - step:
+                  type: Run
+                  name: Locks
+                  identifier: locks
+                  spec:
+                    shell: Sh
+                    command: |
+                      npm run typecheck
+                      npm run verify:tokens
+                      npm run verify:atlas

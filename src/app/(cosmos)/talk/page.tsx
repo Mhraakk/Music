@@ -15,6 +15,7 @@ export default function TalkPage() {
         </h1>
         <p className="cx-body">
           Talk however you talk. Apple Music first. Paste a ChatGPT or Gemini key if you want a model.
+          Ask can share a listen link and cite published liner notes. Never invented lyrics.
         </p>
       </header>
       <TalkSurface />

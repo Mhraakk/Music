@@ -1,0 +1,21 @@
+{
+  "name": "resonant-plugins",
+  "owner": {
+    "name": "Resonant"
+  },
+  "metadata": {
+    "description": "Harness CI plus Resonant's own listen MCP, Ask tools, and product locks."
+  },
+  "plugins": [
+    {
+      "name": "harness",
+      "source": ".cursor/plugins/harness",
+      "description": "Official Harness skills and MCP for pipelines, connectors, and governance."
+    },
+    {
+      "name": "resonant",
+      "source": ".cursor/plugins/resonant",
+      "description": "Resonant listen engine, Apple-first Ask, atlas navigation, and ops MCP wiring."
+    }
+  ]
+}

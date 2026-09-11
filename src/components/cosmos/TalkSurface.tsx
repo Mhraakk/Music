@@ -19,6 +19,8 @@ const STARTERS = [
   { fa: "نماهنگ رسمی Nothing Compares 2 U", en: "Official video for this song" },
   { fa: "الان چی پخش می‌شه", en: "What's playing now" },
   { fa: "متن این آهنگ", en: "Lyrics for this song" },
+  { fa: "درباره این خواننده", en: "About this artist" },
+  { fa: "لینک این آهنگ را بده", en: "Share this listen" },
 ];
 
 type Line = {
@@ -27,6 +29,7 @@ type Line = {
   text: string;
   tracks: LibraryTrack[];
   source?: "gemini" | "openai" | "local";
+  shareUrl?: string;
 };
 
 function uid(): string {
@@ -54,6 +57,12 @@ function maskKey(value: string): string {
   const t = value.trim();
   if (t.length < 8) return t ? "••••" : "";
   return `${t.slice(0, 4)}…${t.slice(-4)}`;
+}
+
+function shareFromEffects(effects: ConverseEffect[]): string | undefined {
+  const share = effects.find((effect) => effect.type === "share");
+  if (!share || share.type !== "share") return undefined;
+  return `${window.location.origin}${share.path}`;
 }
 
 function tracksFromEffects(effects: ConverseEffect[]): LibraryTrack[] {
@@ -175,6 +184,7 @@ export function TalkSurface() {
           text: result.reply,
           tracks: tracksFromEffects(result.effects),
           source: result.source,
+          shareUrl: shareFromEffects(result.effects),
         },
       ]);
     },
@@ -275,7 +285,8 @@ export function TalkSurface() {
           <div className="cx-talk-empty">
             <p className="cx-body">
               Ask however you talk. Apple Music first: same artist, kin, official videos as trailers.
-              ChatGPT if you paste a key. The Resonant shelf is optional.
+              ChatGPT if you paste a key. The Resonant shelf is optional. Ask can share a listen link
+              and cite published liner notes. Never invented lyrics.
             </p>
             <div className="cx-talk-starters">
               {STARTERS.map((item) => (
@@ -298,6 +309,13 @@ export function TalkSurface() {
             <p>{line.text}</p>
             {line.role === "assistant" && line.source === "local" && !ready && (
               <p className="cx-meta mt-2">بدون کلید هم از اپل موزیک می‌آورم. برای گفتگوی کامل ChatGPT را بگذار.</p>
+            )}
+            {line.shareUrl && (
+              <p className="cx-talk-share">
+                <a href={line.shareUrl} className="cx-see-all">
+                  Open this listen
+                </a>
+              </p>
             )}
             {line.tracks.length > 0 && (
               <ul className="cx-talk-tracks">

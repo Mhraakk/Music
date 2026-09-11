@@ -1,0 +1,46 @@
+---
+description: Resonant product and MCP locks for every agent turn
+alwaysApply: true
+---
+
+# Resonant
+
+You are working on Resonant, a listening app. Brand stays Resonant.
+
+## Playback
+
+- No skip / next UI. Media Session must not bind nexttrack / previoustrack as skip.
+- `Queue.goToNext` and `goToPrevious` refuse. The engine chooses what follows.
+- Dual play is forbidden: never Apple preview and a YouTube iframe together.
+- Atlas `preview_url` must pause MiniPlayer.
+
+## Surfaces
+
+- Homepage still names Listen Now, Favorite Songs, Connect Apple Music.
+- Ask lives at `/talk`.
+- Stored catalog ontology has no genre field. Every Noise atlas is navigation only.
+
+## Search and words
+
+- Apple Music first, then Deezer. YouTube is official video / full listen, not the default catalog.
+- Lyrics from lrclib only. Honour LRC `[offset:±ms]`. Never invent lyrics.
+- Named-artist matching: «شبیه» is not the night room «شب». Keep digits (Zero 7 is not Zero).
+- Do not dump NetEase / QQ / KuGou / Kuwo as in-app streams.
+
+## MCP
+
+- Nuclear MCP (`/mcp`, localhost:8800): four tools only (`list_methods`, `method_details`, `describe_type`, `call`). New capabilities go in Nuclear **domains** (Atlas, Drift, Taste, Wheat, Cognition).
+- Full MCP (`/api/mcp`): drift cognition plus the same Ask tools (`find_music`, `browse_atlas`, `fetch_lyrics`, `research_recording`, `share_listen`, …).
+- Harness, Vercel, Linear, Sentry, Notion, Slack, Exa, Braintrust are ops tools for this repo. Do not wire Aave, ads, or unrelated SaaS into the listener UI.
+- `research_recording` cites Wikipedia / MusicBrainz. It is not lyrics.
+
+## Design tokens
+
+- Read `src/app/theme.css`, `src/app/variables.css`, `src/app/tokens.json`.
+- Token **names** are locked. `--radius-buttons: 0px`. `--page-max-width: 1200px`.
+- Do not switch fonts to Righteous/Poppins. Do not persist ui-ux-pro-max MASTER.md with new hex/fonts.
+- Nested buttons are invalid. `CloseGlyph` stays exported from `src/components/cosmos/icons.tsx`.
+
+## Previews
+
+- Unique git: resonant-etg only. Never send music / music-bhdv Vercel URLs.

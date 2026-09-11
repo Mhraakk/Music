@@ -57,8 +57,8 @@ export async function handleNuclearRpc(message: unknown): Promise<JsonRpcRespons
           "Resonant Nuclear-compatible MCP. Use list_methods to discover domains, method_details " +
           "for parameter info, describe_type for data type shapes, and call to execute methods. " +
           "Metadata.search is Apple Music first. Streaming.searchForTrack resolves a YouTube full " +
-          "listen the web player embeds. Playback.play cannot reach a remote speaker — it returns " +
-          "a playable card. Resonant has no skip.",
+          "listen the web player embeds. Atlas / Drift / Taste / Wheat / Cognition map onto Ask. " +
+          "Playback.play cannot reach a remote speaker — it returns a playable card. Resonant has no skip.",
       });
     }
     case "notifications/initialized":

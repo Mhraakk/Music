@@ -38,7 +38,10 @@ export async function sendConverseTurn(input: {
     headers,
     body: JSON.stringify({
       messages: input.messages,
-      session: input.session,
+      session: {
+        ...input.session,
+        origin: typeof window !== "undefined" ? window.location.origin : input.session.origin,
+      },
     }),
   });
 

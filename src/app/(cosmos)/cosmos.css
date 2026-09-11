@@ -1798,6 +1798,10 @@
   font-size: 14px;
 }
 
+.cx-talk-share {
+  margin-top: 10px;
+}
+
 .cx-talk-composer {
   display: flex;
   align-items: flex-end;

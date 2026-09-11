@@ -20,13 +20,16 @@ export type ConverseSession = {
   historyIds: string[];
   overlay?: FavoriteOverlay[];
   tasteVectors?: EmotionalVector[];
+  /** Public origin for share deep links. Browser Ask sends window.location.origin. */
+  origin?: string | null;
 };
 
 export type ConverseEffect =
   | { type: "play"; track: LibraryTrack }
   | { type: "queue"; tracks: LibraryTrack[]; title: string }
   | { type: "ingest"; tracks: LibraryTrack[] }
-  | { type: "destination"; id: CoordinateId };
+  | { type: "destination"; id: CoordinateId }
+  | { type: "share"; path: string; trackId: string };
 
 export type ConverseSource = "gemini" | "openai" | "local";
 
