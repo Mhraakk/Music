@@ -20,7 +20,7 @@ export type RecordingResearch = {
   note: string;
 };
 
-const UA = "Resonant/4.0 (https://github.com/Mhraakk/Music)";
+const UA = "Resonant/4.1 (https://github.com/Mhraakk/Music)";
 const TIMEOUT_MS = 4200;
 
 async function fetchJson(url: string): Promise<unknown> {

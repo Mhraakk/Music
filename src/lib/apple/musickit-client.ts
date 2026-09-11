@@ -65,7 +65,7 @@ export async function authorizeAppleMusic(): Promise<string> {
   if (!configured) {
     await MusicKit.configure({
       developerToken: tokenBody.token,
-      app: { name: "Resonant", build: "4.0.0" },
+      app: { name: "Resonant", build: "4.1.0" },
     });
     configured = true;
   }

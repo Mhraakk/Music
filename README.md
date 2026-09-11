@@ -1,7 +1,7 @@
-# RESONANT — discover music by feeling
+# RESONANT — Apple-first listening
 
-An image-led music discovery app with no genres, no BPM and no popularity ranking. Browse a
-wall of album artwork, search by colour, and let the engine drift from how you actually listen.
+Listen Now, Favorite Songs, and Connect Apple Music. No genres, no BPM, no popularity
+ranking, and no skip. The engine owns what follows. Ask is at `/talk`.
 
 ```bash
 npm i && npm run dev
@@ -9,10 +9,14 @@ npm i && npm run dev
 
 | Route | What it is |
 |---|---|
-| `/` | **Discover** — masonry of real album artwork, search by feeling or colour, cognition-led auto-advance, 30-second previews with no credentials |
+| `/` | **Listen Now** — sleeves, Favorite Songs, Connect Apple Music |
+| `/library` | The living catalog and connected Favorite Songs |
+| `/talk` | Ask — find music, lyrics, liner notes, share a listen |
+| `/atlas` | Every Noise as navigation only. Never written onto catalog records |
+| `/radio` | wheat1 night and the nine rooms |
 | `/collections` | Nine regions of the emotional map. Not playlists — coordinates |
 | `/curators` | The seven reference positions the engine was tuned on |
-| `/drift` | The emotional map itself — pick two coordinates and the engine computes the arc between them |
+| `/drift` | The emotional map — pick two coordinates and the engine computes the arc |
 
 ## What makes it not a music player
 
@@ -58,9 +62,8 @@ fully functional out of the box.
 
 [https://vercel.com/new/import?s=https://github.com/Mhraakk/Music](https://vercel.com/new/import?s=https://github.com/Mhraakk/Music)
 
-Vercel detects Next.js from `vercel.json`. After import, set **Production Branch** to
-`cursor/apple-favorites-circulation-e638` until that work is on `main` — `main` is still the older
-60-track catalog without the living engine.
+Vercel detects Next.js from `vercel.json`. Until this lands on `main`, set **Production Branch**
+to `cursor/complete-listen-e638` — that is the final 4.1 listen surface.
 
 A `VERCEL_TOKEN` (Account Settings → Tokens) lets the CLI finish the rest without the
 dashboard:
@@ -89,6 +92,8 @@ registered callback differs from `https://<your-domain>/api/auth/soundcloud/call
 
 ```bash
 npm run typecheck
+npm run verify:tokens
+npm run verify:atlas
 npm run verify:drift    # behavioural checks against the engine; needs a server running
 npm run harvest:catalog # pull Apple Music neighbours into the living catalog
 npm run resolve:media   # refresh artwork, previews and colours for the authored seed

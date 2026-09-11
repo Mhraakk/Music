@@ -77,7 +77,7 @@ async function lrclib(url: string): Promise<unknown> {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "user-agent": "Resonant/4.0 (https://github.com/Mhraakk/Music)",
+        "user-agent": "Resonant/4.1 (https://github.com/Mhraakk/Music)",
         accept: "application/json",
       },
     });
