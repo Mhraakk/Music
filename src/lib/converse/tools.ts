@@ -13,6 +13,8 @@ import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import { wantsMetingPlatform } from "@/lib/meting/platforms";
 import { harvestWheat } from "@/lib/wheat/service";
 import { capToDuration } from "@/lib/listen/duration";
+import { resolveRecording } from "@/lib/everynoise/enrich";
+import { researchRecording, type RecordingResearch } from "./research";
 import type { ConverseEffect, ConverseSession, ConverseTrackCard } from "./types";
 
 export type PlaybackStatus = {
@@ -30,6 +32,8 @@ export type ToolContext = {
   effects: ConverseEffect[];
   lastLyrics: Awaited<ReturnType<typeof fetchLyrics>> | null;
   lastStatus: PlaybackStatus | null;
+  lastResearch: RecordingResearch | null;
+  lastShare: { path: string; url: string; trackId: string } | null;
 };
 
 export function createToolContext(session: ConverseSession): ToolContext {
@@ -41,6 +45,8 @@ export function createToolContext(session: ConverseSession): ToolContext {
     effects: [],
     lastLyrics: null,
     lastStatus: null,
+    lastResearch: null,
+    lastShare: null,
   };
 }
 
@@ -276,7 +282,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from find_music, find_related, browse_atlas, browse_wheat, search_catalog, make_playlist, start_station, expand_taste, or plan_journey.",
+      "Ids must come from find_music, find_related, browse_atlas, browse_wheat, search_catalog, make_playlist, start_station, expand_taste, plan_journey, or resolve_atlas.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -378,6 +384,50 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
       type: "OBJECT",
       properties: {
         reason: { type: "STRING", description: "Optional: softer, heavier, warmer, quieter…" },
+      },
+    },
+  },
+  {
+    name: "resolve_atlas",
+    description:
+      "Resolve an Every Noise atlas row (artist + optional title) into a real Apple recording. " +
+      "Genre is navigation only and is never written onto the catalog record. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        artist: { type: "STRING", description: "Artist name from the atlas pin." },
+        title: { type: "STRING", description: "Optional example recording title." },
+        preview_url: { type: "STRING", description: "Optional Spotify preview URL from the atlas." },
+        spotify_track_id: { type: "STRING" },
+        spotify_artist_id: { type: "STRING" },
+      },
+      required: ["artist"],
+    },
+  },
+  {
+    name: "research_recording",
+    description:
+      "Cite published liner-notes context (Wikipedia / MusicBrainz) for an artist or recording. " +
+      "Never invent a biography. Never return lyrics — use fetch_lyrics for words. " +
+      "Does not start playback.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        artist: { type: "STRING", description: "Artist. Defaults to now playing." },
+        title: { type: "STRING", description: "Optional recording title. Defaults to now playing." },
+      },
+    },
+  },
+  {
+    name: "share_listen",
+    description:
+      "Build a Resonant deep link /?listen=<id> for the current recording or a catalog id. " +
+      "Use when they ask to share this listen. Does not start a new song. There is no skip.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        id: { type: "STRING", description: "Catalog id. Defaults to now playing." },
+        origin: { type: "STRING", description: "Optional public origin. Ask already sends the page origin." },
       },
     },
   },
@@ -727,6 +777,57 @@ export async function executeConverseTool(
       if (neighbour) pushDestination(ctx, neighbour.id);
       pushPlay(ctx, [candidate]);
       return { ok: true, playing: card(candidate), via: neighbour?.label ?? "same room" };
+    }
+    case "resolve_atlas": {
+      const artist = asString(args.artist);
+      if (!artist) return { ok: false, error: "Name an artist from the atlas." };
+      const title = asString(args.title) || null;
+      const resolved = await resolveRecording({
+        artist,
+        title,
+        previewUrl: asString(args.preview_url) || null,
+        spotifyTrackId: asString(args.spotify_track_id) || null,
+        spotifyArtistId: asString(args.spotify_artist_id) || null,
+        note: "Resolved from the Every Noise atlas",
+      });
+      const track = resolved.track;
+      if (!track) {
+        return { ok: false, error: "Atlas row did not resolve to an Apple recording.", card: resolved.card };
+      }
+      rememberSearch(ctx, [track]);
+      ctx.ingest.push(track);
+      ctx.effects.push({ type: "ingest", tracks: [track] });
+      return {
+        ok: true,
+        tracks: [card(track)],
+        note: "Atlas navigation resolved to Apple Music. Call play_tracks. Do not write a genre field onto the record.",
+      };
+    }
+    case "research_recording": {
+      const artist = asString(args.artist) || ctx.session.currentArtist || "";
+      const title = asString(args.title) || ctx.session.currentTitle || "";
+      const research = await researchRecording({ artist, title: title || undefined });
+      ctx.lastResearch = research;
+      return research;
+    }
+    case "share_listen": {
+      const id = asString(args.id) || ctx.session.currentTrackId || "";
+      if (!id) {
+        ctx.lastShare = { path: "", url: "", trackId: "" };
+        return { ok: false, error: "Nothing to share. Play a recording first." };
+      }
+      const path = `/?listen=${encodeURIComponent(id)}`;
+      const origin = asString(args.origin) || ctx.session.origin || "";
+      const url = origin ? `${origin.replace(/\/$/, "")}${path}` : path;
+      ctx.lastShare = { path, url, trackId: id };
+      ctx.effects.push({ type: "share", path, trackId: id });
+      return {
+        ok: true,
+        path,
+        url,
+        trackId: id,
+        note: "Give the listener this link. It opens Resonant on that recording. Do not add a skip control.",
+      };
     }
     default:
       return { ok: false, error: `Unknown tool "${name}".` };

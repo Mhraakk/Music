@@ -18,6 +18,8 @@ export type LocalIntent =
   | { kind: "search"; query: string; room: CoordinateId | null }
   | { kind: "atlas"; query: string; artist?: string; genre?: string; durationMinutes?: number }
   | { kind: "wheat"; query: string; durationMinutes?: number }
+  | { kind: "research"; query: string }
+  | { kind: "share" }
   | { kind: "chat"; query: string };
 
 const VERB_STOP = new Set([
@@ -202,8 +204,27 @@ export function wantsWheat(text: string): boolean {
   return /wheat1|\bt\.me\/wheat|کانال تلگرام|telegram channel/i.test(text);
 }
 
+export function wantsShare(text: string): boolean {
+  return (
+    /\b(share (this|the)? ?(song|track|listen|link)?|copy (the )?link|deep ?link)\b/i.test(text) ||
+    /لینک (این )?(آهنگ|اهنگ|listen)|اشتراک[ \u200c]?گذار|شیر کن|بفرست(ش)? برای/.test(text)
+  );
+}
+
+export function wantsResearch(text: string): boolean {
+  if (wantsLyrics(text)) return false;
+  return (
+    /\b(who is|about (this )?(artist|band|song)|about [A-Za-z0-9][\w'.-]{1,}|liner notes|biography|bio of|tell me about)\b/i.test(
+      text
+    ) ||
+    /درباره (این )?(خواننده|آرتیست|گروه|آهنگ)|بیوگرافی|چی میدونی از|از این خواننده بگو/.test(text)
+  );
+}
+
 export function wantsPlayback(text: string): boolean {
   if (wantsLyrics(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
+  if (wantsShare(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
+  if (wantsResearch(text) && !/\b(play|put on|start)\b/i.test(text) && !/پخش|بذار|بگذار/.test(text)) return false;
   const t = text.toLowerCase();
   return (
     /\b(play|put on|start|queue|playlist|mix|station|song|track|listen|find me|bring)\b/.test(t) ||
@@ -223,6 +244,8 @@ export function interpretLocal(text: string): LocalIntent {
   const q = trimmed.toLowerCase();
   if (isGreeting(trimmed)) return { kind: "chat", query: trimmed };
   if (wantsNowPlaying(trimmed)) return { kind: "nowPlaying" };
+  if (wantsShare(trimmed)) return { kind: "share" };
+  if (wantsResearch(trimmed)) return { kind: "research", query: trimmed };
   if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
   if (wantsWheat(trimmed)) {
     return { kind: "wheat", query: trimmed, durationMinutes: parseDurationMinutes(trimmed) ?? 30 };

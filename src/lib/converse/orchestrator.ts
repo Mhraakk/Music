@@ -149,6 +149,32 @@ function replyForLocal(lang: ListenerLanguage, ctx: ToolContext, userText: strin
     return lang === "fa" ? `الان ${who} پخش می‌شود.` : `Now playing ${who}.`;
   }
 
+  if (ctx.lastShare) {
+    if (!ctx.lastShare.trackId) {
+      return lang === "fa"
+        ? "اول یک آهنگ پخش کن، بعد لینک شنیدن را می‌دهم."
+        : "Play a recording first, then I can share the listen link.";
+    }
+    if (lang === "fa") {
+      return `لینک این شنیدن: ${ctx.lastShare.url}`;
+    }
+    return `Share this listen: ${ctx.lastShare.url}`;
+  }
+
+  if (ctx.lastResearch) {
+    if (!ctx.lastResearch.ok) {
+      return lang === "fa"
+        ? "صفحهٔ منتشرشده‌ای برای این اسم پیدا نکردم. یک ضبط از اپل موزیک بخواه."
+        : "No published page for that name yet. Ask for an Apple Music recording instead.";
+    }
+    const who = ctx.lastResearch.artist;
+    const bit = ctx.lastResearch.summary?.slice(0, 320) || "";
+    if (lang === "fa") {
+      return bit ? `از ویکی‌پدیا درباره ${who}: ${bit}` : `برای ${who} فقط شناسه MusicBrainz پیدا شد. متن اختراع نمی‌کنم.`;
+    }
+    return bit ? `From Wikipedia on ${who}: ${bit}` : `MusicBrainz knows ${who}. I will not invent a biography.`;
+  }
+
   if (isGreeting(userText) && lang === "fa") {
     return "سلام. بگو یک خواننده، یک آهنگ، یا دهه ۹۰ — اول از اپل موزیک می‌آورم. نماهنگ رسمی را هم اگر باشد نشان می‌دهم.";
   }
@@ -304,6 +330,27 @@ export async function fulfillLocally(
       );
       break;
     }
+    case "research": {
+      const named = namedArtistQuery(
+        userText.replace(
+          /\b(who is|about|liner notes|biography|bio of|tell me about|this artist|this band)\b/gi,
+          " "
+        )
+      );
+      await executeConverseTool(
+        "research_recording",
+        {
+          artist: named || session.currentArtist || "",
+          title: named ? "" : session.currentTitle || "",
+        },
+        ctx
+      );
+      break;
+    }
+    case "share": {
+      await executeConverseTool("share_listen", { origin: session.origin || "" }, ctx);
+      break;
+    }
     case "nowPlaying": {
       await executeConverseTool("playback_status", {}, ctx);
       break;
@@ -319,7 +366,9 @@ export async function fulfillLocally(
     }
   }
 
-  if (intent.kind !== "lyrics" && intent.kind !== "nowPlaying") await ensurePlayback(ctx, userText);
+  if (intent.kind !== "lyrics" && intent.kind !== "nowPlaying" && intent.kind !== "research" && intent.kind !== "share") {
+    await ensurePlayback(ctx, userText);
+  }
 
   return {
     ok: true,

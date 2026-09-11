@@ -11,11 +11,14 @@
 import { findMusic } from "@/lib/converse/anywhere";
 import { findRelated } from "@/lib/converse/kin";
 import { harvestRoom } from "@/lib/converse/live-room";
+import { createToolContext, executeConverseTool } from "@/lib/converse/tools";
 import type { CoordinateId } from "@/lib/drift/topography";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { textResult, errorResult, type ToolDescriptor, type ToolResult } from "@/lib/mcp/protocol";
 import { resolveNuclearStream } from "./resolve";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
+import { atlasArtist } from "@/lib/everynoise";
+import { topographySnapshot } from "@/lib/mcp/cognition";
 
 export const NUCLEAR_DOMAINS = [
   "Queue",
@@ -26,6 +29,11 @@ export const NUCLEAR_DOMAINS = [
   "Dashboard",
   "Providers",
   "Streaming",
+  "Atlas",
+  "Drift",
+  "Taste",
+  "Wheat",
+  "Cognition",
 ] as const;
 
 export type NuclearDomain = (typeof NUCLEAR_DOMAINS)[number];
@@ -166,6 +174,111 @@ const METHODS: Record<NuclearDomain, Record<string, MethodInfo>> = {
       returns: "Lyrics",
     },
   },
+  Atlas: {
+    harvest: {
+      description:
+        "Every Noise atlas harvest as Apple recordings. Genre is navigation only and is never written onto catalog records.",
+      params: [
+        { name: "query", type: "string", optional: true },
+        { name: "artist", type: "string", optional: true },
+        { name: "genre", type: "string", optional: true },
+        { name: "limit", type: "number", optional: true },
+      ],
+      returns: "SearchResults",
+    },
+    resolve: {
+      description: "Resolve an atlas pin (artist + optional title) to an Apple recording. No genre field on the record.",
+      params: [
+        { name: "artist", type: "string" },
+        { name: "title", type: "string", optional: true },
+      ],
+      returns: "Track",
+    },
+    artist: {
+      description: "Every Noise artist lookup. nearbyGenres are atlas navigation, not catalog genre.",
+      params: [{ name: "artist", type: "string" }],
+      returns: "AtlasArtist",
+    },
+  },
+  Drift: {
+    plan: {
+      description: "Plan a listening arc between two map rooms. The engine walks it. No skip.",
+      params: [
+        { name: "origin", type: "string", optional: true },
+        { name: "destination", type: "string" },
+      ],
+      returns: "DriftPlan",
+    },
+    topography: {
+      description: "The nine emotional rooms. Not a genre index.",
+      params: [],
+      returns: "Topography",
+    },
+  },
+  Taste: {
+    expand: {
+      description: "Admit new Apple Music positions near current taste. Taste is a map position, never a genre.",
+      params: [{ name: "limit", type: "number", optional: true }],
+      returns: "SearchResults",
+    },
+  },
+  Wheat: {
+    harvest: {
+      description: "Harvest wheat1 / pasted artist - title lines onto Apple Music.",
+      params: [
+        { name: "text", type: "string", optional: true },
+        { name: "duration_minutes", type: "number", optional: true },
+      ],
+      returns: "SearchResults",
+    },
+  },
+  Cognition: {
+    findMusic: {
+      description: "Ask's Apple-first search. Same tool the /talk companion uses.",
+      params: [
+        { name: "query", type: "string" },
+        { name: "limit", type: "number", optional: true },
+      ],
+      returns: "SearchResults",
+    },
+    related: {
+      description: "Same artist first, then kin, from Apple Music.",
+      params: [
+        { name: "artist", type: "string" },
+        { name: "title", type: "string", optional: true },
+      ],
+      returns: "SearchResults",
+    },
+    lyrics: {
+      description: "Published lyrics (lrclib). Never invented.",
+      params: [
+        { name: "artist", type: "string", optional: true },
+        { name: "title", type: "string", optional: true },
+      ],
+      returns: "Lyrics",
+    },
+    research: {
+      description: "Published Wikipedia / MusicBrainz liner notes. Never invented. Not lyrics.",
+      params: [
+        { name: "artist", type: "string", optional: true },
+        { name: "title", type: "string", optional: true },
+      ],
+      returns: "Research",
+    },
+    share: {
+      description: "Deep link /?listen=<id> for a catalog id or now playing.",
+      params: [
+        { name: "id", type: "string", optional: true },
+        { name: "origin", type: "string", optional: true },
+      ],
+      returns: "ShareLink",
+    },
+    rooms: {
+      description: "List the nine map rooms.",
+      params: [],
+      returns: "Rooms",
+    },
+  },
 };
 
 const TYPES: Record<string, unknown> = {
@@ -197,6 +310,16 @@ const TYPES: Record<string, unknown> = {
   ProviderDescriptor: { id: "string", kind: "metadata | streaming", name: "string" },
   FavoriteEntry: { ref: "Track", addedAtIso: "string" },
   AttributedResult: { providerId: "string", providerName: "string", items: "Track[]" },
+  AtlasArtist: {
+    name: "string",
+    nearbyGenres: "{ id: string, label: string }[]",
+    note: "nearbyGenres are atlas navigation only",
+  },
+  Research: { ok: "boolean", artist: "string", summary: "string?", wikipediaUrl: "string?" },
+  ShareLink: { ok: "boolean", path: "string", url: "string" },
+  DriftPlan: { narrative: "string", origin: "string", destination: "string" },
+  Topography: { rooms: "{ id: string, label: string }[]" },
+  Rooms: { rooms: "{ id: string, label: string }[]" },
 };
 
 export const NUCLEAR_SERVER_INFO = {
@@ -274,7 +397,13 @@ export function nuclearListMethods(domain: string): ToolResult {
   const methods = Object.keys(METHODS[key]);
   const payload = {
     domain: key,
-    description: key === "Streaming" ? "YouTube full-listen resolve for the web player." : `${key} domain.`,
+    description: key === "Streaming"
+      ? "YouTube full-listen resolve for the web player."
+      : key === "Atlas"
+        ? "Every Noise atlas as navigation. Never writes genre onto catalog records."
+        : key === "Cognition"
+          ? "The same Ask tools the /talk companion uses."
+          : `${key} domain.`,
     methods,
     qualified: methods.map((m) => `${key}.${m}`),
   };
@@ -349,6 +478,21 @@ function browserOwned(action: string): ToolResult {
 
 function noSkip(): ToolResult {
   return errorResult("Resonant has no skip. The engine chooses what follows when a listen ends.");
+}
+
+async function askTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
+  const ctx = createToolContext({
+    sessionId: "nuclear",
+    currentTrackId: str(args, "currentTrackId", "id") || null,
+    currentTitle: str(args, "currentTitle", "title") || null,
+    currentArtist: str(args, "currentArtist", "artist") || null,
+    destination: "cinematic_warmth",
+    destinationLocked: false,
+    historyIds: [],
+    origin: str(args, "origin") || null,
+  });
+  const payload = await executeConverseTool(name, args, ctx);
+  return textResult(JSON.stringify(payload, null, 2), payload);
 }
 
 export async function nuclearCall(method: string, params: Record<string, unknown>): Promise<ToolResult> {
@@ -463,6 +607,48 @@ export async function nuclearCall(method: string, params: Record<string, unknown
     case "Playlists.getIndex":
     case "Playlists.createPlaylist":
       return textResult("Resonant is not a playlist library. Ask can assemble a set for this session.", { browserOwned: true });
+
+    case "Atlas.harvest":
+      return askTool("browse_atlas", params);
+    case "Atlas.resolve":
+      return askTool("resolve_atlas", params);
+    case "Atlas.artist": {
+      const who = artist || query;
+      if (!who) return errorResult("Name an artist.");
+      const page = await atlasArtist(who, limit);
+      if (!page) return errorResult("Atlas did not find that artist.");
+      return textResult(
+        `${page.artist.name}. Atlas branches are navigation only.`,
+        {
+          name: page.artist.name,
+          nearbyGenres: page.nearbyGenres,
+          note: "nearbyGenres are Every Noise navigation. They are not written onto catalog records.",
+          tracks: page.libraryTracks.map((t) => ({ id: t.id, artist: t.artist, title: t.title })),
+        }
+      );
+    }
+    case "Drift.plan":
+      return askTool("plan_journey", params);
+    case "Drift.topography": {
+      const rooms = topographySnapshot();
+      return textResult(rooms.map((r) => `${r.label} (${r.id})`).join("\n"), { rooms });
+    }
+    case "Taste.expand":
+      return askTool("expand_taste", { ...params, play: false });
+    case "Wheat.harvest":
+      return askTool("browse_wheat", params);
+    case "Cognition.findMusic":
+      return askTool("find_music", params);
+    case "Cognition.related":
+      return askTool("find_related", params);
+    case "Cognition.lyrics":
+      return askTool("fetch_lyrics", params);
+    case "Cognition.research":
+      return askTool("research_recording", params);
+    case "Cognition.share":
+      return askTool("share_listen", params);
+    case "Cognition.rooms":
+      return askTool("list_rooms", params);
 
     default:
       return errorResult(`Cannot call "${name}".`);

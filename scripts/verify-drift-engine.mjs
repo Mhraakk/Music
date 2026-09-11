@@ -70,6 +70,11 @@ async function verifyProtocol() {
   check(names.includes("get_next_emotional_drift"), "get_next_emotional_drift is exposed");
   check(names.includes("generate_taste_expansion"), "generate_taste_expansion is exposed");
   check(names.includes("inspect_expansion_engine"), "inspect_expansion_engine is exposed");
+  check(names.includes("find_music"), "Ask find_music is on /api/mcp");
+  check(names.includes("browse_atlas"), "Ask browse_atlas is on /api/mcp");
+  check(names.includes("research_recording"), "research_recording is on /api/mcp");
+  check(names.includes("share_listen"), "share_listen is on /api/mcp");
+  check(names.includes("resolve_atlas"), "resolve_atlas is on /api/mcp");
   check(tools.every((t) => t.inputSchema?.type === "object"), "every tool carries a JSON Schema");
 
   // Notifications must be answered with silence and a 202, not a result object.
@@ -668,6 +673,7 @@ async function verifyConverse() {
   check(talk.includes("Gemini"), "Ask page explains the Gemini key field");
   check(/ChatGPT|OpenAI/.test(talk), "Ask page explains the ChatGPT key field");
   check(/lyrics|متن/i.test(talk), "Ask page mentions lyrics");
+  check(/liner notes|listen link/i.test(talk), "Ask page mentions liner notes and share");
   check(!/>\s*Skip\s*</i.test(talk) && !/aria-label="Skip/i.test(talk), "Ask page does not offer a skip control");
 
   async function turn(text) {
@@ -803,6 +809,11 @@ async function verifyNuclear() {
 
   const mcp = await fetch(`${BASE}/mcp`).then((r) => r.json());
   check(typeof mcp.local === "string" && mcp.local.includes("8800"), "MCP discovery names the Nuclear localhost port");
+  check(
+    Array.isArray(mcp.domains) && mcp.domains.includes("Atlas") && mcp.domains.includes("Cognition"),
+    "Nuclear discovery lists Atlas and Cognition domains",
+    (mcp.domains ?? []).join(", ")
+  );
 
   const nuclearInit = await fetch(`${BASE}/mcp`, {
     method: "POST",
@@ -836,6 +847,14 @@ async function verifyNuclear() {
 
   const skip = await rpc("tools/call", { name: "call", arguments: { method: "Queue.goToNext" } });
   check(skip.isError === true, "Queue.goToNext is refused — Resonant has no skip");
+
+  const atlas = await callTool("list_methods", { domain: "Atlas" });
+  check(
+    JSON.stringify(atlas).includes("harvest") && JSON.stringify(atlas).includes("resolve"),
+    "Atlas domain lists harvest and resolve"
+  );
+  const share = await callTool("share_listen", {});
+  check(share?.ok === false, "share_listen without a track refuses");
 }
 
 async function verifyCyreneLyrics() {
@@ -922,6 +941,30 @@ async function verifyCyreneLyrics() {
   }).then((r) => r.json());
   check(empty.ok === true && /[\u0600-\u06FF]/.test(empty.reply ?? ""), "empty now-playing gets a Persian reply");
   check(!empty.effects?.some((e) => e.type === "play"), "empty now-playing does not invent a play");
+
+  const shareEmpty = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "لینک این آهنگ را بده" }],
+      session: { sessionId: "verify-share-empty", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(shareEmpty.ok === true, "Ask answers a share request with nothing loaded");
+  check(!shareEmpty.effects?.some((e) => e.type === "play"), "empty share does not start a new song");
+  check(/اول یک آهنگ|Play a recording first/i.test(shareEmpty.reply ?? ""), "empty share asks them to play first", shareEmpty.reply?.slice(0, 80));
+
+  const about = await fetch(`${BASE}/api/converse`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", text: "about Radiohead" }],
+      session: { sessionId: "verify-research", destination: "cinematic_warmth", historyIds: [] },
+    }),
+  }).then((r) => r.json());
+  check(about.ok === true, "Ask answers an about-the-artist request");
+  check(!about.effects?.some((e) => e.type === "play"), "liner-notes research does not start a new song");
+  check(/radiohead/i.test(about.reply ?? ""), "research names Radiohead", about.reply?.slice(0, 120));
 }
 
 async function verifyMetingListen() {

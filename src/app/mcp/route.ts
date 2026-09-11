@@ -7,7 +7,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { NUCLEAR_SERVER_INFO, NUCLEAR_TOOLS } from "@/lib/nuclear/mcp";
+import { NUCLEAR_SERVER_INFO, NUCLEAR_TOOLS, NUCLEAR_DOMAINS } from "@/lib/nuclear/mcp";
 import { handleNuclearRpc, isInitialize } from "@/lib/nuclear/rpc";
 
 export const runtime = "nodejs";
@@ -59,7 +59,7 @@ export async function GET() {
     local: "http://127.0.0.1:8800/mcp",
     note: 'Nuclear-compatible discovery tools. Cursor: { "mcpServers": { "nuclear": { "url": "http://127.0.0.1:8800/mcp" } } } when next start is running locally; on Vercel POST this path.',
     tools: NUCLEAR_TOOLS.map((t) => t.name),
-    domains: ["Queue", "Playback", "Metadata", "Favorites", "Playlists", "Dashboard", "Providers", "Streaming"],
+    domains: [...NUCLEAR_DOMAINS],
   });
 }
 

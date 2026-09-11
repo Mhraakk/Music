@@ -78,6 +78,24 @@ check(/retryAdvance/.test(miniUi) && /ShareGlyph/.test(miniUi) && !/\bSkip\b/.te
 check(/export function CloseGlyph/.test(readFileSync(new URL("../src/components/cosmos/icons.tsx", import.meta.url), "utf8")), "CloseGlyph stays exported");
 const tokenCss = readFileSync(new URL("../src/app/(cosmos)/cosmos.css", import.meta.url), "utf8");
 check(/prefers-reduced-motion/.test(tokenCss) && /outline:\s*2px solid var\(--color-sand\)/.test(tokenCss), "cosmos keeps reduced-motion and a visible sand focus ring");
+const nuclearSrc = readFileSync(new URL("../src/lib/nuclear/mcp.ts", import.meta.url), "utf8");
+check(
+  /"Atlas"/.test(nuclearSrc) && /"Cognition"/.test(nuclearSrc) && /NUCLEAR_TOOLS/.test(nuclearSrc),
+  "Nuclear domains include Atlas and Cognition without adding a fifth discovery tool"
+);
+const listenBridge = readFileSync(new URL("../src/lib/mcp/listen-tools.ts", import.meta.url), "utf8");
+check(/LISTEN_MCP_TOOLS/.test(listenBridge) && /research_recording/.test(readFileSync(new URL("../src/lib/converse/tools.ts", import.meta.url), "utf8")), "Ask tools are bridged onto /api/mcp");
+const researchSrc = readFileSync(new URL("../src/lib/converse/research.ts", import.meta.url), "utf8");
+check(
+  /musicbrainz\.org/.test(researchSrc) && /wikipedia\.org/.test(researchSrc) && /Never invent/.test(researchSrc),
+  "liner-notes research cites Wikipedia and MusicBrainz and never invents"
+);
+const mcpJson = readFileSync(new URL("../.cursor/mcp.json", import.meta.url), "utf8");
+check(
+  /mcp\.harness\.io/.test(mcpJson) && /mcp\.vercel\.com/.test(mcpJson) && /127\.0\.0\.1:8800/.test(mcpJson),
+  "project MCP registers Nuclear, Harness, and Vercel"
+);
+check(/"resonant"/.test(readFileSync(new URL("../.cursor/settings.json", import.meta.url), "utf8")), "Resonant Cursor plugin is enabled in project settings");
 
 const base = process.argv[2];
 if (base) {

@@ -37,6 +37,7 @@ import { soundCloudConfig } from "@/lib/providers/soundcloud";
 import { decideNextDrift, planFullDrift, topographySnapshot } from "./cognition";
 import { NUCLEAR_TOOLS, nuclearCall, nuclearDescribeType, nuclearListMethods, nuclearMethodDetails } from "@/lib/nuclear/mcp";
 import { resolveNuclearStream } from "@/lib/nuclear/resolve";
+import { LISTEN_MCP_TOOLS, LISTEN_TOOL_NAMES, callListenTool } from "@/lib/mcp/listen-tools";
 import {
   DEFAULT_PROTOCOL_VERSION,
   RPC,
@@ -313,9 +314,10 @@ export const TOOLS: readonly ToolDescriptor[] = [
       "determinism, taste probes, and a fixture generate-10. No network.",
     inputSchema: { type: "object", properties: {} },
   },
-  ...NUCLEAR_TOOLS,
-  {
-    name: "nuclear_search_stream",
+    ...NUCLEAR_TOOLS,
+    ...LISTEN_MCP_TOOLS,
+    {
+      name: "nuclear_search_stream",
     title: "Search a free YouTube listen",
     description: "Find YouTube candidates for an artist and title (Nuclear two-phase search).",
     inputSchema: {
@@ -603,6 +605,7 @@ async function callTool(name: string, args: Record<string, unknown>, context: Mc
       return textResult(resolved.note, resolved);
     }
     default:
+      if (LISTEN_TOOL_NAMES.has(name)) return callListenTool(name, args);
       return errorResult(`Unknown tool "${name}".`);
   }
 }
@@ -676,7 +679,9 @@ export async function handleRpc(message: unknown, context: McpContext): Promise<
           "substrate coordinates: no genre, tempo or popularity is available to you or to the " +
           "engine. Call get_next_emotional_drift to advance a session, or generate_taste_expansion " +
           "to admit ten new Apple Music positions near the listener's taste. Nuclear-shaped tools " +
-          "(list_methods, call) search Apple Music and resolve YouTube full listens. No skip.",
+          "(list_methods, call) search Apple Music and resolve YouTube full listens. " +
+          "Ask tools (find_music, browse_atlas, fetch_lyrics, research_recording, share_listen) " +
+          "are also first-class on this endpoint. No skip.",
       });
     }
 
