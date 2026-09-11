@@ -6,9 +6,10 @@
 
 import type { CoordinateId } from "@/lib/drift/topography";
 import type { LibraryTrack } from "@/lib/library";
+import type { EmotionalVector } from "@/lib/drift/ontology";
 
 const DB_NAME = "resonant-refused";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "refused";
 
 export type RefusedRecord = {
@@ -17,6 +18,8 @@ export type RefusedRecord = {
   artist: string;
   title: string;
   at: number;
+  /** Substrate position so refuse still repels after reload. */
+  vector?: EmotionalVector;
 };
 
 let memory: RefusedRecord[] | null = null;
@@ -83,6 +86,7 @@ export async function toggleRefused(
           artist: track.artist,
           title: track.title,
           at: Date.now(),
+          vector: track.vector,
         },
       ];
   await saveRefused(next);

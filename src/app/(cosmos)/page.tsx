@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { collections, curators, featured, libraryStats } from "@/lib/library";
 import { DiscoverSurface } from "@/components/cosmos/DiscoverSurface";
+import { joyfulFromCatalog } from "@/lib/taste/joyful-catalog";
 
 export default function ListenNowPage() {
   const topPicks = featured(12);
@@ -12,6 +13,7 @@ export default function ListenNowPage() {
   const shelves = collections();
   const profiles = curators();
   const stats = libraryStats();
+  const golds = joyfulFromCatalog(12);
 
   return (
     <>
@@ -48,6 +50,20 @@ export default function ListenNowPage() {
       <section className="cx-chapter">
         <div className="cx-chapter-inner">
           <h2 className="cx-title">
+            Joyful <em>golds.</em>
+          </h2>
+          <p className="cx-body">
+            Morning light and analog heat. Heart a recording and the gold remembers you. No skip, no tenth room.
+          </p>
+          <Link href="/joyful" className="cx-see-all">
+            Open Joyful
+          </Link>
+        </div>
+      </section>
+
+      <section className="cx-chapter">
+        <div className="cx-chapter-inner">
+          <h2 className="cx-title">
             Every <em>branch.</em>
           </h2>
           <p className="cx-body">
@@ -66,6 +82,7 @@ export default function ListenNowPage() {
           stations={shelves.map(({ tracks: _tracks, ...shelf }) => shelf)}
           artists={profiles.map(({ slug, name, covers, tint }) => ({ slug, name, covers, tint }))}
           catalogTotal={stats.admitted}
+          golds={golds}
         />
       </main>
     </>

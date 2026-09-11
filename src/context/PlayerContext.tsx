@@ -39,8 +39,18 @@ import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { fragilityFromWindows, type FragilityWindow } from "@/context/DriftContext";
 import { compactOverlay, publishLoved } from "@/lib/apple/publish";
 import { isSoundcloudTrack, youtubeVideoId } from "@/lib/converse/anywhere";
-import { loadLoved, toggleLoved } from "@/lib/likes/store";
+import { loadLoved, toggleLoved, isLovedNote } from "@/lib/likes/store";
 import { loadRefused, roomsFromRefused, toggleRefused } from "@/lib/refuse/store";
+import {
+  emptyTaste,
+  loadPersistedTaste,
+  persistTaste,
+  publishTasteCache,
+  rebuildTaste,
+  tasteNote as describeTaste,
+  toTasteWire,
+  type TasteSnapshot,
+} from "@/lib/taste/memory";
 import { FALLBACK_SECONDS, playbackSeconds, trackSeconds } from "@/lib/listen/duration";
 import { bindMediaSession, clearMediaSession, updateMediaSession } from "@/lib/listen/media-session";
 import { loadPrefs, savePrefs } from "@/lib/listen/prefs";
@@ -108,6 +118,8 @@ export type PlayerState = {
   dislikedIds: string[];
   /** Map rooms refused with those recordings. */
   refusedRooms: CoordinateId[];
+  /** Human line for the coded like-centroid, when hearts exist. */
+  tasteNote: string | null;
 };
 
 export type PlayerActions = {
@@ -146,7 +158,11 @@ export type PlayerActions = {
 const StateContext = createContext<PlayerState | null>(null);
 const ClockContext = createContext({ progress: 0, fragilityNow: 0 });
 const NowPlayingContext = createContext({ currentId: null as string | null, playing: false });
-const TasteContext = createContext({ likedIds: [] as string[], dislikedIds: [] as string[] });
+const TasteContext = createContext({
+  likedIds: [] as string[],
+  dislikedIds: [] as string[],
+  tasteNote: null as string | null,
+});
 const ActionsContext = createContext<PlayerActions | null>(null);
 
 const INITIAL: PlayerState = {
@@ -178,6 +194,7 @@ const INITIAL: PlayerState = {
   likedIds: [],
   dislikedIds: [],
   refusedRooms: [],
+  tasteNote: null,
 };
 
 /**
@@ -325,6 +342,7 @@ export function PlayerProvider({
     setClock((s) => (s.progress === progress && s.fragilityNow === fragilityNow ? s : { progress, fragilityNow }));
   };
   const dislikedRef = useRef<string[]>([]);
+  const tasteRef = useRef<TasteSnapshot>(emptyTaste());
   const playGen = useRef(0);
   const skipYoutubeFor = useRef<string | null>(null);
   const driftRetry = useRef(0);
@@ -655,6 +673,7 @@ export function PlayerProvider({
           signals: live.current.signals,
           branches: live.current.branches,
           libraryOverlay: compactOverlay(),
+          tasteMemory: toTasteWire(tasteRef.current),
         };
         let outcome = await getNextEmotionalDrift(driftInput);
 
@@ -723,9 +742,16 @@ export function PlayerProvider({
       trackVectorCache.set(track.id, track.vector);
     }
     const all = [...map.values()];
+    const lovedKeep = all.filter((t) => isLovedNote(t.note));
     const expansions = all.filter((t) => t.origin === "expansion" || t.id.startsWith("x-") || t.id.startsWith("w-"));
     const favorites = all.filter((t) => t.origin === "favorite" || t.id.startsWith("f-")).slice(-80);
-    const extras = [...expansions, ...favorites];
+    const extras: LibraryTrack[] = [];
+    const seen = new Set<string>();
+    for (const track of [...lovedKeep, ...expansions, ...favorites]) {
+      if (seen.has(track.id)) continue;
+      seen.add(track.id);
+      extras.push(track);
+    }
     extrasRef.current = extras;
     setState((s) => ({ ...s, extras }));
     try {
@@ -741,6 +767,24 @@ export function PlayerProvider({
     dislikedRef.current = dislikedIds;
     setState((s) => ({ ...s, dislikedIds, refusedRooms, branches: { ...live.current.branches } }));
   }, []);
+
+  const commitTaste = useCallback(
+    async (
+      loved: LibraryTrack[],
+      refused: { id: string; artist: string; vector?: import("@/lib/drift/ontology").EmotionalVector }[]
+    ) => {
+      const snapshot = rebuildTaste({
+        liked: loved.map((row) => ({ id: row.id, artist: row.artist, vector: row.vector })),
+        refused: refused.map((row) => ({ id: row.id, artist: row.artist, vector: row.vector ?? null })),
+        previous: tasteRef.current,
+      });
+      tasteRef.current = snapshot;
+      publishTasteCache(snapshot);
+      await persistTaste(snapshot);
+      setState((s) => ({ ...s, tasteNote: describeTaste(snapshot) }));
+    },
+    []
+  );
 
   const toggleLike = useCallback(
     (track?: LibraryTrack) => {
@@ -762,12 +806,14 @@ export function PlayerProvider({
         publishLoved(tracks);
         setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
         ingest(tracks);
+        const refused = await loadRefused();
+        await commitTaste(tracks, refused);
         if (liked) {
           recordSignal("explicit_like", { magnitude: 1, trackId: target.id });
         }
       })();
     },
-    [applyRefuseState, ingest, recordSignal]
+    [applyRefuseState, commitTaste, ingest, recordSignal]
   );
 
   const toggleDislike = useCallback(
@@ -782,6 +828,7 @@ export function PlayerProvider({
             const { tracks } = await toggleLoved(target);
             publishLoved(tracks);
             setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
+            ingest(tracks);
           }
           const prior = live.current.branches[target.region];
           live.current.branches = {
@@ -806,20 +853,27 @@ export function PlayerProvider({
           }
         }
         applyRefuseState(records);
+        const lovedTracks = await loadLoved();
+        await commitTaste(lovedTracks, records);
       })();
     },
-    [applyRefuseState, recordSignal]
+    [applyRefuseState, commitTaste, ingest, recordSignal]
   );
 
   useEffect(() => {
     let cancelled = false;
-    void loadLoved().then((tracks) => {
+    void (async () => {
+      const persisted = await loadPersistedTaste();
+      if (persisted) {
+        tasteRef.current = persisted;
+        publishTasteCache(persisted);
+      }
+      const tracks = await loadLoved();
       if (cancelled) return;
       publishLoved(tracks);
       ingest(tracks);
       setState((s) => ({ ...s, likedIds: tracks.map((row) => row.id) }));
-    });
-    void loadRefused().then((records) => {
+      const records = await loadRefused();
       if (cancelled) return;
       for (const row of records) {
         const prior = live.current.branches[row.region];
@@ -829,11 +883,12 @@ export function PlayerProvider({
         };
       }
       applyRefuseState(records);
-    });
+      await commitTaste(tracks, records);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [applyRefuseState, ingest]);
+  }, [applyRefuseState, commitTaste, ingest]);
 
   const play = useCallback(
     (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => {
@@ -1068,6 +1123,7 @@ export function PlayerProvider({
       likedIds: s.likedIds,
       dislikedIds: s.dislikedIds,
       refusedRooms: s.refusedRooms,
+      tasteNote: s.tasteNote,
     }));
     setClock({ progress: 0, fragilityNow: 0 });
   }, [clearFades]);
@@ -1376,8 +1432,8 @@ export function PlayerProvider({
     [state.current?.id, state.playing]
   );
   const taste = useMemo(
-    () => ({ likedIds: state.likedIds, dislikedIds: state.dislikedIds }),
-    [state.likedIds, state.dislikedIds]
+    () => ({ likedIds: state.likedIds, dislikedIds: state.dislikedIds, tasteNote: state.tasteNote }),
+    [state.likedIds, state.dislikedIds, state.tasteNote]
   );
 
   return (

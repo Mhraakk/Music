@@ -16,6 +16,7 @@ import { FeelingMap } from "./FeelingMap";
 import type { CoordinateId } from "@/lib/drift/topography";
 import Link from "next/link";
 import Image from "next/image";
+import { JoyfulSurface } from "./JoyfulSurface";
 
 const PAGE = 72;
 
@@ -25,12 +26,14 @@ export function DiscoverSurface({
   stations,
   artists,
   catalogTotal,
+  golds = [],
 }: {
   topPicks: LibraryTrack[];
   newMusic: LibraryTrack[];
   stations: Omit<Collection, "tracks">[];
   artists: Pick<Curator, "slug" | "name" | "covers" | "tint">[];
   catalogTotal: number;
+  golds?: LibraryTrack[];
 }) {
   const { extras, destination, dislikedIds } = usePlayer();
   const { ingest, setDestination } = usePlayerActions();
@@ -202,6 +205,8 @@ export function DiscoverSurface({
       ) : (
         <>
           <SessionMind />
+
+          <JoyfulSurface seeds={golds} compact />
 
           <section className="cx-section">
             <div className="cx-section-head">

@@ -24,6 +24,7 @@ import { nearestCoordinate, type CoordinateId } from "@/lib/drift/topography";
 import { driftTrack, type DriftTrack } from "@/lib/drift/catalog";
 import type { TasteProfile } from "./types";
 import { baselinePrior, normaliseName } from "./project";
+import type { TasteSnapshot, TasteWire } from "@/lib/taste/memory";
 
 function mix(a: EmotionalVector, b: EmotionalVector, t: number): EmotionalVector {
   const k = clamp01(t);
@@ -115,18 +116,56 @@ export function profileTaste(input: {
   tasteVectors?: EmotionalVector[];
   libraryVectors?: EmotionalVector[];
   libraryArtists?: { artist: string; via: string }[];
+  likedVectors?: EmotionalVector[];
+  refuseVectors?: EmotionalVector[];
+  tasteMemory?: TasteSnapshot | TasteWire | null;
   pool: readonly DriftTrack[];
 }): TasteProfile {
   const heard = vectorsFromHistory(input.historyIds ?? [], input.tasteVectors ?? []);
   const library = (input.libraryVectors ?? []).filter((v) => v);
-  const centre = library.length
-    ? heard.length
-      ? mix(centroid(library), centroid(heard), 0.18)
-      : centroid(library)
-    : heard.length
-      ? centroid(heard)
-      : baselinePrior();
-  const source: TasteProfile["source"] = library.length ? "library" : heard.length ? "history" : "baseline";
+  const liked =
+    (input.likedVectors ?? []).filter((v) => v).length
+      ? (input.likedVectors ?? []).filter((v) => v)
+      : input.tasteMemory?.centroid
+        ? [input.tasteMemory.centroid]
+        : [];
+  const likeCentre = liked.length ? centroid(liked) : input.tasteMemory?.centroid ?? null;
+
+  let centre: EmotionalVector;
+  let source: TasteProfile["source"];
+  if (likeCentre) {
+    const rest = library.length
+      ? heard.length
+        ? mix(centroid(library), centroid(heard), 0.18)
+        : centroid(library)
+      : heard.length
+        ? centroid(heard)
+        : likeCentre;
+    centre = rest === likeCentre ? likeCentre : mix(likeCentre, rest, 0.22);
+    source = "likes";
+  } else if (library.length) {
+    centre = heard.length ? mix(centroid(library), centroid(heard), 0.18) : centroid(library);
+    source = "library";
+  } else if (heard.length) {
+    centre = centroid(heard);
+    source = "history";
+  } else {
+    centre = baselinePrior();
+    source = "baseline";
+  }
+
+  const repel = input.tasteMemory?.repel ?? (input.refuseVectors?.length ? centroid(input.refuseVectors) : null);
+  if (repel) {
+    centre = vec({
+      depth: clamp01(centre.depth + (centre.depth - repel.depth) * 0.12),
+      narrative: clamp01(centre.narrative + (centre.narrative - repel.narrative) * 0.12),
+      fragility: clamp01(centre.fragility + (centre.fragility - repel.fragility) * 0.12),
+      cinema: clamp01(centre.cinema + (centre.cinema - repel.cinema) * 0.12),
+      warmth: clamp01(centre.warmth + (centre.warmth - repel.warmth) * 0.12),
+      imperfection: clamp01(centre.imperfection + (centre.imperfection - repel.imperfection) * 0.12),
+      insistence: clamp01(centre.insistence + (centre.insistence - repel.insistence) * 0.12),
+    });
+  }
 
   const anchors = nearestAnchors(centre);
   const regions = nearestRegions(centre);
@@ -147,11 +186,14 @@ export function profileTaste(input: {
       .map((name) => ({ artist: name, via: name })),
   ].slice(0, 10);
 
-  const note = library.length
-    ? `Favorite Songs have settled ${describeVector(centre)}, nearest ${anchors[0]}.`
-    : heard.length
-      ? `Listening has settled ${describeVector(centre)}, nearest ${anchors[0]}.`
-      : `No history yet — searching from the engine's own resonance, nearest ${anchors[0]}.`;
+  const note =
+    source === "likes"
+      ? `Hearts have settled ${describeVector(centre)}, nearest ${anchors[0]}.`
+      : source === "library"
+        ? `Favorite Songs have settled ${describeVector(centre)}, nearest ${anchors[0]}.`
+        : source === "history"
+          ? `Listening has settled ${describeVector(centre)}, nearest ${anchors[0]}.`
+          : `No history yet — searching from the engine's own resonance, nearest ${anchors[0]}.`;
 
   return {
     centroid: centre,

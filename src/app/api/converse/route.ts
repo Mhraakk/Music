@@ -12,6 +12,7 @@ import { geminiConfigured, geminiModel, redactSecrets } from "@/lib/mcp/gemini";
 import { openaiConfigured, openaiModel } from "@/lib/mcp/openai";
 import type { ConverseMessage, ConverseSession } from "@/lib/converse/types";
 import { parseFavoriteOverlay } from "@/lib/apple/overlay";
+import { parseTasteWire } from "@/lib/taste/memory";
 import { TOPOGRAPHY, type CoordinateId } from "@/lib/drift/topography";
 import { AXIS_KEYS, vec, type EmotionalVector } from "@/lib/drift/ontology";
 
@@ -109,6 +110,7 @@ function parseSession(raw: unknown): ConverseSession {
       : [],
     overlay: parseFavoriteOverlay(rec.overlay),
     tasteVectors: parseTasteVectors(rec.tasteVectors),
+    tasteMemory: parseTasteWire(rec.tasteMemory),
     origin: typeof rec.origin === "string" && rec.origin.startsWith("http") ? rec.origin.slice(0, 200) : null,
   };
 }

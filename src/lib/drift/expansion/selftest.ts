@@ -5,7 +5,7 @@
  * projection or a diversity collapse fails the same way a broken drift does.
  */
 
-import { evaluateRejections, resonanceScore } from "@/lib/drift/ontology";
+import { evaluateRejections, resonanceScore, vec } from "@/lib/drift/ontology";
 import { DRIFT_CATALOG } from "@/lib/drift/catalog";
 import {
   artistAgrees,
@@ -20,6 +20,7 @@ import type { AudioFeatures, ExternalCandidate } from "./types";
 import { circulateFavorites } from "@/lib/apple/circulation";
 import { materializeFavoriteOverlay, parseFavoriteOverlay } from "@/lib/apple/overlay";
 import type { LibraryTrack } from "@/lib/library";
+import { applyDislike, applyLike, emptyTaste, tasteScore } from "@/lib/taste/memory";
 
 function features(partial: Partial<AudioFeatures>): AudioFeatures {
   return {
@@ -165,13 +166,63 @@ export function inspectExpansionEngine(): {
       vector: baselinePrior(),
     },
     { id: "x-not-a-favorite", title: "Nope", artist: "X", duration: 200, vector: baselinePrior() },
+    {
+      id: "x-loved-gold",
+      title: "Hearted Gold",
+      artist: "Warm Player",
+      duration: 240,
+      vector: baselinePrior(),
+      note: "Loved on Resonant",
+    },
   ]);
-  check(overlay.length === 1 && overlay[0].id === "f-inspect-overlay", "overlay parser keeps only favorite ids");
-  const materialised = materializeFavoriteOverlay(overlay);
+  check(
+    overlay.some((row) => row.id === "f-inspect-overlay"),
+    "overlay parser keeps favorite ids"
+  );
+  check(
+    !overlay.some((row) => row.id === "x-not-a-favorite"),
+    "overlay parser drops expansion ids that are not loved"
+  );
+  check(
+    overlay.some((row) => row.id === "x-loved-gold"),
+    "overlay parser keeps hearted expansion ids"
+  );
+  const materialised = materializeFavoriteOverlay(overlay.filter((row) => row.id === "f-inspect-overlay"));
   check(
     materialised.length === 1 && materialised[0].id === "f-inspect-overlay" && materialised[0].resonance > 0,
     "overlay materialises as a per-request pool, not a shared catalog write"
   );
+
+  const warm = vec({
+    depth: 0.4,
+    narrative: 0.55,
+    fragility: 0.38,
+    cinema: 0.6,
+    warmth: 0.92,
+    imperfection: 0.48,
+    insistence: 0.3,
+  });
+  const cold = vec({
+    depth: 0.9,
+    narrative: 0.4,
+    fragility: 0.72,
+    cinema: 0.82,
+    warmth: 0.14,
+    imperfection: 0.6,
+    insistence: 0.18,
+  });
+  const afterLike = applyLike(emptyTaste(), { id: "warm-1", artist: "Warm Player", vector: warm });
+  check(
+    tasteScore(warm, afterLike, "Warm Player") > tasteScore(cold, afterLike, "Cold Player"),
+    "hearts raise the score of nearby positions"
+  );
+  const afterDislike = applyDislike(afterLike, { id: "cold-1", artist: "Cold Player", vector: cold });
+  check(
+    tasteScore(cold, afterDislike, "Cold Player") < tasteScore(cold, afterLike, "Cold Player"),
+    "refuse lowers the score of the refused neighbourhood"
+  );
+  const likesTaste = profileTaste({ likedVectors: [warm], pool: DRIFT_CATALOG });
+  check(likesTaste.source === "likes", "hearted vectors produce a likes taste profile");
 
   const via = "l-11";
   const fixtures: ExternalCandidate[] = [];

@@ -90,6 +90,7 @@ export function getNextEmotionalDrift(args: {
     note?: string;
     appleMusicId?: string | null;
   }[];
+  tasteMemory?: import("@/lib/taste/memory").TasteWire | null;
 }): Promise<McpCallOutcome<NextDriftPayload>> {
   return callTool<NextDriftPayload>("get_next_emotional_drift", args);
 }
@@ -120,6 +121,7 @@ export function planEmotionalDrift(args: {
     note?: string;
     appleMusicId?: string | null;
   }[];
+  tasteMemory?: import("@/lib/taste/memory").TasteWire | null;
 }): Promise<McpCallOutcome<PlannedArcPayload>> {
   return callTool<PlannedArcPayload>("plan_emotional_drift", args);
 }
@@ -133,7 +135,7 @@ export function evaluateEmotionalResonance(args: {
 
 export type TasteExpansionPayload = {
   taste: {
-    source: "history" | "baseline" | "library";
+    source: "history" | "baseline" | "library" | "likes";
     note: string;
     nearestAnchors: string[];
     nearestRegions: string[];
@@ -153,6 +155,8 @@ export function generateTasteExpansion(args: {
   tasteVectors?: EmotionalVector[];
   libraryVectors?: EmotionalVector[];
   libraryArtists?: { artist: string; via: string }[];
+  likedVectors?: EmotionalVector[];
+  tasteMemory?: import("@/lib/taste/memory").TasteWire | null;
   exclude?: string[];
   limit?: number;
   analyze?: boolean;

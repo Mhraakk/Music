@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlayer, usePlayerActions } from "@/context/PlayerContext";
 import { compactOverlay } from "@/lib/apple/publish";
+import { cachedTaste, toTasteWire } from "@/lib/taste/memory";
 import { fetchConverseStatus, sendConverseTurn } from "@/lib/converse/client";
 import { sourceLabel } from "@/lib/converse/anywhere";
 import type { ConverseEffect, ConverseMessage, ConverseStatus } from "@/lib/converse/types";
@@ -162,7 +163,8 @@ export function TalkSurface() {
           destinationLocked: player.destinationLocked,
           historyIds: player.historyIds,
           overlay: compactOverlay(),
-          tasteVectors: player.tasteVectors,
+          tasteVectors: [...toTasteWire(cachedTaste()).likedVectors, ...player.tasteVectors].slice(-24),
+          tasteMemory: toTasteWire(cachedTaste()),
         },
         apiKey: deviceGemini,
         openaiKey: deviceOpenai,

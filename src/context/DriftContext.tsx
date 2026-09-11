@@ -37,6 +37,7 @@ import type { CognitionTrace } from "@/lib/mcp/cognition";
 import { getNextEmotionalDrift, planEmotionalDrift, type NextDriftPayload } from "@/lib/mcp/client";
 import { DriftAudioEngine } from "@/lib/audio/driftEngine";
 import { compactOverlay } from "@/lib/apple/publish";
+import { cachedTaste, toTasteWire } from "@/lib/taste/memory";
 
 /** Length of every crossfade. Long enough that no seam is audible. */
 const DRIFT_MS = 6500;
@@ -355,6 +356,7 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
           signals: live.current.signals,
           branches: live.current.branches,
           libraryOverlay: compactOverlay(),
+          tasteMemory: toTasteWire(cachedTaste()),
         });
 
         if (!outcome.ok) {
@@ -419,6 +421,7 @@ export function DriftProvider({ children, sessionId }: { children: ReactNode; se
         origin,
         destination,
         libraryOverlay: compactOverlay(),
+        tasteMemory: toTasteWire(cachedTaste()),
       });
       if (!outcome.ok) {
         dispatch({ type: "error", message: outcome.error });

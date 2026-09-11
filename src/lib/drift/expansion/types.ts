@@ -70,8 +70,8 @@ export type TasteProfile = {
   nearestAnchors: string[];
   nearestRegions: CoordinateId[];
   probeArtists: { artist: string; via: string }[];
-  /** `history` once the listener has actually heard something; `library` when Favorite Songs are circulating. */
-  source: "history" | "baseline" | "library";
+  /** `likes` once the listener has hearted recordings; `library` when Favorite Songs are circulating. */
+  source: "history" | "baseline" | "library" | "likes";
   note: string;
 };
 

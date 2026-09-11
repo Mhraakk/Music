@@ -7,7 +7,7 @@ import { coordinate } from "@/lib/drift/topography";
 import { TasteExpand } from "./TasteExpand";
 
 export function SessionMind() {
-  const { current, destination, cognition, reading, historyIds, fromEngine } = usePlayer();
+  const { current, destination, cognition, reading, historyIds, fromEngine, tasteNote } = usePlayer();
   const { synced } = useLibrary();
   const dest = coordinate(destination);
 
@@ -32,7 +32,9 @@ export function SessionMind() {
             : "Pick a song. Resonant will keep drifting from how you listen."}
         </p>
         <p className="cx-meta mt-2">
-          {synced
+          {tasteNote
+            ? tasteNote
+            : synced
             ? `Favorite Songs in circulation · ${synced.toLocaleString()} loved tracks.`
             : cognition
               ? cognition.source === "gemini-mcp"
