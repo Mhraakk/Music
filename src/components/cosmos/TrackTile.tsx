@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { memo, useState, type CSSProperties } from "react";
 import type { LibraryTrack } from "@/lib/library";
 import { usePlayer } from "@/context/PlayerContext";
 import { PauseIcon, PlayIcon } from "./icons";
@@ -9,7 +9,7 @@ import { Artwork } from "./Artwork";
 const SIZES =
   "(min-width: 1440px) 16vw, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 46vw";
 
-export function TrackTile({
+export const TrackTile = memo(function TrackTile({
   track,
   active = false,
   playing = false,
@@ -76,23 +76,14 @@ export function TrackTile({
       </span>
     </button>
   );
-}
+});
 
 function PlayingBars() {
   return (
-    <span className="flex items-end gap-[2px]" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="block w-[2px] bg-current"
-          style={{
-            height: 8,
-            animation: `cx-bar 900ms ease-in-out ${i * 140}ms infinite`,
-            transformOrigin: "bottom",
-          }}
-        />
-      ))}
-      <style>{`@keyframes cx-bar { 0%,100% { transform: scaleY(0.35) } 50% { transform: scaleY(1) } }`}</style>
+    <span className="cx-playing-bars" aria-hidden>
+      <span className="cx-playing-bar" />
+      <span className="cx-playing-bar" />
+      <span className="cx-playing-bar" />
     </span>
   );
 }

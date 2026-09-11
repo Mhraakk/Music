@@ -124,6 +124,7 @@ export type PlayerActions = {
 };
 
 const StateContext = createContext<PlayerState | null>(null);
+const ClockContext = createContext({ progress: 0, fragilityNow: 0 });
 const ActionsContext = createContext<PlayerActions | null>(null);
 
 const INITIAL: PlayerState = {
@@ -208,6 +209,8 @@ export function PlayerProvider({
     ...INITIAL,
     sessionId: sessionId ?? "",
   });
+  const [clock, setClock] = useState({ progress: 0, fragilityNow: 0 });
+  const pushClockRef = useRef<(progress: number, fragilityNow: number) => void>(() => undefined);
 
   const byId = useMemo(() => {
     const map = new Map(tracks.map((t) => [t.id, t]));
@@ -291,6 +294,11 @@ export function PlayerProvider({
     fromEngine: false,
     fromAsk: false,
   });
+  pushClockRef.current = (progress, fragilityNow) => {
+    live.current.progress = progress;
+    live.current.fragilityNow = fragilityNow;
+    setClock((s) => (s.progress === progress && s.fragilityNow === fragilityNow ? s : { progress, fragilityNow }));
+  };
   const dislikedRef = useRef<string[]>([]);
   const playGen = useRef(0);
   const skipYoutubeFor = useRef<string | null>(null);
@@ -406,6 +414,7 @@ export function PlayerProvider({
         nuclearDuration: null,
         nuclearSeekAt: null,
       }));
+      setClock({ progress: 0, fragilityNow: 0 });
 
       let hydrated = track;
       if (!skipYoutube && !youtubeVideoId(track)) {
@@ -837,8 +846,9 @@ export function PlayerProvider({
       const target = Math.max(0, Math.min(0.99, progress));
       const from = live.current.progress;
       if (live.current.listenVia === "youtube") {
-        live.current.progress = target;
-        setState((s) => ({ ...s, progress: target, nuclearSeekAt: target }));
+        const fragilityNow = fragilityFromWindows(live.current.windows, target);
+        pushClockRef.current(target, fragilityNow);
+        setState((s) => ({ ...s, nuclearSeekAt: target }));
         recordSignal(target < from ? "seek_back" : "seek_forward", {
           progress: target,
           fragility: fragilityFromWindows(live.current.windows, target),
@@ -850,6 +860,8 @@ export function PlayerProvider({
       const el = pair[activeLane.current];
       if (!el.duration || !Number.isFinite(el.duration)) return;
       el.currentTime = target * el.duration;
+      const fragilityNow = fragilityFromWindows(live.current.windows, target);
+      pushClockRef.current(target, fragilityNow);
       recordSignal(target < from ? "seek_back" : "seek_forward", {
         progress: target,
         fragility: fragilityFromWindows(live.current.windows, target),
@@ -861,15 +873,12 @@ export function PlayerProvider({
   const nuclearTick = useCallback((progress: number, durationSec: number) => {
     if (live.current.listenVia !== "youtube") return;
     const fragilityNow = fragilityFromWindows(live.current.windows, progress);
-    live.current.progress = progress;
-    live.current.fragilityNow = fragilityNow;
-    setState((s) => ({
-      ...s,
-      progress,
-      fragilityNow,
-      nuclearDuration: durationSec,
-      nuclearSeekAt: null,
-    }));
+    pushClockRef.current(progress, fragilityNow);
+    setState((s) =>
+      s.nuclearDuration === durationSec && s.nuclearSeekAt === null
+        ? s
+        : { ...s, nuclearDuration: durationSec, nuclearSeekAt: null }
+    );
   }, []);
 
   const nuclearEnded = useCallback(() => {
@@ -902,6 +911,7 @@ export function PlayerProvider({
       extras: s.extras,
       sessionId: s.sessionId,
     }));
+    setClock({ progress: 0, fragilityNow: 0 });
   }, [clearFades]);
 
   /* ─────────────────────── progress + advancement ─────────────────────── */
@@ -918,10 +928,7 @@ export function PlayerProvider({
 
       const progress = Math.max(0, Math.min(1, el.currentTime / el.duration));
       const fragilityNow = fragilityFromWindows(live.current.windows, progress);
-      live.current.progress = progress;
-      live.current.fragilityNow = fragilityNow;
-
-      setState((s) => (s.progress === progress ? s : { ...s, progress, fragilityNow }));
+      pushClockRef.current(progress, fragilityNow);
 
       // Begin the handover before the outgoing track ends, so the two overlap
       // rather than abutting.
@@ -1003,7 +1010,9 @@ export function PlayerProvider({
 
   return (
     <StateContext.Provider value={state}>
-      <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
+      <ClockContext.Provider value={clock}>
+        <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
+      </ClockContext.Provider>
     </StateContext.Provider>
   );
 }
@@ -1020,6 +1029,10 @@ export function usePlayer(): PlayerState {
   const state = useContext(StateContext);
   if (!state) throw new Error("usePlayer must be used inside a PlayerProvider.");
   return state;
+}
+
+export function usePlayerClock() {
+  return useContext(ClockContext);
 }
 
 export function usePlayerActions(): PlayerActions {

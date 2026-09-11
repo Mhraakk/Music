@@ -54,6 +54,16 @@ const eg = decode('e.g. DJ Krush &quot;Zen Approach&quot;').match(/^e\.g\. (.+) 
 check(eg?.[1] === "DJ Krush" && eg?.[2] === "Zen Approach", "example title decodes quotes");
 check(!/NetEase|KuGou|Kuwo/.test(fixture), "fixture does not dump Chinese catalogs into atlas HTML");
 
+const { readFileSync } = await import("node:fs");
+const scatterUi = readFileSync(new URL("../src/components/cosmos/AtlasScatter.tsx", import.meta.url), "utf8");
+check(/CULL_AFTER/.test(scatterUi) && /data-scatter-id/.test(scatterUi), "atlas scatter viewport-culls dense maps and delegates hover");
+const surfaceUi = readFileSync(new URL("../src/components/cosmos/AtlasSurface.tsx", import.meta.url), "utf8");
+check(/fields", "map"/.test(surfaceUi) && /AtlasBranchList/.test(surfaceUi), "atlas map fetch is slim and list is not mounted on the map");
+const playerUi = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
+check(/usePlayerClock/.test(playerUi) && /ClockContext/.test(playerUi), "progress ticks stay off the tile tree");
+const tokenCss = readFileSync(new URL("../src/app/(cosmos)/cosmos.css", import.meta.url), "utf8");
+check(/prefers-reduced-motion/.test(tokenCss) && /outline:\s*2px solid var\(--color-sand\)/.test(tokenCss), "cosmos keeps reduced-motion and a visible sand focus ring");
+
 const base = process.argv[2];
 if (base) {
   const root = base.replace(/\/$/, "");
@@ -68,6 +78,11 @@ if (base) {
   const all = await get("/api/atlas?family=all&limit=80");
   check((all.json.total ?? 0) > 5000, "full map has the Every Noise database", String(all.json.total ?? 0));
   check(all.json.canvas?.width > 100 && all.json.canvas?.height > 100, "map returns canvas size", JSON.stringify(all.json.canvas ?? {}));
+  const slim = await get("/api/atlas?family=all&limit=40&fields=map");
+  check(
+    (slim.json.genres ?? []).length > 0 && (slim.json.genres ?? []).every((g) => g.exampleArtist == null && g.exampleTitle == null),
+    "fields=map omits example strings"
+  );
   const genre = await get("/api/atlas/genre/triphop?enrich=4");
   check(genre.status === 200 && (genre.json.artists?.length ?? 0) > 20, "GET trip hop artists", String(genre.json.artists?.length ?? 0));
   const withXY = (genre.json.artists ?? []).filter((a) => typeof a.x === "number" && typeof a.y === "number");
@@ -99,7 +114,6 @@ if (base) {
   const playlist = await get("/api/atlas/playlist?id=2wrc23l7JdQVcpPIcDGaed&kind=sound&genre=triphop&enrich=3");
   check(playlist.status === 200 && /sound of trip hop/i.test(playlist.json.playlist?.title ?? ""), "GET Sound of Trip Hop", playlist.json.playlist?.title ?? "");
   check((playlist.json.libraryTracks ?? []).every((t) => !("genre" in t) || t.genre == null), "playlist harvest has no genre field");
-  const { readFileSync } = await import("node:fs");
   const genreUi = readFileSync(new URL("../src/components/cosmos/AtlasGenreView.tsx", import.meta.url), "utf8");
   check(/toggleScan/.test(genreUi) && /playlist/.test(genreUi), "genre view keeps scan and playlist");
   const outboundUi = readFileSync(new URL("../src/components/cosmos/OutboundLinks.tsx", import.meta.url), "utf8");

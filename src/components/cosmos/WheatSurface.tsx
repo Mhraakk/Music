@@ -95,6 +95,7 @@ export function WheatSurface() {
           if (Array.isArray(parsed) && parsed.length && !cancelled) {
             setTracks(parsed);
             liveRef.current = { ...liveRef.current, tracks: parsed };
+            return;
           }
         }
       } catch {

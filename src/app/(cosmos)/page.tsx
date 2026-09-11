@@ -28,7 +28,14 @@ export default function ListenNowPage() {
             <span key={track.id} className="cx-hero-insert" data-size={index === 0 ? "wide" : "tall"}>
               {track.artworkUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={track.artworkUrl} alt="" />
+                <img
+                  src={track.artworkUrl}
+                  alt=""
+                  width={400}
+                  height={400}
+                  decoding="async"
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
               ) : null}
             </span>
           ))}

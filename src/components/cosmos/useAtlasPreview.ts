@@ -7,15 +7,22 @@ export function useAtlasPreview() {
   const { pause } = usePlayerActions();
   const { playing, current } = usePlayer();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pending = useRef<number | null>(null);
+  const nowRef = useRef<string | null>(null);
   const [now, setNow] = useState<string | null>(null);
 
   const stop = useCallback(() => {
+    if (pending.current !== null) {
+      window.clearTimeout(pending.current);
+      pending.current = null;
+    }
     const el = audioRef.current;
     if (el) {
       el.pause();
       el.removeAttribute("src");
       el.load();
     }
+    nowRef.current = null;
     setNow(null);
   }, []);
 
@@ -29,21 +36,26 @@ export function useAtlasPreview() {
     (url: string | null | undefined, id: string) => {
       if (!url) return;
       if (typeof Audio === "undefined") return;
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-        audioRef.current.preload = "auto";
-      }
-      const el = audioRef.current;
-      pause();
-      if (now === id && !el.paused) {
+      if (nowRef.current === id) {
         stop();
         return;
       }
-      el.src = url;
-      void el.play().catch(() => undefined);
-      setNow(id);
+      if (pending.current !== null) window.clearTimeout(pending.current);
+      pending.current = window.setTimeout(() => {
+        pending.current = null;
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+          audioRef.current.preload = "auto";
+        }
+        const el = audioRef.current;
+        pause();
+        el.src = url;
+        void el.play().catch(() => undefined);
+        nowRef.current = id;
+        setNow(id);
+      }, 140);
     },
-    [now, pause, stop]
+    [pause, stop]
   );
 
   return { preview, stop, now };

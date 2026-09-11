@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   const familyRaw = (url.searchParams.get("family") ?? "all") as AtlasFamily;
   const family = FAMILIES.includes(familyRaw) ? familyRaw : "all";
   const limit = Number(url.searchParams.get("limit") ?? 8000);
-  const payload = await listAtlasGenres({ q, family, limit });
+  const fields = url.searchParams.get("fields") === "map" ? "map" : "full";
+  const payload = await listAtlasGenres({ q, family, limit, fields });
   return NextResponse.json({
     ok: true,
     source: "everynoise",

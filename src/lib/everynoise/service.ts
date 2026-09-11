@@ -50,6 +50,7 @@ export async function listAtlasGenres(input: {
   q?: string;
   family?: AtlasFamily;
   limit?: number;
+  fields?: "map" | "full";
 }): Promise<{
   genres: AtlasGenre[];
   listed: AtlasGenre[];
@@ -70,11 +71,19 @@ export async function listAtlasGenres(input: {
     );
   });
   const cap = Math.max(12, Math.min(8000, input.limit ?? 8000));
-  const genres = filtered.slice(0, cap);
+  const slice = filtered.slice(0, cap);
   const listed = filtered
     .slice()
     .sort((a, b) => b.weight - a.weight)
     .slice(0, Math.min(160, filtered.length));
+  const genres =
+    input.fields === "map"
+      ? slice.map((genre) => ({
+          ...genre,
+          exampleArtist: null,
+          exampleTitle: null,
+        }))
+      : slice;
   return { genres, listed, total: filtered.length, family, canvas };
 }
 
