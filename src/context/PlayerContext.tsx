@@ -41,6 +41,15 @@ import { compactOverlay, publishLoved } from "@/lib/apple/publish";
 import { isSoundcloudTrack, youtubeVideoId } from "@/lib/converse/anywhere";
 import { loadLoved, toggleLoved } from "@/lib/likes/store";
 import { loadRefused, roomsFromRefused, toggleRefused } from "@/lib/refuse/store";
+import { FALLBACK_SECONDS, playbackSeconds, trackSeconds } from "@/lib/listen/duration";
+import { bindMediaSession, clearMediaSession, updateMediaSession } from "@/lib/listen/media-session";
+import { loadPrefs, savePrefs } from "@/lib/listen/prefs";
+import {
+  clearSnapshot,
+  loadSnapshot,
+  saveSnapshot,
+  type ListenSnapshot,
+} from "@/lib/listen/resume";
 
 /** Crossfade length. Previews are 30s, so a 6.5s fade would eat a fifth of one. */
 const FADE_MS = 2200;
@@ -87,8 +96,12 @@ export type PlayerState = {
   listenVia: "preview" | "youtube" | "soundcloud" | null;
   /** Duration in seconds when listening via YouTube. */
   nuclearDuration: number | null;
-  /** Seek request for the YouTube player, 0–1. */
+  /** Measured duration for preview / SoundCloud / YouTube scrubbers. */
+  mediaDuration: number | null;
+  /** Seek request for the YouTube or SoundCloud player, 0–1. */
   nuclearSeekAt: number | null;
+  /** Last listen waiting for a tap (autoplay policy). */
+  pendingResume: ListenSnapshot | null;
   /** Recordings the listener marked on Resonant. Feeds the next drift. */
   likedIds: string[];
   /** Recordings the listener refused. Harvests exclude these. Does not skip. */
@@ -121,6 +134,11 @@ export type PlayerActions = {
   toggleDislike: (track?: LibraryTrack) => void;
   /** Pause the main listen so an atlas preview can sound alone. Does not skip. */
   pause: () => void;
+  /** Ask the engine again after a failed drift. Does not skip. */
+  retryAdvance: () => void;
+  /** Resume a snapshot after reload. Requires a tap. */
+  resumeListen: () => void;
+  dismissResume: () => void;
 };
 
 const StateContext = createContext<PlayerState | null>(null);
@@ -152,7 +170,9 @@ const INITIAL: PlayerState = {
   fromAsk: false,
   listenVia: null,
   nuclearDuration: null,
+  mediaDuration: null,
   nuclearSeekAt: null,
+  pendingResume: null,
   likedIds: [],
   dislikedIds: [],
   refusedRooms: [],
@@ -293,6 +313,7 @@ export function PlayerProvider({
     queue: [] as LibraryTrack[],
     queueTitle: null as string | null,
     listenVia: null as PlayerState["listenVia"],
+    playing: false,
     fromEngine: false,
     fromAsk: false,
   });
@@ -304,6 +325,15 @@ export function PlayerProvider({
   const dislikedRef = useRef<string[]>([]);
   const playGen = useRef(0);
   const skipYoutubeFor = useRef<string | null>(null);
+  const driftRetry = useRef(0);
+  const prefsReady = useRef(false);
+  const skipPrefsSave = useRef(true);
+  const lastMediaTickAt = useRef(0);
+  const scClock = useRef({ origin: 0, frozen: 0, duration: FALLBACK_SECONDS });
+  const pendingResumeRef = useRef<ListenSnapshot | null>(null);
+  const toggleRef = useRef<() => void>(() => undefined);
+  const pauseRef = useRef<() => void>(() => undefined);
+  const seekRef = useRef<(progress: number) => void>(() => undefined);
 
   useEffect(() => {
     if (sessionId) {
@@ -401,6 +431,8 @@ export function PlayerProvider({
       live.current.listenVia = null;
       live.current.fromEngine = fromEngine;
       live.current.fromAsk = fromAsk;
+      live.current.playing = false;
+      pendingResumeRef.current = null;
       if (skipYoutubeFor.current && skipYoutubeFor.current !== track.id) skipYoutubeFor.current = null;
       const skipYoutube = skipYoutubeFor.current === track.id;
 
@@ -414,7 +446,9 @@ export function PlayerProvider({
         error: null,
         listenVia: null,
         nuclearDuration: null,
+        mediaDuration: null,
         nuclearSeekAt: null,
+        pendingResume: null,
       }));
       setClock({ progress: 0, fragilityNow: 0 });
 
@@ -447,6 +481,7 @@ export function PlayerProvider({
         });
         live.current.current = hydrated;
         live.current.listenVia = "youtube";
+        live.current.playing = true;
         setState((s) => ({
           ...s,
           current: hydrated,
@@ -464,6 +499,10 @@ export function PlayerProvider({
           el.removeAttribute("src");
         });
         live.current.listenVia = "soundcloud";
+        live.current.playing = true;
+        const duration = trackSeconds(hydrated);
+        scClock.current = { origin: Date.now(), frozen: 0, duration };
+        lastMediaTickAt.current = 0;
         setState((s) => ({
           ...s,
           current: hydrated,
@@ -471,6 +510,7 @@ export function PlayerProvider({
           loading: false,
           error: null,
           listenVia: "soundcloud",
+          mediaDuration: duration,
         }));
         return;
       }
@@ -487,6 +527,7 @@ export function PlayerProvider({
           error: "No preview — open it on YouTube, SoundCloud or Deezer from the card.",
           listenVia: null,
         }));
+        live.current.playing = false;
         return;
       }
 
@@ -507,14 +548,32 @@ export function PlayerProvider({
           error: "Playback needs a tap first — browsers block autoplay.",
           listenVia: "preview",
         }));
+        live.current.playing = false;
         return;
       }
 
       if (gen !== playGen.current) return;
+      const measured = el.duration;
+      if (Number.isFinite(measured) && measured > 0) {
+        setState((s) => ({ ...s, mediaDuration: measured }));
+      } else {
+        el.addEventListener(
+          "loadedmetadata",
+          () => {
+            const d = el.duration;
+            if (Number.isFinite(d) && d > 0) {
+              setState((s) => (s.mediaDuration === d ? s : { ...s, mediaDuration: d }));
+            }
+          },
+          { once: true }
+        );
+      }
       fadeLane(el, live.current.volume, FADE_MS);
       if (pair[outgoing].src) fadeLane(pair[outgoing], 0, FADE_MS);
 
       activeLane.current = incoming;
+      live.current.playing = true;
+      live.current.listenVia = "preview";
       setState((s) => ({ ...s, current: hydrated, playing: true, loading: false, listenVia: "preview" }));
     },
     [clearFades, ensureLanes, fadeLane]
@@ -557,7 +616,7 @@ export function PlayerProvider({
         // would eventually exhaust the pool and force repeats.
         const recentIds = [...new Set([...live.current.historyIds.slice(-24), ...dislikedRef.current])];
         const destination = live.current.destination;
-        const outcome = await getNextEmotionalDrift({
+        const driftInput = {
           sessionId: live.current.sessionId || newSessionId(),
           origin: current.region,
           destination,
@@ -568,13 +627,22 @@ export function PlayerProvider({
           signals: live.current.signals,
           branches: live.current.branches,
           libraryOverlay: compactOverlay(),
-        });
+        };
+        let outcome = await getNextEmotionalDrift(driftInput);
+
+        if (!outcome.ok && driftRetry.current < 1) {
+          driftRetry.current += 1;
+          await new Promise((resolve) => window.setTimeout(resolve, 800));
+          outcome = await getNextEmotionalDrift(driftInput);
+        }
 
         if (!outcome.ok) {
           handover.current = false;
+          live.current.playing = false;
           setState((s) => ({ ...s, loading: false, playing: false, error: outcome.error }));
           return;
         }
+        driftRetry.current = 0;
 
         const { phase, branches, reading, cognition } = outcome.value;
         const next = await resolveTrack(phase.trackId);
@@ -584,6 +652,7 @@ export function PlayerProvider({
 
         if (!next) {
           handover.current = false;
+          live.current.playing = false;
           setState((s) => ({ ...s, loading: false, playing: false, error: "Engine returned an unknown position." }));
           return;
         }
@@ -740,6 +809,7 @@ export function PlayerProvider({
 
   const play = useCallback(
     (track: LibraryTrack, options?: { keepQueue?: boolean; fromAsk?: boolean }) => {
+      driftRetry.current = 0;
       // Choosing something new mid-track is a statement about what was playing.
       if (live.current.current && live.current.progress < ABANDON_BEFORE) {
         recordSignal("abandon", { progress: live.current.progress });
@@ -786,7 +856,17 @@ export function PlayerProvider({
 
   const toggle = useCallback(() => {
     if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") {
-      setState((s) => ({ ...s, playing: !s.playing }));
+      const next = !live.current.playing;
+      if (live.current.listenVia === "soundcloud") {
+        if (next) {
+          scClock.current.origin = Date.now();
+        } else {
+          const elapsed = scClock.current.frozen + (Date.now() - scClock.current.origin) / 1000;
+          scClock.current.frozen = Math.min(scClock.current.duration, Math.max(0, elapsed));
+        }
+      }
+      live.current.playing = next;
+      setState((s) => ({ ...s, playing: next }));
       return;
     }
     const pair = lanes.current;
@@ -794,20 +874,28 @@ export function PlayerProvider({
     const el = pair[activeLane.current];
     if (el.paused) {
       void el.play().catch(() => undefined);
+      live.current.playing = true;
       setState((s) => ({ ...s, playing: true }));
     } else {
       el.pause();
+      live.current.playing = false;
       setState((s) => ({ ...s, playing: false }));
     }
   }, []);
 
   const pause = useCallback(() => {
     if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") {
+      if (live.current.listenVia === "soundcloud" && live.current.playing) {
+        const elapsed = scClock.current.frozen + (Date.now() - scClock.current.origin) / 1000;
+        scClock.current.frozen = Math.min(scClock.current.duration, Math.max(0, elapsed));
+      }
+      live.current.playing = false;
       setState((s) => ({ ...s, playing: false }));
       return;
     }
     const pair = lanes.current;
     pair?.[activeLane.current]?.pause();
+    live.current.playing = false;
     setState((s) => ({ ...s, playing: false }));
   }, []);
 
@@ -847,9 +935,13 @@ export function PlayerProvider({
     (progress: number) => {
       const target = Math.max(0, Math.min(0.99, progress));
       const from = live.current.progress;
-      if (live.current.listenVia === "youtube") {
+      if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") {
         const fragilityNow = fragilityFromWindows(live.current.windows, target);
         pushClockRef.current(target, fragilityNow);
+        if (live.current.listenVia === "soundcloud") {
+          scClock.current.frozen = target * scClock.current.duration;
+          scClock.current.origin = Date.now();
+        }
         setState((s) => ({ ...s, nuclearSeekAt: target }));
         recordSignal(target < from ? "seek_back" : "seek_forward", {
           progress: target,
@@ -873,14 +965,31 @@ export function PlayerProvider({
   );
 
   const nuclearTick = useCallback((progress: number, durationSec: number) => {
-    if (live.current.listenVia !== "youtube") return;
+    if (live.current.listenVia !== "youtube" && live.current.listenVia !== "soundcloud") return;
+    lastMediaTickAt.current = Date.now();
     const fragilityNow = fragilityFromWindows(live.current.windows, progress);
     pushClockRef.current(progress, fragilityNow);
-    setState((s) =>
-      s.nuclearDuration === durationSec && s.nuclearSeekAt === null
-        ? s
-        : { ...s, nuclearDuration: durationSec, nuclearSeekAt: null }
-    );
+    if (live.current.listenVia === "soundcloud" && durationSec > 0) {
+      scClock.current.duration = durationSec;
+      scClock.current.frozen = progress * durationSec;
+      scClock.current.origin = Date.now();
+    }
+    setState((s) => {
+      const youtube = live.current.listenVia === "youtube";
+      if (
+        s.mediaDuration === durationSec &&
+        s.nuclearSeekAt === null &&
+        (!youtube || s.nuclearDuration === durationSec)
+      ) {
+        return s;
+      }
+      return {
+        ...s,
+        nuclearDuration: youtube ? durationSec : s.nuclearDuration,
+        mediaDuration: durationSec,
+        nuclearSeekAt: null,
+      };
+    });
   }, []);
 
   const nuclearEnded = useCallback(() => {
@@ -906,12 +1015,21 @@ export function PlayerProvider({
     });
     live.current.current = null;
     live.current.listenVia = null;
+    live.current.playing = false;
+    pendingResumeRef.current = null;
+    clearSnapshot();
+    clearMediaSession();
     setState((s) => ({
       ...INITIAL,
       volume: s.volume,
+      destination: s.destination,
+      destinationLocked: s.destinationLocked,
       historyIds: s.historyIds,
       extras: s.extras,
       sessionId: s.sessionId,
+      likedIds: s.likedIds,
+      dislikedIds: s.dislikedIds,
+      refusedRooms: s.refusedRooms,
     }));
     setClock({ progress: 0, fragilityNow: 0 });
   }, [clearFades]);
@@ -923,7 +1041,21 @@ export function PlayerProvider({
       const pair = lanes.current;
       const track = live.current.current;
       if (!pair || !track) return;
-      if (live.current.listenVia === "youtube" || live.current.listenVia === "soundcloud") return;
+      if (live.current.listenVia === "youtube") return;
+      if (live.current.listenVia === "soundcloud") {
+        if (Date.now() - lastMediaTickAt.current < 900) return;
+        if (!live.current.playing) return;
+        const elapsed = scClock.current.frozen + (Date.now() - scClock.current.origin) / 1000;
+        const duration = scClock.current.duration || FALLBACK_SECONDS;
+        const progress = Math.max(0, Math.min(1, elapsed / duration));
+        const fragilityNow = fragilityFromWindows(live.current.windows, progress);
+        pushClockRef.current(progress, fragilityNow);
+        if (!handover.current && progress >= 0.99) {
+          handover.current = true;
+          void advanceRef.current("dwell_complete");
+        }
+        return;
+      }
 
       const el = pair[activeLane.current];
       if (!el.duration || !Number.isFinite(el.duration)) return;
@@ -931,6 +1063,9 @@ export function PlayerProvider({
       const progress = Math.max(0, Math.min(1, el.currentTime / el.duration));
       const fragilityNow = fragilityFromWindows(live.current.windows, progress);
       pushClockRef.current(progress, fragilityNow);
+      if (el.duration > 0) {
+        setState((s) => (s.mediaDuration === el.duration ? s : { ...s, mediaDuration: el.duration }));
+      }
 
       // Begin the handover before the outgoing track ends, so the two overlap
       // rather than abutting.
@@ -990,6 +1125,167 @@ export function PlayerProvider({
     }
   }, [ingest]);
 
+  const retryAdvance = useCallback(() => {
+    if (advancing.current) return;
+    void advanceRef.current("dwell_complete");
+  }, []);
+
+  const dismissResume = useCallback(() => {
+    pendingResumeRef.current = null;
+    clearSnapshot();
+    setState((s) => ({ ...s, pendingResume: null }));
+  }, []);
+
+  const resumeListen = useCallback(() => {
+    const pending = pendingResumeRef.current;
+    if (!pending) return;
+    live.current.queue = pending.queue;
+    live.current.queueTitle = pending.queueTitle;
+    live.current.destination = pending.destination;
+    live.current.destinationLocked = true;
+    live.current.volume = pending.volume;
+    pendingResumeRef.current = null;
+    setState((s) => ({
+      ...s,
+      queue: pending.queue,
+      queueTitle: pending.queueTitle,
+      destination: pending.destination,
+      destinationLocked: true,
+      volume: pending.volume,
+      pendingResume: null,
+    }));
+    rememberTrack(pending.track);
+    void (async () => {
+      await sound(pending.track, false, false);
+      if (pending.progress > 0.03) seek(pending.progress);
+    })();
+  }, [rememberTrack, sound, seek]);
+
+  useEffect(() => {
+    const prefs = loadPrefs({
+      volume: 0.8,
+      destination: "cinematic_warmth",
+      destinationLocked: false,
+    });
+    live.current.volume = prefs.volume;
+    live.current.destination = prefs.destination;
+    live.current.destinationLocked = prefs.destinationLocked;
+    skipPrefsSave.current = true;
+    prefsReady.current = true;
+    setState((s) => ({
+      ...s,
+      volume: prefs.volume,
+      destination: prefs.destination,
+      destinationLocked: prefs.destinationLocked,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!prefsReady.current) return;
+    if (skipPrefsSave.current) {
+      skipPrefsSave.current = false;
+      return;
+    }
+    savePrefs({
+      volume: state.volume,
+      destination: state.destination,
+      destinationLocked: state.destinationLocked,
+    });
+  }, [state.volume, state.destination, state.destinationLocked]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const listenId = params.get("listen");
+    if (listenId) {
+      void resolveTrack(listenId).then((track) => {
+        if (!track || live.current.current) return;
+        const snap: ListenSnapshot = {
+          track,
+          progress: 0,
+          queue: [],
+          queueTitle: null,
+          destination: live.current.destination,
+          volume: live.current.volume,
+        };
+        pendingResumeRef.current = snap;
+        setState((s) => (s.current ? s : { ...s, pendingResume: snap }));
+      });
+      return;
+    }
+    const snap = loadSnapshot();
+    if (!snap || live.current.current) return;
+    pendingResumeRef.current = snap;
+    setState((s) => ({ ...s, pendingResume: snap }));
+  }, [resolveTrack]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const track = live.current.current;
+      if (!track) return;
+      saveSnapshot({
+        track,
+        progress: live.current.progress,
+        queue: live.current.queue,
+        queueTitle: live.current.queueTitle,
+        destination: live.current.destination,
+        volume: live.current.volume,
+      });
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const durationRef = useRef(30);
+
+  useEffect(() => {
+    return bindMediaSession({
+      play: () => {
+        if (!live.current.playing) toggleRef.current();
+      },
+      pause: () => pauseRef.current(),
+      seekToSeconds: (seconds) => {
+        const duration = durationRef.current;
+        if (!duration) return;
+        seekRef.current(Math.max(0, Math.min(0.99, seconds / duration)));
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    const track = state.current;
+    if (!track) {
+      clearMediaSession();
+      return;
+    }
+    const duration = playbackSeconds({
+      listenVia: state.listenVia,
+      nuclearDuration: state.nuclearDuration,
+      mediaDuration: state.mediaDuration,
+      previewUrl: track.previewUrl,
+      duration: track.duration,
+    });
+    durationRef.current = duration;
+    updateMediaSession({
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      artworkUrl: track.artworkUrl,
+      playing: state.playing,
+      duration,
+      position: clock.progress * duration,
+    });
+  }, [
+    state.current,
+    state.playing,
+    state.listenVia,
+    state.mediaDuration,
+    state.nuclearDuration,
+    clock.progress,
+  ]);
+
+  toggleRef.current = toggle;
+  pauseRef.current = pause;
+  seekRef.current = seek;
+
   const actions = useMemo<PlayerActions>(
     () => ({
       play,
@@ -1006,8 +1302,29 @@ export function PlayerProvider({
       nuclearFailed,
       toggleLike,
       toggleDislike,
+      retryAdvance,
+      resumeListen,
+      dismissResume,
     }),
-    [play, playQueue, toggle, pause, setVolume, seek, stop, ingest, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike]
+    [
+      play,
+      playQueue,
+      toggle,
+      pause,
+      setVolume,
+      seek,
+      stop,
+      ingest,
+      setDestination,
+      nuclearTick,
+      nuclearEnded,
+      nuclearFailed,
+      toggleLike,
+      toggleDislike,
+      retryAdvance,
+      resumeListen,
+      dismissResume,
+    ]
   );
 
   const nowPlaying = useMemo(

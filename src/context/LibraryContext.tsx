@@ -71,6 +71,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     missing: [],
   });
   const syncing = useRef(false);
+  const syncLoopRef = useRef<() => Promise<void>>(async () => undefined);
 
   const applyFavorites = useCallback(
     (tracks: LibraryTrack[]) => {
@@ -109,6 +110,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         total: meta?.total ?? session?.stats?.favorites ?? cached.length,
         missing: session?.missing ?? [],
       }));
+      if (session?.authenticated) void syncLoopRef.current();
     })();
   }, [applyFavorites]);
 
@@ -142,6 +144,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           total?: number | null;
           error?: string;
         };
+        if (response.status === 401) {
+          setStatus((s) => ({
+            ...s,
+            connected: false,
+            error: payload.error ?? "Connect Apple Music again — the session expired.",
+          }));
+          return;
+        }
         if (!response.ok) throw new Error(payload.error ?? `sync ${response.status}`);
 
         if (payload.tracks?.length) {
@@ -176,6 +186,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setStatus((s) => ({ ...s, syncing: false }));
     }
   }, [applyFavorites]);
+
+  syncLoopRef.current = syncLoop;
 
   const connect = useCallback(async () => {
     setStatus((s) => ({ ...s, error: null }));

@@ -10,14 +10,18 @@ import dynamic from "next/dynamic";
 import { usePlayer, usePlayerActions, usePlayerClock } from "@/context/PlayerContext";
 import { TOPOGRAPHY } from "@/lib/drift/topography";
 import { clock } from "@/lib/format";
-import { isSoundcloudTrack, sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
-import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, SpinnerGlyph, VolumeGlyph } from "./icons";
+import { sourceLabel, youtubeVideoId } from "@/lib/converse/anywhere";
+import { CloseGlyph, MinimizeGlyph, PauseIcon, PlayIcon, RestoreGlyph, ShareGlyph, SpinnerGlyph, VolumeGlyph } from "./icons";
 import { Artwork } from "./Artwork";
 import { LoveControl } from "./LoveControl";
 import { DislikeControl } from "./DislikeControl";
 import type { LyricLine } from "@/lib/lyrics/lrclib";
+import { playbackSeconds } from "@/lib/listen/duration";
 
 const NuclearStage = dynamic(() => import("./NuclearStage").then((mod) => ({ default: mod.NuclearStage })), {
+  ssr: false,
+});
+const SoundCloudStage = dynamic(() => import("./SoundCloudStage").then((mod) => ({ default: mod.SoundCloudStage })), {
   ssr: false,
 });
 const LyricsStage = dynamic(() => import("./LyricsStage").then((mod) => ({ default: mod.LyricsStage })), { ssr: false });
@@ -29,10 +33,10 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 export function MiniPlayer() {
-  const { current, playing, volume, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, nuclearSeekAt, likedIds, dislikedIds } =
+  const { current, playing, volume, reading, cognition, destination, loading, error, fromEngine, fromAsk, queue, queueTitle, listenVia, nuclearDuration, mediaDuration, nuclearSeekAt, likedIds, dislikedIds, pendingResume } =
     usePlayer();
   const { progress, fragilityNow } = usePlayerClock();
-  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike } = usePlayerActions();
+  const { toggle, setVolume, seek, stop, setDestination, nuclearTick, nuclearEnded, nuclearFailed, toggleLike, toggleDislike, retryAdvance, resumeListen, dismissResume } = usePlayerActions();
   const [expanded, setExpanded] = useState(false);
   const [docked, setDocked] = useState(false);
   const [lyricLines, setLyricLines] = useState<LyricLine[]>([]);
@@ -40,6 +44,7 @@ export function MiniPlayer() {
   const [lyricsStatus, setLyricsStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [lovedHint, setLovedHint] = useState<string | null>(null);
   const [refusedHint, setRefusedHint] = useState<string | null>(null);
+  const [shareHint, setShareHint] = useState<string | null>(null);
   const prevLiked = useRef(false);
   const prevRefused = useRef(false);
   const liked = Boolean(current && likedIds.includes(current.id));
@@ -59,16 +64,17 @@ export function MiniPlayer() {
     stop();
   };
   const yt = current ? youtubeVideoId(current) : null;
-  const sc = current ? isSoundcloudTrack(current) : false;
   const via = current ? sourceLabel(current.foundVia) : null;
   const mode = !current ? "idle" : docked ? "dock" : expanded ? "stage" : "bar";
 
   const total = current
-    ? listenVia === "youtube" && nuclearDuration
-      ? nuclearDuration
-      : current.previewUrl && listenVia !== "youtube"
-        ? 30
-        : current.duration
+    ? playbackSeconds({
+        listenVia,
+        nuclearDuration,
+        mediaDuration,
+        previewUrl: current.previewUrl,
+        duration: current.duration,
+      })
     : 0;
   const elapsed = progress * total;
   const progressRef = useRef(progress);
@@ -92,6 +98,10 @@ export function MiniPlayer() {
       }
       if (event.code === "Space") {
         event.preventDefault();
+        if (!current && pendingResume) {
+          resumeListen();
+          return;
+        }
         toggle();
         return;
       }
@@ -118,7 +128,7 @@ export function MiniPlayer() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, docked, expanded, setVolume, seek, stop, toggle, total, volume]);
+  }, [current, docked, expanded, pendingResume, resumeListen, setVolume, seek, stop, toggle, total, volume]);
 
   useEffect(() => {
     if (!current) {
@@ -161,6 +171,7 @@ export function MiniPlayer() {
     prevRefused.current = Boolean(current && dislikedIds.includes(current.id));
     setLovedHint(null);
     setRefusedHint(null);
+    setShareHint(null);
     // Snapshot at track change only — a later like must still be able to whisper.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
@@ -188,6 +199,53 @@ export function MiniPlayer() {
     }
     prevRefused.current = refused;
   }, [current, refused]);
+
+  async function shareRecording() {
+    if (!current) return;
+    const url = `${window.location.origin}/?listen=${encodeURIComponent(current.id)}`;
+    const payload = { title: `${current.title} · ${current.artist}`, text: "Listen on Resonant", url };
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share(payload);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setShareHint("Link copied.");
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareHint("Link copied.");
+      } catch {
+        setShareHint("Could not share this recording.");
+      }
+    }
+  }
+
+  if (!current && pendingResume) {
+    const waiting = pendingResume.track;
+    return (
+      <section className="cx-mini" data-mode="bar" aria-label="Resume listening">
+        <div className="cx-mini-bar">
+          <button type="button" className="flex min-w-0 items-center gap-3 text-left" onClick={() => resumeListen()}>
+            <span className="cx-mini-art" style={{ backgroundColor: waiting.tint ?? "var(--color-sand)" }}>
+              {waiting.artworkUrl && <Artwork src={waiting.artworkUrl} sizes="48px" />}
+            </span>
+            <span className="min-w-0">
+              <span className="cx-truncate block text-[13px] font-semibold leading-tight">{waiting.title}</span>
+              <span className="cx-truncate block text-[12px] leading-tight text-[var(--ink-3)]">{waiting.artist}</span>
+              <span className="mt-[2px] block text-[11px] text-[var(--ink-3)]">Tap to continue listening</span>
+            </span>
+          </button>
+          <button type="button" className="cx-pill cx-pill-primary cx-pill-compact" onClick={() => resumeListen()}>
+            Continue
+          </button>
+          <button type="button" className="cx-window-ctrl" aria-label="Dismiss" onClick={() => dismissResume()}>
+            <CloseGlyph />
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   if (!current) return null;
 
@@ -335,6 +393,15 @@ export function MiniPlayer() {
         </div>
       ) : null}
 
+      {error && !expanded ? (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+          <p className="cx-meta">{error}</p>
+          <button type="button" className="cx-pill cx-pill-ghost cx-pill-compact" onClick={() => retryAdvance()}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {listenVia === "youtube" && yt && (
         <NuclearStage
           videoId={yt}
@@ -346,12 +413,14 @@ export function MiniPlayer() {
           onFailed={nuclearFailed}
         />
       )}
-      {playing && listenVia === "soundcloud" && sc && current.openUrl && (
-        <iframe
-          className="cx-embed"
-          title="SoundCloud"
-          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(current.openUrl)}&auto_play=true&hide_related=true&show_comments=false&visual=false`}
-          allow="autoplay"
+      {listenVia === "soundcloud" && (current.soundcloudUrl || current.openUrl) && (
+        <SoundCloudStage
+          url={current.soundcloudUrl || current.openUrl || ""}
+          playing={playing}
+          volume={volume}
+          seekAt={nuclearSeekAt}
+          onTick={nuclearTick}
+          onEnded={nuclearEnded}
         />
       )}
 
@@ -410,9 +479,19 @@ export function MiniPlayer() {
               >
                 {refused ? "Refused" : "Not this"}
               </button>
+              <button
+                type="button"
+                className="cx-pill cx-pill-ghost cx-pill-compact"
+                aria-label="Share this recording"
+                onClick={() => void shareRecording()}
+              >
+                <ShareGlyph />
+                <span>Share</span>
+              </button>
             </div>
             {lovedHint && <p className="cx-meta mt-2">{lovedHint}</p>}
             {refusedHint && <p className="cx-meta mt-2">{refusedHint}</p>}
+            {shareHint && <p className="cx-meta mt-2">{shareHint}</p>}
           </div>
         </div>
       )}
@@ -590,7 +669,14 @@ export function MiniPlayer() {
             </div>
           </div>
 
-          {error && <p className="cx-meta mt-2">{error}</p>}
+          {error && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <p className="cx-meta">{error}</p>
+              <button type="button" className="cx-pill cx-pill-ghost cx-pill-compact" onClick={() => retryAdvance()}>
+                Retry
+              </button>
+            </div>
+          )}
         </div>
       )}
     </section>

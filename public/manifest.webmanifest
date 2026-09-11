@@ -1,0 +1,18 @@
+{
+  "name": "Resonant",
+  "short_name": "Resonant",
+  "description": "A cognition-first music app. Apple Music first. The engine drifts from how you listen.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

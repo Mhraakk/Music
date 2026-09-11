@@ -11,7 +11,7 @@ import type { LibraryTrack } from "@/lib/library";
 export const LISTEN_MINUTES = [15, 30, 45, 60] as const;
 export type ListenMinutes = (typeof LISTEN_MINUTES)[number];
 
-const FALLBACK_SECONDS = 210;
+export const FALLBACK_SECONDS = 210;
 
 export function parseDurationMinutes(text: string): number | null {
   const match =
@@ -45,4 +45,21 @@ export function capToDuration(tracks: LibraryTrack[], minutes: number): LibraryT
 
 export function durationLabel(minutes: number): string {
   return `${minutes} min`;
+}
+
+/** Seconds the scrubber should use for the current listen. */
+export function playbackSeconds(input: {
+  listenVia: "preview" | "youtube" | "soundcloud" | null;
+  nuclearDuration: number | null;
+  mediaDuration: number | null;
+  previewUrl?: string | null;
+  duration: number;
+}): number {
+  if (input.listenVia === "youtube" && input.nuclearDuration && input.nuclearDuration > 0) {
+    return input.nuclearDuration;
+  }
+  if (input.mediaDuration && input.mediaDuration > 0) return input.mediaDuration;
+  if (input.listenVia === "soundcloud") return trackSeconds({ duration: input.duration });
+  if (input.previewUrl && input.listenVia !== "youtube") return 30;
+  return input.duration > 0 ? input.duration : FALLBACK_SECONDS;
 }

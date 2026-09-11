@@ -65,6 +65,17 @@ check(/fields", "map"/.test(surfaceUi) && /AtlasBranchList/.test(surfaceUi), "at
 const playerUi = readFileSync(new URL("../src/context/PlayerContext.tsx", import.meta.url), "utf8");
 check(/usePlayerClock/.test(playerUi) && /ClockContext/.test(playerUi), "progress ticks stay off the tile tree");
 check(/useNowPlaying/.test(playerUi) && /useTaste/.test(playerUi), "tiles subscribe to now-playing and taste, not the whole player");
+const mediaSession = readFileSync(new URL("../src/lib/listen/media-session.ts", import.meta.url), "utf8");
+check(/bindMediaSession/.test(playerUi) && /"nexttrack"/.test(mediaSession) && /"previoustrack"/.test(mediaSession), "media session binds play/pause and never next/previous");
+check(/loadPrefs/.test(playerUi) && /pendingResume/.test(playerUi), "volume/destination persist and last-listen can resume");
+check(/listenVia === "soundcloud"/.test(playerUi), "SoundCloud sessions keep a clock so the engine can advance");
+const resolveRoute = readFileSync(new URL("../src/app/api/atlas/resolve/route.ts", import.meta.url), "utf8");
+check(/resolveRecording/.test(resolveRoute) && !/\bgenre\s*:/.test(resolveRoute), "atlas resolve wraps resolveRecording and does not write genre");
+const manifest = readFileSync(new URL("../public/manifest.webmanifest", import.meta.url), "utf8");
+check(/"theme_color": "#000000"/.test(manifest) && /"name": "Resonant"/.test(manifest), "PWA manifest is Resonant on black");
+const miniUi = readFileSync(new URL("../src/components/cosmos/MiniPlayer.tsx", import.meta.url), "utf8");
+check(/retryAdvance/.test(miniUi) && /ShareGlyph/.test(miniUi) && !/\bSkip\b/.test(miniUi) && !/goToNext/.test(miniUi), "mini player has retry and share, no skip");
+check(/export function CloseGlyph/.test(readFileSync(new URL("../src/components/cosmos/icons.tsx", import.meta.url), "utf8")), "CloseGlyph stays exported");
 const tokenCss = readFileSync(new URL("../src/app/(cosmos)/cosmos.css", import.meta.url), "utf8");
 check(/prefers-reduced-motion/.test(tokenCss) && /outline:\s*2px solid var\(--color-sand\)/.test(tokenCss), "cosmos keeps reduced-motion and a visible sand focus ring");
 

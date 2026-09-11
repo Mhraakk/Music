@@ -108,9 +108,13 @@ export async function POST(request: NextRequest) {
       stats: catalogStats(),
     });
   } catch (error) {
+    const status =
+      error && typeof error === "object" && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 502;
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Apple Music sync failed." },
-      { status: 502 }
+      { status: status === 401 || status === 403 ? 401 : 502 }
     );
   }
 }

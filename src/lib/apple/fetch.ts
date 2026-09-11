@@ -29,7 +29,11 @@ async function appleGet(path: string, userToken: string): Promise<unknown> {
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`Apple Music ${response.status}${body ? `: ${body.slice(0, 180)}` : ""}`);
+    const error = new Error(`Apple Music ${response.status}${body ? `: ${body.slice(0, 180)}` : ""}`) as Error & {
+      status: number;
+    };
+    error.status = response.status;
+    throw error;
   }
   return response.json();
 }
