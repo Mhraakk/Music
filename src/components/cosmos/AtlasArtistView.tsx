@@ -153,7 +153,7 @@ export function AtlasArtistView({ name }: { name: string }) {
               </Link>
             ))}
           </div>
-          {branchNodes.length > 0 ? (
+          {branchNodes.length >= 8 ? (
             <AtlasScatter
               items={branchNodes}
               canvas={{ width: 1600, height: 900 }}

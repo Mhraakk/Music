@@ -78,6 +78,22 @@ export function AtlasScatter({
       ? Math.max(width * nativeRatio, 480)
       : Math.max(280, Math.min(640, width * Math.min(nativeRatio, 0.85)));
 
+  useEffect(() => {
+    if (fit !== "canvas" || !items.length) return;
+    const el = portRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight * 1.2 && el.scrollWidth <= el.clientWidth * 1.2) return;
+    const heavy = items.slice().sort((a, b) => b.weight - a.weight).slice(0, 120);
+    const avgY = heavy.reduce((sum, item) => sum + item.y, 0) / heavy.length;
+    const avgX = heavy.reduce((sum, item) => sum + item.x, 0) / heavy.length;
+    const left = ((avgX - bounds.minX) / spanX) * el.scrollWidth;
+    const top = ((avgY - bounds.minY) / spanY) * el.scrollHeight;
+    el.scrollTo({
+      left: Math.max(0, left - el.clientWidth / 2),
+      top: Math.max(0, top - el.clientHeight / 2),
+    });
+  }, [fit, items, bounds.minX, bounds.minY, spanX, spanY, height, portWidth]);
+
   return (
     <div ref={portRef} className={`cx-atlas-field is-${tone}`} aria-label={label}>
       <div className="cx-atlas-canvas" style={{ width: "100%", height }}>
