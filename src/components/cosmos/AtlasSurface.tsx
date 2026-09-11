@@ -152,12 +152,12 @@ export function AtlasSurface() {
             placeholder="find artist"
           />
         </form>
-        <div className="cx-atlas-tabs" role="tablist" aria-label="Map or list">
+        <div className="cx-atlas-tabs" role="tablist" aria-label="Directory or examples">
           <button type="button" className="cx-atlas-tab" role="tab" aria-selected={view === "map"} onClick={() => setView("map")}>
-            map
+            Directory
           </button>
           <button type="button" className="cx-atlas-tab" role="tab" aria-selected={view === "list"} onClick={() => setView("list")}>
-            list
+            Examples
           </button>
         </div>
         <AtlasPlay query={debounced || (family === "all" ? "" : family)} fallbackTracks={[]} title="Atlas" label="Play this view" />
