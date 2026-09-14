@@ -252,6 +252,11 @@ export function interpretLocal(text: string): LocalIntent {
   if (wantsWheat(trimmed)) {
     return { kind: "wheat", query: trimmed, durationMinutes: parseDurationMinutes(trimmed) ?? 30 };
   }
+  const topographyRoom = matchRoom(trimmed);
+  const namesStation = /\b(station|radio)\b/.test(q) || /ایستگاه|رادیو/.test(trimmed);
+  if (topographyRoom && namesStation) {
+    return { kind: "station", room: topographyRoom };
+  }
   if (wantsFeelings(trimmed)) {
     return {
       kind: "feelings",

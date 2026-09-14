@@ -5,7 +5,7 @@ const ROOM_CUES: { id: FeelingRoomId; pattern: RegExp }[] = [
   { id: "sunset", pattern: /sunset|dusk|سانست|غروب|لب ساحل|دم غروب/i },
   { id: "warm-up", pattern: /warm[\s-]?up|early party|وارم|اوایل مهمونی|گرم کردن|دیترویت هاوس|شیکاگو هاوس|detroit house|chicago house/i },
   { id: "soft-warm", pattern: /soft warmth|نرم و گرم|ریز نرم/i },
-  { id: "tender", pattern: /\btender\b|melanchol|مالیخول|احساسی/i },
+  { id: "tender", pattern: /\btender\b|مالیخول|احساسی/i },
   { id: "lie-back", pattern: /lie[\s-]?back|لم دادن|دراز کش|چیل(?:یدن)?|lower tempo/i },
 ];
 
