@@ -49,8 +49,8 @@ export async function feelingGenrePage(id: string, enrich = 12) {
   const genreId = page.genre.id;
   return {
     ...page,
-    nearby: filterFeelingPins(page.nearby) as AtlasPin[],
-    mirrors: filterFeelingPins(page.mirrors) as AtlasPin[],
+    nearby: filterFeelingPins(page.nearby).filter((pin) => pin.id !== genreId) as AtlasPin[],
+    mirrors: filterFeelingPins(page.mirrors).filter((pin) => pin.id !== genreId) as AtlasPin[],
     rooms: FEELING_ROOMS.filter((room) => room.slugs.includes(genreId)).map((room) => room.id),
   };
 }

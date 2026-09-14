@@ -128,13 +128,21 @@ const ALLOWED_FEELINGS = new Set([
   "cologneelectronic",
   "ethnotronica",
   "futureambient",
+  "chilllounge",
+  "downtempofusion",
+  "deepdowntempofusion",
+  "worldchill",
+  "deepdiscohouse",
+  "minimaltechhouse",
+  "minimaltechno",
+  "experimentalhouse",
 ]);
 const tax = readFileSync(new URL("../src/lib/feelings/taxonomy.ts", import.meta.url), "utf8");
 const foundFeelings = new Set();
 for (const block of tax.matchAll(/slugs:\s*\[([^\]]+)\]/g)) {
   for (const slug of block[1].matchAll(/"([a-z0-9]+)"/g)) foundFeelings.add(slug[1]);
 }
-check(foundFeelings.size === 30, "feelings taxonomy has thirty slugs", String(foundFeelings.size));
+check(foundFeelings.size === ALLOWED_FEELINGS.size, "feelings taxonomy matches the named live slugs", String(foundFeelings.size));
 check(
   [...foundFeelings].every((slug) => ALLOWED_FEELINGS.has(slug)),
   "feelings taxonomy only allowlisted slugs",
@@ -236,7 +244,7 @@ if (base) {
   check(genrePage.ok, "trip hop genre page loads");
   const feelings = await get("/api/feelings");
   check(feelings.status === 200 && (feelings.json.rooms?.length ?? 0) === 6, "GET /api/feelings has six rooms", String(feelings.json.rooms?.length ?? 0));
-  check((feelings.json.slugs?.length ?? 0) === 30, "GET /api/feelings lists thirty slugs", String(feelings.json.slugs?.length ?? 0));
+  check((feelings.json.slugs?.length ?? 0) === ALLOWED_FEELINGS.size, "GET /api/feelings lists the named slugs", String(feelings.json.slugs?.length ?? 0));
   const liveSlugs = new Set(feelings.json.slugs ?? []);
   check([...liveSlugs].every((slug) => ALLOWED_FEELINGS.has(slug)), "live feelings slugs stay inside the thirty");
   const feelingGenre = await get("/api/feelings/genre/floathouse?enrich=4");
@@ -253,9 +261,9 @@ if (base) {
   const floatPage = await fetch(`${root}/feelings/genre/floathouse`);
   check(floatPage.ok, "float house feelings page loads");
   const tripFeel = await fetch(`${root}/feelings/genre/triphop`).then((r) => r.text());
-  check(/Not in this cut/.test(tripFeel), "trip hop is not a Feelings page");
+  check(/Not in this/.test(tripFeel) && /cut\./.test(tripFeel), "trip hop is not a Feelings page");
   const popFeel = await fetch(`${root}/feelings/genre/pop`).then((r) => r.text());
-  check(/Not in this cut/.test(popFeel), "pop is not a Feelings page");
+  check(/Not in this/.test(popFeel) && /cut\./.test(popFeel), "pop is not a Feelings page");
   const homeFeel = await fetch(`${root}/`).then((r) => r.text());
   check(homeFeel.includes("Listen Now"), "home still Listen Now after Feelings");
   check(homeFeel.includes("Favorite Songs"), "home still Favorite Songs after Feelings");

@@ -108,7 +108,7 @@ export function FeelingsSurface() {
           <em>Feelings.</em>
         </h1>
         <p className="cx-body cx-atlas-lede">
-          Atlas is the mother map — every Every Noise branch. Feelings keeps only thirty live slugs across six rooms.
+          Atlas is the mother map — every Every Noise branch. Feelings keeps only the named live slugs across six rooms.
           Tap a branch for artists, scan, The Sound / Intro / Pulse / Edge / New, then Apple Music. Genre never lands
           on the catalog.
         </p>
