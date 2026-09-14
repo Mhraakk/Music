@@ -1,9 +1,9 @@
 /**
  * FEELINGS — a cut of the Every Noise atlas.
  *
- * Atlas stays the mother map (every branch). Feelings is only the live
- * engenremap slugs the listener named. Unknown labels (there is no "melodic
- * house" branch; "reminimal" is not on the map — the live slug is rominimal)
+ * Atlas stays the mother map. Feelings is only the live engenremap slugs the
+ * listener named for chill/sunset, the close soft quartet, warm-up, after
+ * hours, and the four borderline branches that sit on the map. Unknown labels
  * are omitted rather than invented.
  *
  * Genre is navigation only. Harvest still writes no genre field onto catalog records.
@@ -26,46 +26,46 @@ export type FeelingRoom = {
   slugs: readonly string[];
 };
 
-/** Live engenremap ids. Do not add a slug that is not on everynoise.com. */
-export const FEELING_CANON_SLUGS = [
-  "floathouse",
-  "microhouse",
-  "ambientdubtechno",
-  "rominimal",
-  "dubtechno",
+/** Chill + sunset share this set, then the four borderline map neighbours. */
+const CHILL_SUNSET = [
   "deepsunsetlounge",
-  "hypnotictechno",
-  "minimaldub",
-  "lofihouse",
-  "outsiderhouse",
-  "futuregarage",
-  "deepsoulhouse",
-  "detroithouse",
-  "chicagohouse",
-  "organichouse",
-  "deephouse",
-  "chillgroove",
-  "balearic",
   "deepchill",
-  "ambienthouse",
-  "deeptechhouse",
-  "romanianelectronic",
-  "southafricansoulfuldeephouse",
-  "jazzhouse",
-  "jazztronica",
-  "nujazz",
-  "deepprogressivehouse",
-  "cologneelectronic",
-  "ethnotronica",
-  "futureambient",
   "chilllounge",
   "downtempofusion",
-  "deepdowntempofusion",
   "worldchill",
+  "chillgroove",
+  "ambienthouse",
+  "futureambient",
+] as const;
+
+/** The four that sit together on the map, plus experimental house on the border. */
+const SOFT_TENDER = ["floathouse", "futuregarage", "outsiderhouse", "lofihouse", "experimentalhouse"] as const;
+
+/** Live engenremap ids. Do not add a slug that is not on everynoise.com. */
+export const FEELING_CANON_SLUGS = [
+  "deepsunsetlounge",
+  "deepchill",
+  "chilllounge",
+  "downtempofusion",
+  "worldchill",
+  "floathouse",
+  "futuregarage",
+  "outsiderhouse",
+  "lofihouse",
+  "organichouse",
+  "deephouse",
+  "deepsoulhouse",
   "deepdiscohouse",
   "minimaltechhouse",
+  "dubtechno",
+  "ambientdubtechno",
+  "microhouse",
+  "minimaldub",
   "minimaltechno",
+  "ambienthouse",
+  "futureambient",
   "experimentalhouse",
+  "chillgroove",
 ] as const;
 
 export const FEELING_ROOMS: readonly FeelingRoom[] = [
@@ -73,103 +73,43 @@ export const FEELING_ROOMS: readonly FeelingRoom[] = [
     id: "lie-back",
     title: "Lie back.",
     kicker: "Chill · lower tempo",
-    lede: "Deep and ambient, for lying down. Deep chill, chill lounge, downtempo fusion, deep downtempo fusion, world chill, chill groove, future ambient, ambient house.",
-    slugs: [
-      "deepchill",
-      "chilllounge",
-      "downtempofusion",
-      "deepdowntempofusion",
-      "worldchill",
-      "chillgroove",
-      "futureambient",
-      "ambienthouse",
-    ],
+    lede: "Deep sunset lounge, deep chill, chill lounge, downtempo fusion, world chill. Border: chill groove, ambient house, future ambient.",
+    slugs: CHILL_SUNSET,
   },
   {
     id: "soft-warm",
     title: "Soft warmth.",
-    kicker: "Fine grain · close on the map",
-    lede: "The four that sit together: float house, future garage, outsider house, lo-fi house. Then experimental house, ambient dub techno, microhouse.",
-    slugs: [
-      "floathouse",
-      "futuregarage",
-      "outsiderhouse",
-      "lofihouse",
-      "experimentalhouse",
-      "ambientdubtechno",
-      "microhouse",
-    ],
+    kicker: "Close on the map",
+    lede: "Float house, future garage, outsider house, lo-fi house sit together. Experimental house is the border.",
+    slugs: SOFT_TENDER,
   },
   {
     id: "warm-up",
     title: "Warm-up.",
     kicker: "Early party · start",
-    lede: "Energy without the crush. Organic house, deep house, deep soul house, deep disco house, minimal tech house, jazz house, Detroit house, Chicago house, South African soulful deep house, balearic.",
-    slugs: [
-      "organichouse",
-      "deephouse",
-      "deepsoulhouse",
-      "deepdiscohouse",
-      "minimaltechhouse",
-      "jazzhouse",
-      "detroithouse",
-      "chicagohouse",
-      "southafricansoulfuldeephouse",
-      "balearic",
-    ],
+    lede: "Energy without the crush. Organic house, deep house, deep soul house, deep disco house, minimal tech house.",
+    slugs: ["organichouse", "deephouse", "deepsoulhouse", "deepdiscohouse", "minimaltechhouse"],
   },
   {
     id: "after-hours",
     title: "After hours.",
-    kicker: "Past 3am · soft afterparty",
-    lede: "Hypnotic, not festival-hot. Dub techno, ambient dub techno, microhouse, minimal dub, minimal techno, rominimal, hypnotic techno, deep tech house, Romanian electronic, Cologne electronic.",
-    slugs: [
-      "dubtechno",
-      "ambientdubtechno",
-      "microhouse",
-      "minimaldub",
-      "minimaltechno",
-      "rominimal",
-      "hypnotictechno",
-      "deeptechhouse",
-      "romanianelectronic",
-      "cologneelectronic",
-    ],
+    kicker: "Soft afterparty",
+    lede: "Hypnotic, not festival-hot. Dub techno, ambient dub techno, microhouse, minimal dub, minimal techno.",
+    slugs: ["dubtechno", "ambientdubtechno", "microhouse", "minimaldub", "minimaltechno"],
   },
   {
     id: "sunset",
     title: "Sunset.",
     kicker: "Dusk on the shore",
-    lede: "Late light. Deep sunset lounge, deep chill, chill lounge, downtempo fusion, deep downtempo fusion, world chill, balearic, organic house, ethnotronica, nu jazz, jazztronica.",
-    slugs: [
-      "deepsunsetlounge",
-      "deepchill",
-      "chilllounge",
-      "downtempofusion",
-      "deepdowntempofusion",
-      "worldchill",
-      "balearic",
-      "organichouse",
-      "ethnotronica",
-      "nujazz",
-      "jazztronica",
-    ],
+    lede: "The same chill cut at late light. Deep sunset lounge, deep chill, chill lounge, downtempo fusion, world chill. Border: chill groove, ambient house, future ambient.",
+    slugs: CHILL_SUNSET,
   },
   {
     id: "tender",
     title: "Tender.",
-    kicker: "Soft · melancholy",
-    lede: "The same close quartet, then a little ache. Float house, future garage, outsider house, lo-fi house, jazztronica, nu jazz, deep progressive house, ambient house. Every Noise has no melodic house branch, so that name is not invented here.",
-    slugs: [
-      "floathouse",
-      "futuregarage",
-      "outsiderhouse",
-      "lofihouse",
-      "jazztronica",
-      "nujazz",
-      "deepprogressivehouse",
-      "ambienthouse",
-    ],
+    kicker: "Soft · aching",
+    lede: "The same close quartet. Float house, future garage, outsider house, lo-fi house. Experimental house stays on the border.",
+    slugs: SOFT_TENDER,
   },
 ] as const;
 

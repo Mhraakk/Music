@@ -98,50 +98,34 @@ check(
 check(/"resonant"/.test(readFileSync(new URL("../.cursor/settings.json", import.meta.url), "utf8")), "Resonant Cursor plugin is enabled in project settings");
 
 const ALLOWED_FEELINGS = new Set([
-  "floathouse",
-  "microhouse",
-  "ambientdubtechno",
-  "rominimal",
-  "dubtechno",
   "deepsunsetlounge",
-  "hypnotictechno",
-  "minimaldub",
-  "lofihouse",
-  "outsiderhouse",
-  "futuregarage",
-  "deepsoulhouse",
-  "detroithouse",
-  "chicagohouse",
-  "organichouse",
-  "deephouse",
-  "chillgroove",
-  "balearic",
   "deepchill",
-  "ambienthouse",
-  "deeptechhouse",
-  "romanianelectronic",
-  "southafricansoulfuldeephouse",
-  "jazzhouse",
-  "jazztronica",
-  "nujazz",
-  "deepprogressivehouse",
-  "cologneelectronic",
-  "ethnotronica",
-  "futureambient",
   "chilllounge",
   "downtempofusion",
-  "deepdowntempofusion",
   "worldchill",
+  "floathouse",
+  "futuregarage",
+  "outsiderhouse",
+  "lofihouse",
+  "organichouse",
+  "deephouse",
+  "deepsoulhouse",
   "deepdiscohouse",
   "minimaltechhouse",
+  "dubtechno",
+  "ambientdubtechno",
+  "microhouse",
+  "minimaldub",
   "minimaltechno",
+  "ambienthouse",
+  "futureambient",
   "experimentalhouse",
+  "chillgroove",
 ]);
 const tax = readFileSync(new URL("../src/lib/feelings/taxonomy.ts", import.meta.url), "utf8");
 const foundFeelings = new Set();
-for (const block of tax.matchAll(/slugs:\s*\[([^\]]+)\]/g)) {
-  for (const slug of block[1].matchAll(/"([a-z0-9]+)"/g)) foundFeelings.add(slug[1]);
-}
+const canonBlock = tax.match(/FEELING_CANON_SLUGS = \[([^\]]+)\]/);
+for (const slug of canonBlock?.[1].matchAll(/"([a-z0-9]+)"/g) ?? []) foundFeelings.add(slug[1]);
 check(foundFeelings.size === ALLOWED_FEELINGS.size, "feelings taxonomy matches the named live slugs", String(foundFeelings.size));
 check(
   [...foundFeelings].every((slug) => ALLOWED_FEELINGS.has(slug)),
@@ -150,7 +134,7 @@ check(
 );
 check(
   [...ALLOWED_FEELINGS].every((slug) => foundFeelings.has(slug)),
-  "feelings taxonomy is the complete thirty",
+  "feelings taxonomy is the complete named cut",
   [...ALLOWED_FEELINGS].filter((slug) => !foundFeelings.has(slug)).join(", ")
 );
 check(
