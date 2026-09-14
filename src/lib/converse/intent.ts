@@ -2,6 +2,7 @@ import { ROOM_ALIASES, matchRoom } from "./rooms";
 import type { CoordinateId } from "@/lib/drift/topography";
 import { hasCatalogScript, stripMetingTokens } from "@/lib/meting/platforms";
 import { parseDurationMinutes } from "@/lib/listen/duration";
+import { matchFeelingRoom, matchFeelingSlug, wantsFeelings } from "@/lib/feelings/match";
 
 export type ListenerLanguage = "fa" | "en";
 
@@ -17,6 +18,7 @@ export type LocalIntent =
   | { kind: "play"; query: string; room: CoordinateId | null }
   | { kind: "search"; query: string; room: CoordinateId | null }
   | { kind: "atlas"; query: string; artist?: string; genre?: string; durationMinutes?: number }
+  | { kind: "feelings"; query: string; room?: string; genre?: string; durationMinutes?: number }
   | { kind: "wheat"; query: string; durationMinutes?: number }
   | { kind: "research"; query: string }
   | { kind: "share" }
@@ -249,6 +251,20 @@ export function interpretLocal(text: string): LocalIntent {
   if (wantsLyrics(trimmed)) return { kind: "lyrics", query: trimmed };
   if (wantsWheat(trimmed)) {
     return { kind: "wheat", query: trimmed, durationMinutes: parseDurationMinutes(trimmed) ?? 30 };
+  }
+  const topographyRoom = matchRoom(trimmed);
+  const namesStation = /\b(station|radio)\b/.test(q) || /ایستگاه|رادیو/.test(trimmed);
+  if (topographyRoom && namesStation) {
+    return { kind: "station", room: topographyRoom };
+  }
+  if (wantsFeelings(trimmed)) {
+    return {
+      kind: "feelings",
+      query: trimmed,
+      room: matchFeelingRoom(trimmed) ?? undefined,
+      genre: matchFeelingSlug(trimmed) ?? undefined,
+      durationMinutes: parseDurationMinutes(trimmed) ?? undefined,
+    };
   }
   if (wantsAtlas(trimmed)) {
     const named = namedArtistQuery(

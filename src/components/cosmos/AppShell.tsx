@@ -12,6 +12,7 @@ import { MiniPlayer } from "./MiniPlayer";
 const ITEMS = [
   { href: "/", label: "Listen Now", short: "Listen" },
   { href: "/atlas", label: "Atlas" },
+  { href: "/feelings", label: "Feelings", short: "Feel" },
   { href: "/collections", label: "Browse" },
   { href: "/radio", label: "Radio" },
   { href: "/talk", label: "Ask" },

@@ -332,6 +332,10 @@
     display: flex;
   }
 
+  .cx-floatnav-links {
+    gap: 14px;
+  }
+
   .cx-connect-full {
     display: inline;
   }
@@ -2562,4 +2566,23 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 16px;
+}
+
+.cx-feeling-rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  margin: 48px 0 24px;
+}
+
+.cx-feeling-room {
+  min-width: 0;
+}
+
+.cx-feeling-room .cx-atlas-play {
+  margin-top: 16px;
+}
+
+.cx-feeling-room .cx-atlas-chips {
+  flex-wrap: wrap;
 }

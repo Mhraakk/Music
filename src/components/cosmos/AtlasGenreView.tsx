@@ -8,6 +8,8 @@ import { AtlasTrackRow } from "./AtlasTrackRow";
 import { AtlasPlay } from "./AtlasPlay";
 import { AtlasScatter, type ScatterNode } from "./AtlasScatter";
 import { useAtlasPreview } from "./useAtlasPreview";
+import { nestFor, type AtlasNestId } from "@/lib/atlas/nest";
+import { FEELING_ROOMS, type FeelingRoomId } from "@/lib/feelings/taxonomy";
 
 type Payload = {
   ok: boolean;
@@ -21,14 +23,15 @@ type Payload = {
   canvas: AtlasCanvas;
   nearbyCanvas: AtlasCanvas;
   mirrorCanvas: AtlasCanvas;
+  rooms?: FeelingRoomId[];
 };
 
-function pinNodes(pins: AtlasPin[]): ScatterNode[] {
+function pinNodes(pins: AtlasPin[], genreHref: (id: string) => string): ScatterNode[] {
   return pins.map((pin) => ({
     id: pin.id,
     label: pin.label,
-    href: `/atlas/genre/${pin.id}`,
-    moreHref: `/atlas/genre/${pin.id}`,
+    href: genreHref(pin.id),
+    moreHref: genreHref(pin.id),
     color: pin.color,
     x: pin.x,
     y: pin.y,
@@ -38,7 +41,8 @@ function pinNodes(pins: AtlasPin[]): ScatterNode[] {
   }));
 }
 
-export function AtlasGenreView({ id }: { id: string }) {
+export function AtlasGenreView({ id, nestId = "atlas" }: { id: string; nestId?: AtlasNestId }) {
+  const nest = nestFor(nestId);
   const { preview, stop, now } = useAtlasPreview();
   const [page, setPage] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +57,11 @@ export function AtlasGenreView({ id }: { id: string }) {
     setError(null);
     setScanning(false);
     setPlayed([]);
-    void fetch(`/api/atlas/genre/${encodeURIComponent(id)}?enrich=12`, { signal: controller.signal })
+    const path =
+      nest.id === "feelings"
+        ? `/api/feelings/genre/${encodeURIComponent(id)}?enrich=12`
+        : `/api/atlas/genre/${encodeURIComponent(id)}?enrich=12`;
+    void fetch(path, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("missing");
         return response.json() as Promise<Payload>;
@@ -64,7 +72,7 @@ export function AtlasGenreView({ id }: { id: string }) {
         setError("This branch is not on the map.");
       });
     return () => controller.abort();
-  }, [id]);
+  }, [id, nestId]);
 
   useEffect(() => {
     return () => {
@@ -77,8 +85,8 @@ export function AtlasGenreView({ id }: { id: string }) {
     return page.artists.map((artist) => ({
       id: artist.spotifyArtistId ?? artist.name,
       label: artist.name,
-      href: `/atlas/artist?name=${encodeURIComponent(artist.name)}`,
-      moreHref: `/atlas/artist?name=${encodeURIComponent(artist.name)}`,
+      href: nest.artistHref(artist.name),
+      moreHref: nest.artistHref(artist.name),
       color: artist.color ?? "#888",
       x: artist.x,
       y: artist.y,
@@ -87,7 +95,7 @@ export function AtlasGenreView({ id }: { id: string }) {
       title: artist.exampleTitle ? `${artist.name}: ${artist.exampleTitle}` : artist.name,
       played: played.includes(artist.name),
     }));
-  }, [page, played]);
+  }, [page, played, nest]);
 
   function markPlayed(name: string) {
     setPlayed((prev) => (prev.includes(name) ? prev : [...prev, name]));
@@ -132,7 +140,9 @@ export function AtlasGenreView({ id }: { id: string }) {
   if (error) {
     return (
       <div className="cx-atlas">
-        <p className="cx-kicker">Atlas</p>
+        <p className="cx-kicker">
+          <Link href={nest.rootHref}>{nest.rootLabel}</Link>
+        </p>
         <h1 className="cx-atlas-display">{id}</h1>
         <p className="cx-body">{error}</p>
       </div>
@@ -142,17 +152,30 @@ export function AtlasGenreView({ id }: { id: string }) {
   if (!page) {
     return (
       <div className="cx-atlas">
-        <p className="cx-kicker">Atlas</p>
+        <p className="cx-kicker">
+          <Link href={nest.rootHref}>{nest.rootLabel}</Link>
+        </p>
         <h1 className="cx-atlas-display">Opening…</h1>
       </div>
     );
   }
 
+  const allow = nest.allowGenreIds;
+  const nearby = allow ? page.nearby.filter((pin) => allow.has(pin.id)) : page.nearby;
+  const mirrors = allow ? page.mirrors.filter((pin) => allow.has(pin.id)) : page.mirrors;
+
   return (
     <div className="cx-atlas">
       <p className="cx-kicker">
-        <Link href="/atlas">Every Noise at Once</Link>
-        {page.genre.family !== "other" ? ` · ${page.genre.family}` : ""}
+        <Link href={nest.rootHref}>{nest.rootLabel}</Link>
+        {nest.id === "feelings" && page.rooms?.length
+          ? ` · ${page.rooms
+              .map((roomId) => FEELING_ROOMS.find((room) => room.id === roomId)?.title.replace(/\.$/, ""))
+              .filter(Boolean)
+              .join(" · ")}`
+          : page.genre.family !== "other"
+            ? ` · ${page.genre.family}`
+            : ""}
       </p>
       <h1 className="cx-atlas-display">{page.genre.label}</h1>
       <p className="cx-body cx-atlas-lede">
@@ -173,11 +196,7 @@ export function AtlasGenreView({ id }: { id: string }) {
         {page.playlists.map((playlist) => (
           <Link
             key={`${playlist.kind}-${playlist.id}`}
-            href={
-              playlist.kind === "new"
-                ? `/atlas/playlist/${encodeURIComponent(playlist.id)}?kind=new&genre=${encodeURIComponent(page.genre.id)}&title=${encodeURIComponent(playlist.title)}`
-                : `/atlas/playlist/${encodeURIComponent(playlist.id)}?kind=${encodeURIComponent(playlist.kind)}&genre=${encodeURIComponent(page.genre.id)}&title=${encodeURIComponent(playlist.title)}`
-            }
+            href={nest.playlistHref(playlist, page.genre.id)}
             className="cx-atlas-tab"
           >
             {playlist.kind === "sound" ? "playlist" : playlist.kind}
@@ -185,7 +204,13 @@ export function AtlasGenreView({ id }: { id: string }) {
         ))}
       </div>
 
-      <AtlasPlay genre={page.genre.id} fallbackTracks={page.libraryTracks} title={page.genre.label} label="Play this branch" />
+      <AtlasPlay
+        genre={page.genre.id}
+        fallbackTracks={page.libraryTracks}
+        title={page.genre.label}
+        label="Play this branch"
+        surface={nest.id}
+      />
 
       {page.playlists.length > 0 && (
         <section className="cx-section">
@@ -199,7 +224,7 @@ export function AtlasGenreView({ id }: { id: string }) {
               <li key={`pl-${playlist.id}`}>
                 <div className="cx-atlas-list-row cx-atlas-playlist-row">
                   <Link
-                    href={`/atlas/playlist/${encodeURIComponent(playlist.id)}?kind=${encodeURIComponent(playlist.kind)}&genre=${encodeURIComponent(page.genre.id)}&title=${encodeURIComponent(playlist.title)}`}
+                    href={nest.playlistHref(playlist, page.genre.id)}
                     className="cx-atlas-list-label"
                   >
                     {playlist.title}
@@ -249,7 +274,7 @@ export function AtlasGenreView({ id }: { id: string }) {
                   {artist.name}
                 </button>
                 <span className="cx-atlas-list-eg">{artist.exampleTitle ?? "Open artist"}</span>
-                <Link href={`/atlas/artist?name=${encodeURIComponent(artist.name)}`} className="cx-outbound-link">
+                <Link href={nest.artistHref(artist.name)} className="cx-outbound-link">
                   »
                 </Link>
               </div>
@@ -258,7 +283,7 @@ export function AtlasGenreView({ id }: { id: string }) {
         </ol>
       )}
 
-      {page.nearby.length > 0 && (
+      {nearby.length > 0 && (
         <section className="cx-section">
           <div className="cx-section-head">
             <h2 className="cx-title">
@@ -266,7 +291,7 @@ export function AtlasGenreView({ id }: { id: string }) {
             </h2>
           </div>
           <AtlasScatter
-            items={pinNodes(page.nearby)}
+            items={pinNodes(nearby, nest.genreHref)}
             canvas={page.nearbyCanvas}
             fit="canvas"
             tone="nearby"
@@ -277,7 +302,7 @@ export function AtlasGenreView({ id }: { id: string }) {
         </section>
       )}
 
-      {page.mirrors.length > 0 && (
+      {mirrors.length > 0 && (
         <section className="cx-section">
           <div className="cx-section-head">
             <h2 className="cx-title">
@@ -285,7 +310,7 @@ export function AtlasGenreView({ id }: { id: string }) {
             </h2>
           </div>
           <AtlasScatter
-            items={pinNodes(page.mirrors)}
+            items={pinNodes(mirrors, nest.genreHref)}
             canvas={page.mirrorCanvas}
             fit="canvas"
             tone="mirror"
