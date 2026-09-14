@@ -18,6 +18,7 @@ import { textResult, errorResult, type ToolDescriptor, type ToolResult } from "@
 import { resolveNuclearStream } from "./resolve";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import { atlasArtist } from "@/lib/everynoise";
+import { harvestFeeling, listFeelingRooms } from "@/lib/feelings";
 import { topographySnapshot } from "@/lib/mcp/cognition";
 
 export const NUCLEAR_DOMAINS = [
@@ -198,6 +199,18 @@ const METHODS: Record<NuclearDomain, Record<string, MethodInfo>> = {
       description: "Every Noise artist lookup. nearbyGenres are atlas navigation, not catalog genre.",
       params: [{ name: "artist", type: "string" }],
       returns: "AtlasArtist",
+    },
+    feelings: {
+      description:
+        "Feelings cut of Atlas: only the named Every Noise rooms. Genre remains navigation and is never written onto catalog records.",
+      params: [
+        { name: "room", type: "string", optional: true },
+        { name: "genre", type: "string", optional: true },
+        { name: "query", type: "string", optional: true },
+        { name: "limit", type: "number", optional: true },
+        { name: "duration_minutes", type: "number", optional: true },
+      ],
+      returns: "SearchResults",
     },
   },
   Drift: {
@@ -399,8 +412,8 @@ export function nuclearListMethods(domain: string): ToolResult {
     domain: key,
     description: key === "Streaming"
       ? "YouTube full-listen resolve for the web player."
-      : key === "Atlas"
-        ? "Every Noise atlas as navigation. Never writes genre onto catalog records."
+        : key === "Atlas"
+        ? "Every Noise atlas as navigation, plus the Feelings cut. Never writes genre onto catalog records."
         : key === "Cognition"
           ? "The same Ask tools the /talk companion uses."
           : `${key} domain.`,
@@ -624,6 +637,39 @@ export async function nuclearCall(method: string, params: Record<string, unknown
           nearbyGenres: page.nearbyGenres,
           note: "nearbyGenres are Every Noise navigation. They are not written onto catalog records.",
           tracks: page.libraryTracks.map((t) => ({ id: t.id, artist: t.artist, title: t.title })),
+        }
+      );
+    }
+    case "Atlas.feelings": {
+      const room = str(params, "room");
+      const genre = str(params, "genre");
+      if (!room && !genre && !query) {
+        const listed = await listFeelingRooms();
+        return textResult(
+          listed.rooms.map((row) => `${row.title} (${row.id}): ${row.genres.map((g) => g.label).join(", ")}`).join("\n"),
+          {
+            rooms: listed.rooms.map((row) => ({
+              id: row.id,
+              title: row.title,
+              slugs: row.genres.map((g) => g.id),
+            })),
+            note: "Feelings is a cut of Atlas. Genre is navigation only.",
+          }
+        );
+      }
+      const harvested = await harvestFeeling({
+        room: room || undefined,
+        genre: genre || undefined,
+        query: query || undefined,
+        limit,
+        durationMinutes: num(params, "duration_minutes", 0) || undefined,
+      });
+      return textResult(
+        harvested.tracks.map((t) => `${t.artist} — ${t.title}`).join("\n") || harvested.refused || "Feelings is quiet.",
+        {
+          title: harvested.title,
+          refused: harvested.refused ?? null,
+          tracks: harvested.tracks.map((t) => ({ id: t.id, artist: t.artist, title: t.title })),
         }
       );
     }

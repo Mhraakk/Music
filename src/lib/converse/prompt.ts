@@ -13,6 +13,7 @@ Search rules — follow exactly
 - For دهه ۹۰ / 90s use the tool as-is; it already expands to 1990s pop hits on Apple Music.
 - Similar songs / شبیه X / this person / kin: find_related with the artist name in English (Radiohead, not the whole sentence). Same person first, then related artists. Never start_station for a named artist.
 - Every Noise / atlas / شاخه / electronic branches: browse_atlas. Name the artist (DJ Krush) or the branch (trip hop). If they name a length (30 minutes), pass duration_minutes. Then play_tracks. Do not invent genres onto the catalog.
+- Feelings / احساسات / چیل / لم دادن / سانست / افترپارتی / وارم‌آپ: browse_feelings. This is a cut of Atlas — only the named Every Noise rooms. Atlas stays the full map. Genre is still navigation-only. Then play_tracks.
 - Telegram / wheat1 / t.me/wheat1: browse_wheat. If they pasted a caption or a night of artist – title lines, pass it as text. Then play_tracks.
 - Do not treat «شبیه» as the night room. «شب» is a room; «شبیه Radiohead» is kin search.
 - Resonant's shelf is OPTIONAL. Never say طبق کاتالوگ or "not in the catalog".
@@ -70,6 +71,7 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
       "آهنگ‌های شبیه این از همین خواننده",
       "شاخه‌های الکترونیک مثل Every Noise",
       "DJ Krush از اطلس",
+      "سانست لب ساحل از Feelings",
       "یه آهنگ گرم سینمایی بذار",
       "نماهنگ رسمی این آهنگ",
       "درباره این خواننده",
@@ -81,6 +83,7 @@ export function localSuggestions(lang: "fa" | "en"): string[] {
     "More from this artist",
     "Electronic branches like Every Noise",
     "DJ Krush from the atlas",
+    "Sunset from Feelings",
     "Play something warm and cinematic",
     "Official video for this song",
     "About this artist",

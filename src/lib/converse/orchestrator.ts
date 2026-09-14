@@ -95,6 +95,23 @@ async function ensurePlayback(ctx: ToolContext, userText: string) {
     }
     if (hasPlayEffect(ctx)) return;
   }
+  if (intent.kind === "feelings") {
+    await executeConverseTool(
+      "browse_feelings",
+      {
+        room: intent.room,
+        genre: intent.genre,
+        query: intent.query,
+        limit: 8,
+        duration_minutes: intent.durationMinutes,
+      },
+      ctx
+    );
+    if (ctx.lastSearch[0]) {
+      await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+    }
+    if (hasPlayEffect(ctx)) return;
+  }
   await executeConverseTool("find_music", { query: userText, limit: 8 }, ctx);
   if (ctx.lastSearch[0]) {
     await executeConverseTool(
@@ -229,6 +246,23 @@ export async function fulfillLocally(
         {
           artist: intent.artist,
           genre: intent.artist ? undefined : intent.genre,
+          query: intent.query,
+          limit: 8,
+          duration_minutes: intent.durationMinutes,
+        },
+        ctx
+      );
+      if (!hasPlayEffect(ctx) && ctx.lastSearch[0]) {
+        await executeConverseTool("play_tracks", { ids: ctx.lastSearch.map((t) => t.id).slice(0, 8) }, ctx);
+      }
+      break;
+    }
+    case "feelings": {
+      await executeConverseTool(
+        "browse_feelings",
+        {
+          room: intent.room,
+          genre: intent.genre,
           query: intent.query,
           limit: 8,
           duration_minutes: intent.durationMinutes,

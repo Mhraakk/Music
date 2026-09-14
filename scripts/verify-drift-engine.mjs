@@ -72,6 +72,7 @@ async function verifyProtocol() {
   check(names.includes("inspect_expansion_engine"), "inspect_expansion_engine is exposed");
   check(names.includes("find_music"), "Ask find_music is on /api/mcp");
   check(names.includes("browse_atlas"), "Ask browse_atlas is on /api/mcp");
+  check(names.includes("browse_feelings"), "Ask browse_feelings is on /api/mcp");
   check(names.includes("research_recording"), "research_recording is on /api/mcp");
   check(names.includes("share_listen"), "share_listen is on /api/mcp");
   check(names.includes("resolve_atlas"), "resolve_atlas is on /api/mcp");
@@ -1085,6 +1086,7 @@ async function verifySoftListen() {
   check(home.includes("Favorite Songs"), "home still names Favorite Songs");
   check(home.includes("Connect Apple Music"), "home still names Connect Apple Music");
   check(/Joyful/.test(home), "home names the Joyful golds");
+  check(/Feelings/.test(home) && /Open Feelings/.test(home), "home names the Feelings cut of Atlas");
   check(/15 to 60 minutes/.test(home), "home mentions duration-aware atlas listening");
   const radio = await fetch(`${BASE}/radio`).then((r) => r.text());
   check(/wheat1/.test(radio), "radio names wheat1");

@@ -50,6 +50,21 @@ export default function ListenNowPage() {
       <section className="cx-chapter">
         <div className="cx-chapter-inner">
           <h2 className="cx-title">
+            Named <em>feelings.</em>
+          </h2>
+          <p className="cx-body">
+            A cut of Atlas — lie back, soft warmth, warm-up, after hours, sunset, tender. Only those Every Noise
+            branches. The mother map stays whole.
+          </p>
+          <Link href="/feelings" className="cx-see-all">
+            Open Feelings
+          </Link>
+        </div>
+      </section>
+
+      <section className="cx-chapter">
+        <div className="cx-chapter-inner">
+          <h2 className="cx-title">
             Joyful <em>golds.</em>
           </h2>
           <p className="cx-body">

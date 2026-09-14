@@ -728,7 +728,7 @@ export async function handleRpc(message: unknown, context: McpContext): Promise<
           "engine. Call get_next_emotional_drift to advance a session, or generate_taste_expansion " +
           "to admit ten new Apple Music positions near the listener's taste. Nuclear-shaped tools " +
           "(list_methods, call) search Apple Music and resolve YouTube full listens. " +
-          "Ask tools (find_music, browse_atlas, fetch_lyrics, research_recording, share_listen) " +
+          "Ask tools (find_music, browse_atlas, browse_feelings, fetch_lyrics, research_recording, share_listen) " +
           "are also first-class on this endpoint. No skip.",
       });
     }

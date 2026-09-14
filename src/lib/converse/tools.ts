@@ -8,6 +8,7 @@ import { looksLikeHexColor, matchRoom } from "./rooms";
 import { findMusic, sourceLabel } from "./anywhere";
 import { findRelated } from "./kin";
 import { harvestAtlas } from "@/lib/everynoise";
+import { harvestFeeling, listFeelingRooms } from "@/lib/feelings";
 import { harvestRoom } from "./live-room";
 import { fetchLyrics } from "@/lib/lyrics/lrclib";
 import { wantsMetingPlatform } from "@/lib/meting/platforms";
@@ -208,6 +209,29 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     },
   },
   {
+    name: "browse_feelings",
+    description:
+      "Open Feelings: a cut of the Every Noise atlas with only the named rooms (lie-back, soft-warm, warm-up, after-hours, sunset, tender) and their exact slugs. " +
+      "Atlas remains the full map. Returns real Apple recordings. Genre is navigation only. Then play_tracks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        room: {
+          type: "STRING",
+          description: "Feeling room id: lie-back, soft-warm, warm-up, after-hours, sunset, or tender.",
+        },
+        genre: { type: "STRING", description: "Allowlisted Every Noise slug or label, e.g. float house." },
+        artist: { type: "STRING", description: "Named artist to expand inside Feelings." },
+        query: { type: "STRING", description: "Free text: sunset, chill, after hours, or a Feelings branch." },
+        limit: { type: "INTEGER", description: "How many songs, 4–12. Default 8." },
+        duration_minutes: {
+          type: "INTEGER",
+          description: "Listening length in minutes (15, 30, 45, 60).",
+        },
+      },
+    },
+  },
+  {
     name: "browse_wheat",
     description:
       "Harvest wheat1 (t.me/wheat1) or a pasted night of artist – title lines. Resolves on Apple Music. Then play_tracks.",
@@ -283,7 +307,7 @@ export const CONVERSE_TOOLS: GeminiFunctionDeclaration[] = [
     name: "play_tracks",
     description:
       "Play one or more catalog ids now. The first starts immediately; the rest become a short asked-for queue. " +
-      "Ids must come from find_music, find_related, browse_atlas, browse_wheat, search_catalog, make_playlist, start_station, expand_taste, plan_journey, or resolve_atlas.",
+      "Ids must come from find_music, find_related, browse_atlas, browse_feelings, browse_wheat, search_catalog, make_playlist, start_station, expand_taste, plan_journey, or resolve_atlas.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -513,6 +537,51 @@ export async function executeConverseTool(
         note: tracks.length
           ? "Every Noise branches resolved to real Apple recordings. Mention Apple / Spotify / YouTube Music / SoundCloud links on each card. Call play_tracks."
           : "Atlas is quiet — name DJ Krush, trip hop, or another branch.",
+      };
+    }
+    case "browse_feelings": {
+      const room = asString(args.room);
+      const artist = asString(args.artist);
+      const genre = asString(args.genre);
+      const query = asString(args.query);
+      const minutes = asNumber(args.duration_minutes, 0);
+      if (!room && !artist && !genre && (!query || /^(feelings?|احساسات|فیلینگز|فیلینگ)$/i.test(query))) {
+        const listed = await listFeelingRooms();
+        return {
+          rooms: listed.rooms.map((row) => ({
+            id: row.id,
+            title: row.title,
+            kicker: row.kicker,
+            slugs: row.genres.map((g) => g.id),
+            labels: row.genres.map((g) => g.label),
+          })),
+          count: 0,
+          tracks: [],
+          note: "Feelings is a cut of Atlas. Name a room or an allowlisted branch, then call browse_feelings again and play_tracks.",
+        };
+      }
+      const harvested = await harvestFeeling({
+        room: room || undefined,
+        artist: artist || undefined,
+        genre: genre || undefined,
+        query: query || undefined,
+        limit: asNumber(args.limit, 8),
+        durationMinutes: minutes >= 8 ? minutes : undefined,
+      });
+      const tracks = harvested.tracks;
+      rememberSearch(ctx, tracks);
+      if (tracks.length) {
+        ctx.ingest.push(...tracks);
+        ctx.effects.push({ type: "ingest", tracks });
+      }
+      return {
+        title: harvested.title,
+        count: tracks.length,
+        tracks: tracks.map(card),
+        refused: harvested.refused ?? null,
+        note: tracks.length
+          ? "Feelings branches resolved to real Apple recordings. Call play_tracks. Do not invent genres onto the catalog."
+          : harvested.refused || "Feelings is quiet — name sunset, lie-back, trip hop, or another allowlisted room.",
       };
     }
     case "browse_wheat": {

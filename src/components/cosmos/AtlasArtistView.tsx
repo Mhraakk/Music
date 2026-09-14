@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AtlasGenre, AtlasOutbound, AtlasTrackCard } from "@/lib/everynoise/types";
 import type { LibraryTrack } from "@/lib/library";
+import { nestFor, type AtlasNestId } from "@/lib/atlas/nest";
 import { AtlasTrackRow } from "./AtlasTrackRow";
 import { AtlasPlay } from "./AtlasPlay";
 import { OutboundLinks, outboundFromAtlas } from "./OutboundLinks";
@@ -26,7 +27,8 @@ type Payload = {
   libraryTracks: LibraryTrack[];
 };
 
-export function AtlasArtistView({ name }: { name: string }) {
+export function AtlasArtistView({ name, nestId = "atlas" }: { name: string; nestId?: AtlasNestId }) {
+  const nest = nestFor(nestId);
   const router = useRouter();
   const { preview } = useAtlasPreview();
   const [page, setPage] = useState<Payload | null>(null);
@@ -56,12 +58,18 @@ export function AtlasArtistView({ name }: { name: string }) {
     return () => controller.abort();
   }, [name]);
 
+  const allow = nest.allowGenreIds;
+  const nearbyGenres = useMemo(() => {
+    const rows = page?.nearbyGenres ?? [];
+    return allow ? rows.filter((genre) => allow.has(genre.id)) : rows;
+  }, [page, allow]);
+
   const branchNodes: ScatterNode[] = useMemo(() => {
-    const branches = page?.branches ?? [];
+    const branches = (page?.branches ?? []).filter((genre) => (allow ? allow.has(genre.id) : true));
     return branches.map((genre) => ({
       id: genre.id,
       label: genre.label,
-      href: `/atlas/genre/${genre.id}`,
+      href: nest.genreHref(genre.id),
       color: genre.color,
       x: genre.x,
       y: genre.y,
@@ -69,13 +77,13 @@ export function AtlasArtistView({ name }: { name: string }) {
       previewUrl: genre.previewUrl,
       title: genre.exampleTitle ? `${genre.label} — ${genre.exampleArtist}: ${genre.exampleTitle}` : genre.label,
     }));
-  }, [page]);
+  }, [page, nest, allow]);
 
   if (!name.trim()) {
     return (
       <div className="cx-atlas">
         <p className="cx-kicker">
-          <Link href="/atlas">Every Noise at Once</Link> · find artist
+          <Link href={nest.rootHref}>{nest.rootLabel}</Link> · find artist
         </p>
         <h1 className="cx-atlas-display">Find an <em>artist.</em></h1>
         <form
@@ -84,7 +92,7 @@ export function AtlasArtistView({ name }: { name: string }) {
           onSubmit={(event) => {
             event.preventDefault();
             const trimmed = draft.trim();
-            if (trimmed) router.push(`/atlas/artist?name=${encodeURIComponent(trimmed)}`);
+            if (trimmed) router.push(nest.artistHref(trimmed));
           }}
         >
           <input
@@ -102,7 +110,7 @@ export function AtlasArtistView({ name }: { name: string }) {
     return (
       <div className="cx-atlas">
         <p className="cx-kicker">
-          <Link href="/atlas">Atlas</Link>
+          <Link href={nest.rootHref}>{nest.rootLabel}</Link>
         </p>
         <h1 className="cx-atlas-display">{name}</h1>
         <p className="cx-body">{error}</p>
@@ -113,7 +121,7 @@ export function AtlasArtistView({ name }: { name: string }) {
   if (!page) {
     return (
       <div className="cx-atlas">
-        <p className="cx-kicker">Atlas</p>
+        <p className="cx-kicker">{nest.rootLabel}</p>
         <h1 className="cx-atlas-display">Opening…</h1>
       </div>
     );
@@ -122,14 +130,22 @@ export function AtlasArtistView({ name }: { name: string }) {
   return (
     <div className="cx-atlas">
       <p className="cx-kicker">
-        <Link href="/atlas">Every Noise at Once</Link> · artist
+        <Link href={nest.rootHref}>{nest.rootLabel}</Link> · artist
       </p>
       <h1 className="cx-atlas-display">{page.artist.name}</h1>
       <p className="cx-body cx-atlas-lede">
-        Branches from Every Noise lookup. Recordings from Apple Music. Tap a branch to open that map.
+        {nest.id === "feelings"
+          ? "Branches that also live in Feelings. Recordings from Apple Music. The full map stays on Atlas."
+          : "Branches from Every Noise lookup. Recordings from Apple Music. Tap a branch to open that map."}
       </p>
 
-      <AtlasPlay artist={page.artist.name} fallbackTracks={page.libraryTracks} title={page.artist.name} label="Play this artist" />
+      <AtlasPlay
+        artist={page.artist.name}
+        fallbackTracks={page.libraryTracks}
+        title={page.artist.name}
+        label="Play this artist"
+        surface={nest.id}
+      />
       <div className="cx-atlas-toolbar">
         <OutboundLinks
           links={outboundFromAtlas(page.artist.outbound)}
@@ -142,9 +158,14 @@ export function AtlasArtistView({ name }: { name: string }) {
             Every Noise profile
           </a>
         ) : null}
+        {nest.id === "feelings" ? (
+          <Link href={`/atlas/artist?name=${encodeURIComponent(page.artist.name)}`} className="cx-outbound-link">
+            Full atlas
+          </Link>
+        ) : null}
       </div>
 
-      {page.nearbyGenres.length > 0 && (
+      {nearbyGenres.length > 0 && (
         <section className="cx-section">
           <div className="cx-section-head">
             <h2 className="cx-title">
@@ -152,8 +173,8 @@ export function AtlasArtistView({ name }: { name: string }) {
             </h2>
           </div>
           <div className="cx-atlas-chips">
-            {page.nearbyGenres.map((genre) => (
-              <Link key={genre.id} href={`/atlas/genre/${genre.id}`} className="cx-atlas-chip">
+            {nearbyGenres.map((genre) => (
+              <Link key={genre.id} href={nest.genreHref(genre.id)} className="cx-atlas-chip">
                 {genre.label}
               </Link>
             ))}
@@ -171,6 +192,12 @@ export function AtlasArtistView({ name }: { name: string }) {
           ) : null}
         </section>
       )}
+
+      {nest.id === "feelings" && nearbyGenres.length === 0 ? (
+        <p className="cx-meta">
+          This artist is not on a Feelings branch. Recordings still resolve on Apple. The mother map is Atlas.
+        </p>
+      ) : null}
 
       <section className="cx-section">
         <div className="cx-section-head">

@@ -97,6 +97,74 @@ check(
 );
 check(/"resonant"/.test(readFileSync(new URL("../.cursor/settings.json", import.meta.url), "utf8")), "Resonant Cursor plugin is enabled in project settings");
 
+const ALLOWED_FEELINGS = new Set([
+  "floathouse",
+  "microhouse",
+  "ambientdubtechno",
+  "rominimal",
+  "dubtechno",
+  "deepsunsetlounge",
+  "hypnotictechno",
+  "minimaldub",
+  "lofihouse",
+  "outsiderhouse",
+  "futuregarage",
+  "deepsoulhouse",
+  "detroithouse",
+  "chicagohouse",
+  "organichouse",
+  "deephouse",
+  "chillgroove",
+  "balearic",
+  "deepchill",
+  "ambienthouse",
+  "deeptechhouse",
+  "romanianelectronic",
+  "southafricansoulfuldeephouse",
+  "jazzhouse",
+  "jazztronica",
+  "nujazz",
+  "deepprogressivehouse",
+  "cologneelectronic",
+  "ethnotronica",
+  "futureambient",
+]);
+const tax = readFileSync(new URL("../src/lib/feelings/taxonomy.ts", import.meta.url), "utf8");
+const foundFeelings = new Set();
+for (const block of tax.matchAll(/slugs:\s*\[([^\]]+)\]/g)) {
+  for (const slug of block[1].matchAll(/"([a-z0-9]+)"/g)) foundFeelings.add(slug[1]);
+}
+check(foundFeelings.size === 30, "feelings taxonomy has thirty slugs", String(foundFeelings.size));
+check(
+  [...foundFeelings].every((slug) => ALLOWED_FEELINGS.has(slug)),
+  "feelings taxonomy only allowlisted slugs",
+  [...foundFeelings].filter((slug) => !ALLOWED_FEELINGS.has(slug)).join(", ")
+);
+check(
+  [...ALLOWED_FEELINGS].every((slug) => foundFeelings.has(slug)),
+  "feelings taxonomy is the complete thirty",
+  [...ALLOWED_FEELINGS].filter((slug) => !foundFeelings.has(slug)).join(", ")
+);
+check(
+  !foundFeelings.has("triphop") &&
+    !foundFeelings.has("reminimal") &&
+    !foundFeelings.has("melodichouse") &&
+    !foundFeelings.has("sunsetlounge") &&
+    !foundFeelings.has("nudisco"),
+  "feelings does not invent missing or extra branches"
+);
+const feelingsTools = readFileSync(new URL("../src/lib/converse/tools.ts", import.meta.url), "utf8");
+check(/browse_feelings/.test(feelingsTools), "Ask exposes browse_feelings");
+check(/Atlas\.feelings/.test(nuclearSrc) && /feelings:/.test(nuclearSrc), "Atlas domain has feelings method without a fifth discovery tool");
+const nestSrc = readFileSync(new URL("../src/lib/atlas/nest.ts", import.meta.url), "utf8");
+check(/FEELINGS_NEST/.test(nestSrc) && /allowGenreIds/.test(nestSrc), "Feelings nest reuses atlas click rooms");
+const feelingsUi = readFileSync(new URL("../src/components/cosmos/FeelingsSurface.tsx", import.meta.url), "utf8");
+check(/Play this feeling/.test(feelingsUi) && /cx-atlas-chips/.test(feelingsUi), "Feelings surface plays a room and wraps branch chips");
+const shellUi = readFileSync(new URL("../src/components/cosmos/AppShell.tsx", import.meta.url), "utf8");
+check(/href: "\/feelings"/.test(shellUi) && /short: "Feel"/.test(shellUi), "nav names Feelings after Atlas");
+const genreView = readFileSync(new URL("../src/components/cosmos/AtlasGenreView.tsx", import.meta.url), "utf8");
+check(/nestId/.test(genreView) && /\/api\/feelings\/genre/.test(genreView), "genre view can nest inside Feelings without serializing a Set");
+
 const base = process.argv[2];
 if (base) {
   const root = base.replace(/\/$/, "");
@@ -166,6 +234,33 @@ if (base) {
   check(atlasPage.ok, "atlas page loads");
   const genrePage = await fetch(`${root}/atlas/genre/triphop`);
   check(genrePage.ok, "trip hop genre page loads");
+  const feelings = await get("/api/feelings");
+  check(feelings.status === 200 && (feelings.json.rooms?.length ?? 0) === 6, "GET /api/feelings has six rooms", String(feelings.json.rooms?.length ?? 0));
+  check((feelings.json.slugs?.length ?? 0) === 30, "GET /api/feelings lists thirty slugs", String(feelings.json.slugs?.length ?? 0));
+  const liveSlugs = new Set(feelings.json.slugs ?? []);
+  check([...liveSlugs].every((slug) => ALLOWED_FEELINGS.has(slug)), "live feelings slugs stay inside the thirty");
+  const feelingGenre = await get("/api/feelings/genre/floathouse?enrich=4");
+  check(feelingGenre.status === 200 && feelingGenre.json.genre?.id === "floathouse", "GET Feelings float house", feelingGenre.json.genre?.id ?? "");
+  check((feelingGenre.json.libraryTracks ?? []).every((t) => !("genre" in t) || t.genre == null), "feelings harvest has no genre field");
+  check((feelingGenre.json.nearby ?? []).every((pin) => ALLOWED_FEELINGS.has(pin.id)), "feelings nearby stays inside the thirty");
+  check((feelingGenre.json.mirrors ?? []).every((pin) => ALLOWED_FEELINGS.has(pin.id)), "feelings mirrors stay inside the thirty");
+  const refused = await get("/api/feelings/genre/triphop?enrich=2");
+  check(refused.status === 404, "GET Feelings trip hop is refused", String(refused.status));
+  const pop = await get("/api/feelings/genre/pop");
+  check(pop.status === 404, "GET Feelings pop is refused", String(pop.status));
+  const feelingsPage = await fetch(`${root}/feelings`);
+  check(feelingsPage.ok, "feelings page loads");
+  const floatPage = await fetch(`${root}/feelings/genre/floathouse`);
+  check(floatPage.ok, "float house feelings page loads");
+  const tripFeel = await fetch(`${root}/feelings/genre/triphop`).then((r) => r.text());
+  check(/Not in this cut/.test(tripFeel), "trip hop is not a Feelings page");
+  const popFeel = await fetch(`${root}/feelings/genre/pop`).then((r) => r.text());
+  check(/Not in this cut/.test(popFeel), "pop is not a Feelings page");
+  const homeFeel = await fetch(`${root}/`).then((r) => r.text());
+  check(homeFeel.includes("Listen Now"), "home still Listen Now after Feelings");
+  check(homeFeel.includes("Favorite Songs"), "home still Favorite Songs after Feelings");
+  check(homeFeel.includes("Connect Apple Music"), "home still Connect Apple Music after Feelings");
+  check(homeFeel.includes("Feelings"), "home names Feelings");
 }
 
 if (failed) {
