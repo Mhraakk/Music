@@ -1,0 +1,41 @@
+[project]
+name = "resonant-ai-backend"
+version = "1.0.0"
+description = "RESONANT AI backend — FastAPI gateway, LangGraph agent, RAG, guardrails, memory"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "langgraph>=0.2",
+  "numpy>=1.26",
+  "httpx>=0.27",
+  "prometheus-client>=0.20",
+  "python-multipart>=0.0.9",
+  "pypdf>=4.2",
+  "sqlalchemy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
+qdrant = ["qdrant-client>=1.9"]
+redis = ["redis>=5.0"]
+postgres = ["psycopg[binary]>=3.1"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "var"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["B008", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

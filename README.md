@@ -20,14 +20,32 @@ local taste graph with rejection memory — no account, no tracking, fully local
 
 ## Getting started
 
+**Frontend**
+
 ```bash
 npm install
 npm run dev
 # open http://localhost:3000
 ```
 
+**AI backend** (optional — powers the `/ask` page)
+
+```bash
+cd backend
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Or bring up the whole stack (web + API + Qdrant + Redis + Postgres + Prometheus):
+
+```bash
+docker compose up --build
+```
+
 Optional configuration lives in `.env.local` (see [`.env.example`](./.env.example)).
-Everything is optional — the app runs on its local engine out of the box.
+Everything is optional — both services run with sensible local defaults and no
+API keys.
 
 ## Scripts
 
@@ -48,20 +66,34 @@ Everything is optional — the app runs on its local engine out of the box.
 ```
 src/
   app/            # App Router: pages, API routes, error/manifest/robots/sitemap
+    ask/          # AI assistant UI (RAG + agent)
+    api/ai/       # Same-origin proxy to the FastAPI backend
     api/health/   # Health & readiness endpoint
     api/agent/    # Local agent orchestrator endpoint (rate-limited)
   components/     # UI (player, artwork, cards, panels)
   lib/            # Engine, agent, taste graph, reliability, env, logger, rate-limit
   store/          # Zustand stores
+backend/          # FastAPI AI service — RAG, LangGraph agent, guardrails, memory
 tests/            # Vitest unit + component tests
 e2e/              # Playwright specs
+ops/              # Prometheus scrape config
 ```
 
 ## APIs
 
+Frontend (Next.js):
+
 - `GET /api/health` — catalog integrity, recommendation health, agent version.
-- `POST /api/agent` — natural-language music agent (recommend, refine, journey,
-  player control). Rate limited to 30 requests / 10s per client.
+- `POST /api/agent` — local music agent (recommend, refine, journey, player
+  control). Rate limited to 30 requests / 10s per client.
+- `POST /api/ai/chat` — proxy to the AI backend used by the `/ask` page.
+
+AI backend (FastAPI, see [`backend/README.md`](./backend/README.md)):
+
+- `POST /api/v1/chat` — LangGraph agent turn with retrieval, tools, guardrails
+  and citations.
+- `POST /api/v1/rag/query` and `/api/v1/rag/documents/*` — retrieval and ingestion.
+- `GET /health`, `/ready`, `/metrics` — health and Prometheus metrics.
 
 ## Testing
 
