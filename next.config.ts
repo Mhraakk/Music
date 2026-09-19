@@ -13,7 +13,23 @@ const csp = [
   `base-uri 'self'`,
   `object-src 'none'`,
   `frame-ancestors 'none'`,
-  `img-src 'self' data: blob: https://*.mzstatic.com https://api.iconify.design`,
+  // Artwork comes from each provider's own CDN.
+  [
+    "img-src 'self' data: blob:",
+    "https://*.mzstatic.com", // Apple / iTunes
+    "https://*.dzcdn.net", // Deezer
+    "https://i.scdn.co", // Spotify
+    "https://*.ytimg.com", // YouTube Music
+    "https://api.iconify.design",
+  ].join(" "),
+  // 30-second previews are streamed straight from the providers.
+  [
+    "media-src 'self' blob:",
+    "https://audio-ssl.itunes.apple.com",
+    "https://*.mzstatic.com",
+    "https://*.dzcdn.net",
+    "https://p.scdn.co",
+  ].join(" "),
   `font-src 'self' data:`,
   `style-src 'self' 'unsafe-inline'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://va.vercel-scripts.com`,
@@ -53,6 +69,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "is3-ssl.mzstatic.com" },
       { protocol: "https", hostname: "is4-ssl.mzstatic.com" },
       { protocol: "https", hostname: "is5-ssl.mzstatic.com" },
+      { protocol: "https", hostname: "**.dzcdn.net" },
+      { protocol: "https", hostname: "i.scdn.co" },
+      { protocol: "https", hostname: "**.ytimg.com" },
     ],
   },
   async headers() {

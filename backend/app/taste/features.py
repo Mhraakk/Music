@@ -17,10 +17,13 @@ features more than text heuristics.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 
-from app.sources.base import ExternalTrack
+from app.sources.base import ExternalTrack, normalize_key
 
 AXES = ("d", "w", "o", "e", "m", "s")
 
@@ -98,6 +101,19 @@ GENRE_LEXICON: dict[str, Vector] = {
     "reggae": {"w": 0.3, "e": 0.1, "m": 0.1},
     "soundtrack": {"o": 0.2, "m": -0.1, "s": 0.15},
     "score": {"o": 0.3, "e": -0.15, "m": -0.2},
+    # Coarse storefront genres (iTunes reports exactly one of these per track,
+    # so without them most Apple-sourced music would stay at a neutral prior).
+    "alternative": {"m": -0.2, "d": 0.12, "o": 0.1},
+    "electronica": {"o": -0.3, "e": 0.15, "m": -0.15},
+    "singer/songwriter": {"o": 0.4, "w": 0.2, "e": -0.2, "s": 0.2},
+    "easy listening": {"w": 0.3, "e": -0.3, "m": 0.15},
+    "world": {"o": 0.35, "w": 0.2, "m": -0.15},
+    "vocal": {"w": 0.25, "o": 0.2},
+    "punk": {"e": 0.45, "d": 0.2, "m": -0.15, "w": -0.15},
+    "hard rock": {"e": 0.45, "d": 0.25, "w": -0.1},
+    "hip-hop": {"e": 0.25, "m": 0.25, "o": -0.15},
+    "r&b/soul": {"w": 0.35, "m": 0.25},
+    "instrumental": {"m": -0.2, "o": 0.15},
 }
 
 # Title/album wording gives a weaker but useful prior.
@@ -174,6 +190,68 @@ def _from_audio_features(features: dict[str, float]) -> Vector | None:
     return vector
 
 
+@lru_cache(maxsize=1)
+def _catalogue_artist_vectors() -> dict[str, Vector]:
+    """Mean emotional vector per artist from the hand-annotated local catalogue.
+
+    These 60 tracks were annotated by ear, so when an external track is by an
+    artist the catalogue already knows, that reading beats any text heuristic.
+    """
+    path = Path(__file__).resolve().parent.parent.parent / "data" / "catalog.json"
+    if not path.exists():
+        return {}
+    try:
+        catalogue = json.loads(path.read_text("utf-8"))
+    except Exception:
+        return {}
+
+    sums: dict[str, list[Vector]] = {}
+    for entry in catalogue:
+        vec = entry.get("v") or {}
+        artist = normalize_key(entry.get("artist") or "")
+        if not artist or not vec:
+            continue
+        sums.setdefault(artist, []).append({axis: float(vec.get(axis, 0.5)) for axis in AXES})
+
+    return {
+        artist: {axis: sum(v[axis] for v in vectors) / len(vectors) for axis in AXES}
+        for artist, vectors in sums.items()
+    }
+
+
+#: Containment matching below this length produces false positives
+#: ("DJ" would otherwise match "DJ Shadow").
+MIN_CONTAINMENT_LENGTH = 8
+
+
+def _catalogue_prior(track: ExternalTrack) -> Vector | None:
+    """Match an external artist against a known catalogue artist.
+
+    Normalization already folds punctuation and accents, so most providers hit
+    the exact path. Containment is a narrow fallback for name variants and is
+    gated on length and word boundaries.
+    """
+    artists = _catalogue_artist_vectors()
+    if not artists:
+        return None
+    name = normalize_key(track.artist or "")
+    if not name:
+        return None
+    if name in artists:
+        return dict(artists[name])
+
+    for known, vector in artists.items():
+        shorter, longer = sorted((name, known), key=len)
+        if len(shorter) < MIN_CONTAINMENT_LENGTH:
+            continue
+        if shorter == longer:
+            return dict(vector)
+        # Require a word boundary so "gore" cannot match "gorecki".
+        if f" {shorter} " in f" {longer} " or longer.startswith(f"{shorter} "):
+            return dict(vector)
+    return None
+
+
 def infer_vector(track: ExternalTrack) -> InferredVector:
     """Best-effort emotional vector for a track from any source."""
     from_features = _from_audio_features(track.audio_features)
@@ -186,6 +264,18 @@ def infer_vector(track: ExternalTrack) -> InferredVector:
             vector={k: round(_clamp(v), 4) for k, v in vector.items()},
             confidence=0.9,
             basis="provider audio features" + (f" + {matched} genre tags" if matched else ""),
+        )
+
+    prior = _catalogue_prior(track)
+    if prior is not None:
+        vector = prior
+        matched = _apply_genres(vector, track, weight=0.3)
+        _apply_text(vector, track)
+        return InferredVector(
+            vector={k: round(_clamp(v), 4) for k, v in vector.items()},
+            confidence=0.85,
+            basis="curated catalogue reading for this artist"
+            + (f" + {matched} genre tags" if matched else ""),
         )
 
     vector = dict(NEUTRAL)

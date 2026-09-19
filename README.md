@@ -3,7 +3,13 @@
 Cinematic music intelligence. Artwork-driven. Emotional taste graph.
 
 RESONANT is a Next.js app that recommends music from an emotional "compass" and a
-local taste graph with rejection memory — no account, no tracking, fully local engine.
+taste graph with rejection memory.
+
+It pulls from **Telegram, YouTube Music, Apple Music, Spotify and the open
+internet** (Apple/iTunes search, Deezer and MusicBrainz work with no
+credentials), merges the same song across providers, and ranks everything
+against a taste profile it learns from your signals — see
+[`docs/MUSIC-SOURCES.md`](./docs/MUSIC-SOURCES.md).
 
 ---
 

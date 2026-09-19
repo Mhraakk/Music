@@ -158,7 +158,8 @@ class TestRanking:
     def test_diversify_avoids_repeating_one_artist(self, container):
         profile = self._profile(container, [t(genres=["ambient"])])
         candidates = [
-            merged(t(title=f"Track {i}", artist="Same Artist", genres=["ambient"])) for i in range(5)
+            merged(t(title=f"Track {i}", artist="Same Artist", genres=["ambient"]))
+            for i in range(5)
         ]
         candidates.append(merged(t(title="Other", artist="Different", genres=["ambient"])))
         ranked = rank_for_profile(candidates, profile, limit=3)
