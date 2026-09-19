@@ -19,11 +19,7 @@ function uid() {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function composeReply(
-  intent: string,
-  tools: ToolResult[],
-  gloss: string
-): string {
+function composeReply(intent: string, tools: ToolResult[], gloss: string): string {
   const lines: string[] = [];
 
   for (const t of tools) {
@@ -39,9 +35,7 @@ function composeReply(
           hatedCount: number;
           avoids: string[];
         };
-        lines.push(
-          `Taste graph: ${d.voice}. +${d.likedCount} attract · −${d.hatedCount} reject.`
-        );
+        lines.push(`Taste graph: ${d.voice}. +${d.likedCount} attract · −${d.hatedCount} reject.`);
         if (d.avoids?.length) lines.push(`Avoids: ${d.avoids.join(" · ")}.`);
         break;
       }
@@ -65,7 +59,13 @@ function composeReply(
         const h = (t.data as { health?: { score: number; ok: boolean } }).health;
         if (h) lines.push(`Health ${Math.round(h.score * 100)}%${h.ok ? "" : " · weak batch"}`);
         const ps = (t.data as { poolStats?: Record<string, number> }).poolStats;
-        if (ps) lines.push("Pools: " + Object.entries(ps).map(([k, v]) => `${k}:${v}`).join(" · "));
+        if (ps)
+          lines.push(
+            "Pools: " +
+              Object.entries(ps)
+                .map(([k, v]) => `${k}:${v}`)
+                .join(" · ")
+          );
         break;
       }
       case "explainRecommendation": {
@@ -110,9 +110,7 @@ function composeReply(
               (d.correlationId ? ` · ${d.correlationId}` : "")
           );
         }
-        lines.push(
-          d.top.map((x) => `• ${x.title} (${x.score}) ${x.debug || ""}`).join("\n")
-        );
+        lines.push(d.top.map((x) => `• ${x.title} (${x.score}) ${x.debug || ""}`).join("\n"));
         break;
       }
       case "buildJourney": /* roles + transition */ {
@@ -247,50 +245,113 @@ function composeReply(
         break;
       }
       case "autopsyTrack": {
-        const d = t.data as { rank: number | null; score: number | null; tier: string; track: { title: string }; components: { distance: number; temperatureNote: string }; beatenBy: { title: string }[] };
-        lines.push(`Autopsy: ${d.track.title}\nrank ${d.rank} · score ${d.score} · tier ${d.tier}\ndist ${d.components.distance}\n${d.components.temperatureNote}`);
-        if (d.beatenBy?.length) lines.push("Beaten by: " + d.beatenBy.map((b) => b.title).join(", "));
+        const d = t.data as {
+          rank: number | null;
+          score: number | null;
+          tier: string;
+          track: { title: string };
+          components: { distance: number; temperatureNote: string };
+          beatenBy: { title: string }[];
+        };
+        lines.push(
+          `Autopsy: ${d.track.title}\nrank ${d.rank} · score ${d.score} · tier ${d.tier}\ndist ${d.components.distance}\n${d.components.temperatureNote}`
+        );
+        if (d.beatenBy?.length)
+          lines.push("Beaten by: " + d.beatenBy.map((b) => b.title).join(", "));
         break;
       }
       case "counterfactual": {
-        const d = t.data as { hypothesis: string; beforeVoice: string; afterVoice: string; deltaSummary: string; wouldSurface: { title: string; artist: string }[] };
+        const d = t.data as {
+          hypothesis: string;
+          beforeVoice: string;
+          afterVoice: string;
+          deltaSummary: string;
+          wouldSurface: { title: string; artist: string }[];
+        };
         lines.push(`${d.hypothesis}\n${d.beforeVoice} → ${d.afterVoice}\n${d.deltaSummary}`);
-        lines.push((d.wouldSurface || []).map((x, i) => `${i + 1}. ${x.title} — ${x.artist}`).join("\n"));
+        lines.push(
+          (d.wouldSurface || []).map((x, i) => `${i + 1}. ${x.title} — ${x.artist}`).join("\n")
+        );
         break;
       }
       case "textureSearch": {
-        const d = t.data as { query: string; items: { title: string; artist: string; why: string }[] };
-        lines.push(`Texture: ${d.query}\n` + (d.items || []).map((x, i) => `${i + 1}. ${x.title} — ${x.artist}\n   ${x.why}`).join("\n"));
+        const d = t.data as {
+          query: string;
+          items: { title: string; artist: string; why: string }[];
+        };
+        lines.push(
+          `Texture: ${d.query}\n` +
+            (d.items || [])
+              .map((x, i) => `${i + 1}. ${x.title} — ${x.artist}\n   ${x.why}`)
+              .join("\n")
+        );
         break;
       }
       case "sceneDiscover": {
-        const d = t.data as { scenes: { name: string; description: string; tracks: { title: string }[] }[] };
-        lines.push((d.scenes || []).map((s) => `• ${s.name}: ${s.description}\n  ${s.tracks.map((x) => x.title).join(", ")}`).join("\n\n"));
+        const d = t.data as {
+          scenes: { name: string; description: string; tracks: { title: string }[] }[];
+        };
+        lines.push(
+          (d.scenes || [])
+            .map(
+              (s) => `• ${s.name}: ${s.description}\n  ${s.tracks.map((x) => x.title).join(", ")}`
+            )
+            .join("\n\n")
+        );
         break;
       }
       case "influenceGraph": {
-        const d = t.data as { seed: { title: string; artist: string } | null; ancestors: string[]; descendants: string[]; neighbors: { title: string; artist: string }[] };
+        const d = t.data as {
+          seed: { title: string; artist: string } | null;
+          ancestors: string[];
+          descendants: string[];
+          neighbors: { title: string; artist: string }[];
+        };
         lines.push(d.seed ? `Seed: ${d.seed.artist} — ${d.seed.title}` : "No seed");
         if (d.ancestors?.length) lines.push("Ancestors: " + d.ancestors.join(" · "));
         if (d.descendants?.length) lines.push("Descendants: " + d.descendants.join(" · "));
-        if (d.neighbors?.length) lines.push("Neighbors: " + d.neighbors.map((n) => n.title).join(", "));
+        if (d.neighbors?.length)
+          lines.push("Neighbors: " + d.neighbors.map((n) => n.title).join(", "));
         break;
       }
       case "runPortal": {
-        const d = t.data as { title: string; description: string; items: { title: string; artist: string }[] };
-        lines.push(`${d.title}\n${d.description}\n` + (d.items || []).map((x, i) => `${i + 1}. ${x.title} — ${x.artist}`).join("\n"));
+        const d = t.data as {
+          title: string;
+          description: string;
+          items: { title: string; artist: string }[];
+        };
+        lines.push(
+          `${d.title}\n${d.description}\n` +
+            (d.items || []).map((x, i) => `${i + 1}. ${x.title} — ${x.artist}`).join("\n")
+        );
         break;
       }
       case "getTasteDNA": {
-        const d = t.data as { longTermSamples: number; mediumSamples: number; sessionSamples: number; negativeStrength: number; negativeArtists: string[]; note?: string };
-        lines.push(`Taste DNA\nlong ${d.longTermSamples} · medium ${d.mediumSamples} · session ${d.sessionSamples}\nnegative ${Math.round((d.negativeStrength || 0) * 100)}%`);
+        const d = t.data as {
+          longTermSamples: number;
+          mediumSamples: number;
+          sessionSamples: number;
+          negativeStrength: number;
+          negativeArtists: string[];
+          note?: string;
+        };
+        lines.push(
+          `Taste DNA\nlong ${d.longTermSamples} · medium ${d.mediumSamples} · session ${d.sessionSamples}\nnegative ${Math.round((d.negativeStrength || 0) * 100)}%`
+        );
         if (d.negativeArtists?.length) lines.push("Avoids: " + d.negativeArtists.join(", "));
         if (d.note) lines.push(d.note);
         break;
       }
       case "getRecommendationHealth": {
-        const d = t.data as { health?: { score: number; ok: boolean }; tier?: string; metrics?: { poolSize: number }; message?: string };
-        lines.push(`Health ${d.health ? Math.round(d.health.score * 100) : "—"}% · tier ${d.tier || "—"} · pool ${d.metrics?.poolSize ?? "—"}`);
+        const d = t.data as {
+          health?: { score: number; ok: boolean };
+          tier?: string;
+          metrics?: { poolSize: number };
+          message?: string;
+        };
+        lines.push(
+          `Health ${d.health ? Math.round(d.health.score * 100) : "—"}% · tier ${d.tier || "—"} · pool ${d.metrics?.poolSize ?? "—"}`
+        );
         if (d.message) lines.push(d.message);
         break;
       }

@@ -16,7 +16,13 @@ import { AgentPanel } from "@/components/AgentPanel";
 import { DiscoveryPortals } from "@/components/DiscoveryPortals";
 import { MusicalGps } from "@/components/MusicalGps";
 import { HealthBanner } from "@/components/HealthBanner";
-import { getSession, setTemperature, pushSessionListen, getTasteTwin, dnaSnapshot } from "@/lib/taste";
+import {
+  getSession,
+  setTemperature,
+  pushSessionListen,
+  getTasteTwin,
+  dnaSnapshot,
+} from "@/lib/taste";
 import { clearExposure } from "@/lib/reliability/exposure";
 import type { Track } from "@/lib/tracks";
 
@@ -55,13 +61,25 @@ export default function App() {
   const playRaw = usePlayer((s) => s.play);
   const play = (t: Track, q?: Track[]) => {
     playRaw(t, q);
-    try { pushSessionListen(t, c, t.emotion); } catch { /* */ }
+    try {
+      pushSessionListen(t, c, t.emotion);
+    } catch {
+      /* */
+    }
   };
 
   const [tab, setTab] = useState<"graph" | "flow" | "self">("graph");
-  const [c, setC] = useState<Compass>({ warm: 0.55, sad: 0.45, organic: 0.5, energy: 0.35, dark: 0.55 });
+  const [c, setC] = useState<Compass>({
+    warm: 0.55,
+    sad: 0.45,
+    organic: 0.5,
+    energy: 0.35,
+    dark: 0.55,
+  });
   const [depth, setDepth] = useState(0.7);
-  const [temp, setTemp] = useState(() => (typeof window !== "undefined" ? getSession().temperature : 0.45));
+  const [temp, setTemp] = useState(() =>
+    typeof window !== "undefined" ? getSession().temperature : 0.45
+  );
   const [portalItems, setPortalItems] = useState<Track[] | null>(null);
   const [portalTitle, setPortalTitle] = useState<string | null>(null);
   const [sessionShown, setSessionShown] = useState<string[]>([]);
@@ -121,7 +139,9 @@ export default function App() {
               R
             </div>
             <div>
-              <p className="text-[12px] font-semibold tracking-[0.22em] text-[#e8a06a] uppercase">Resonant</p>
+              <p className="text-[12px] font-semibold tracking-[0.22em] text-[#e8a06a] uppercase">
+                Resonant
+              </p>
               <p className="text-[10px] text-white/32 tracking-wide">Emotional taste graph</p>
             </div>
           </div>
@@ -160,22 +180,34 @@ export default function App() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-[#e8a06a] mb-1.5">Hero discovery</p>
-                    <p className="text-[1.35rem] font-semibold text-white tracking-tight">{res.items[0].t.title}</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[#e8a06a] mb-1.5">
+                      Hero discovery
+                    </p>
+                    <p className="text-[1.35rem] font-semibold text-white tracking-tight">
+                      {res.items[0].t.title}
+                    </p>
                     <p className="text-sm text-white/55 mt-0.5">{res.items[0].t.artist}</p>
                   </div>
                 </div>
                 <div className="p-4">
-                  <p className="text-[12.5px] text-[#d4a574]/95 leading-relaxed">{res.items[0].reason}</p>
+                  <p className="text-[12.5px] text-[#d4a574]/95 leading-relaxed">
+                    {res.items[0].reason}
+                  </p>
                 </div>
               </button>
             )}
 
             <section className="mt-5 glass-2 glass-edge rounded-[1.25rem] p-4 space-y-3.5">
-              <h2 className="text-[10px] uppercase tracking-[0.2em] text-[#e8a06a]/90">Mood compass</h2>
+              <h2 className="text-[10px] uppercase tracking-[0.2em] text-[#e8a06a]/90">
+                Mood compass
+              </h2>
               <Slider label="Warm" value={c.warm} onChange={(n) => setC({ ...c, warm: n })} />
               <Slider label="Sad" value={c.sad} onChange={(n) => setC({ ...c, sad: n })} />
-              <Slider label="Organic" value={c.organic} onChange={(n) => setC({ ...c, organic: n })} />
+              <Slider
+                label="Organic"
+                value={c.organic}
+                onChange={(n) => setC({ ...c, organic: n })}
+              />
               <Slider label="Energy" value={c.energy} onChange={(n) => setC({ ...c, energy: n })} />
               <Slider label="Dark" value={c.dark} onChange={(n) => setC({ ...c, dark: n })} />
               <Slider label="Discovery depth" value={depth} onChange={setDepth} />
@@ -224,7 +256,9 @@ export default function App() {
                   onClick={() => {
                     if (
                       typeof window !== "undefined" &&
-                      window.confirm("Clear all likes, dislikes and exposure memory? The graph will start fresh.")
+                      window.confirm(
+                        "Clear all likes, dislikes and exposure memory? The graph will start fresh."
+                      )
                     ) {
                       useFB.setState({ byTrack: {}, memory: [] });
                       try {
@@ -268,7 +302,10 @@ export default function App() {
               <span className="text-[#e8a06a]/90">Graph · </span>
               {res.graph?.voice}
               {res.graph?.avoids && res.graph.avoids.length > 0 && (
-                <span className="text-white/30"> · avoids {res.graph.avoids.slice(0, 3).join(", ")}</span>
+                <span className="text-white/30">
+                  {" "}
+                  · avoids {res.graph.avoids.slice(0, 3).join(", ")}
+                </span>
               )}
             </div>
 
@@ -319,14 +356,22 @@ export default function App() {
               <MusicalGps compass={c} path={fl.path.map((p) => p.t)} />
             </div>
             {twin.sessionNarrative && (
-              <p className="mt-3 text-[12px] text-white/45 leading-relaxed">{twin.sessionNarrative}</p>
+              <p className="mt-3 text-[12px] text-white/45 leading-relaxed">
+                {twin.sessionNarrative}
+              </p>
             )}
-            <p className="text-sm text-white/40 mt-1">Open → rise → settle → land. Hard emotional cuts are penalized.</p>
+            <p className="text-sm text-white/40 mt-1">
+              Open → rise → settle → land. Hard emotional cuts are penalized.
+            </p>
             <p className="text-[11px] text-[#e8a06a]/80 mt-2">{fl.voice}</p>
             <section className="mt-4 glass-2 glass-edge rounded-2xl p-4 space-y-3">
               <Slider label="Warm" value={c.warm} onChange={(n) => setC({ ...c, warm: n })} />
               <Slider label="Sad" value={c.sad} onChange={(n) => setC({ ...c, sad: n })} />
-              <Slider label="Energy peak" value={c.energy} onChange={(n) => setC({ ...c, energy: n })} />
+              <Slider
+                label="Energy peak"
+                value={c.energy}
+                onChange={(n) => setC({ ...c, energy: n })}
+              />
               <Slider label="Dark" value={c.dark} onChange={(n) => setC({ ...c, dark: n })} />
             </section>
             <div className="mt-4 flex items-end gap-1.5 h-16 px-1">
@@ -356,12 +401,16 @@ export default function App() {
         {tab === "self" && (
           <>
             <h1 className="mt-7 text-2xl font-semibold text-[#f8f4ee]">Knows you</h1>
-            <p className="text-sm text-white/40 mt-1">Every signal rewires the graph. Not a scoreboard — a memory.</p>
+            <p className="text-sm text-white/40 mt-1">
+              Every signal rewires the graph. Not a scoreboard — a memory.
+            </p>
             {(() => {
               const dna = dnaSnapshot(by, c);
               return (
                 <div className="mt-5 glass-2 glass-edge rounded-2xl p-4 space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/85">Taste DNA</p>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/85">
+                    Taste DNA
+                  </p>
                   <p className="text-[12px] text-white/55">
                     Long-term samples {dna.longTermSamples} · medium {dna.mediumSamples} · session{" "}
                     {dna.sessionSamples}
@@ -376,7 +425,9 @@ export default function App() {
               );
             })()}
             <div className="mt-5 glass-3 glass-edge rounded-2xl p-5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/85 mb-2">Taste graph voice</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[#e8a06a]/85 mb-2">
+                Taste graph voice
+              </p>
               <p className="text-lg text-[#f8f4ee] leading-snug">{g.voice}</p>
               {g.avoids.length > 0 && (
                 <p className="mt-3 text-[12px] text-white/40">Avoids: {g.avoids.join(" · ")}</p>
@@ -410,10 +461,17 @@ export default function App() {
                 </div>
               ))}
             </div>
-            <h2 className="mt-8 text-[10px] uppercase tracking-[0.15em] text-white/35">Library atmosphere</h2>
+            <h2 className="mt-8 text-[10px] uppercase tracking-[0.15em] text-white/35">
+              Library atmosphere
+            </h2>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
               {TRACKS.map((t) => (
-                <button key={t.id} type="button" onClick={() => play(t, TRACKS)} className="shrink-0 pressable">
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => play(t, TRACKS)}
+                  className="shrink-0 pressable"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={t.coverUrl}
@@ -426,7 +484,9 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <h2 className="mt-8 text-[10px] uppercase tracking-[0.15em] text-white/35">Signal timeline</h2>
+            <h2 className="mt-8 text-[10px] uppercase tracking-[0.15em] text-white/35">
+              Signal timeline
+            </h2>
             {mem.length === 0 ? (
               <p className="mt-3 text-sm text-white/35">
                 Teach the graph: more like this, less like this, reject with a reason.

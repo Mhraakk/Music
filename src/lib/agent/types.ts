@@ -56,7 +56,10 @@ export type AgentEffect =
   | { type: "setFeedback"; key: string; fe: FE | null }
   | { type: "pushMemory"; label: string }
   | { type: "play"; trackId: string; queueIds?: string[] }
-  | { type: "player"; action: "toggle" | "next" | "prev" | "pause" | "play" | "expand" | "collapse" }
+  | {
+      type: "player";
+      action: "toggle" | "next" | "prev" | "pause" | "play" | "expand" | "collapse";
+    }
   | { type: "setTab"; tab: "graph" | "flow" | "self" }
   | { type: "clearRecent" };
 

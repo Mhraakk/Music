@@ -29,35 +29,38 @@
   --radius-pill: 999px;
   --radius-hero: 1.75rem;
 
-  --shadow-glass: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+  --shadow-glass:
+    0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 
-  --shadow-elevated: 
-    0 20px 60px rgba(0, 0, 0, 0.55),
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  --shadow-elevated:
+    0 20px 60px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 
-  --shadow-hero: 
-    0 32px 90px rgba(0, 0, 0, 0.65),
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  --shadow-hero:
+    0 32px 90px rgba(0, 0, 0, 0.65), 0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
 
   --ambient: 28, 12, 6;
   --ambient-strength: 0.42;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   min-height: 100%;
   background: var(--r-bg);
   color: var(--r-ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "SF Pro Text",
+    "Segoe UI",
+    sans-serif;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
 }
@@ -136,7 +139,10 @@ body {
   border-radius: 50%;
   filter: blur(90px);
   opacity: 0.5;
-  transition: background 1.1s ease, transform 1.6s ease, opacity 1s ease;
+  transition:
+    background 1.1s ease,
+    transform 1.6s ease,
+    opacity 1s ease;
   will-change: background, transform;
 }
 
@@ -151,10 +157,11 @@ body {
 
 /* Interaction */
 .pressable {
-  transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1), 
-              opacity 0.15s ease, 
-              background 0.2s ease,
-              box-shadow 0.2s ease;
+  transition:
+    transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1),
+    opacity 0.15s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .pressable:active {
   transform: scale(0.96);
@@ -162,11 +169,15 @@ body {
 
 /* Soft glow on interactive glass */
 .glow-accent {
-  box-shadow: 0 0 24px rgba(232, 160, 106, 0.28), var(--shadow-glass);
+  box-shadow:
+    0 0 24px rgba(232, 160, 106, 0.28),
+    var(--shadow-glass);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -210,12 +221,52 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Safe area helpers */
-.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
 /* Editorial display weight for headlines */
 .display {
   font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.15;
+}
+
+/* Accessibility — skip link + keyboard focus (Layer 18) */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: var(--r-ink);
+  color: var(--r-bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: top 0.18s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
+  outline: 2px solid var(--r-accent);
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--r-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -29,7 +29,8 @@ export const useFB = create(
         }),
       pushMem: (label) =>
         set((s) => ({ memory: [{ at: Date.now(), label }, ...s.memory].slice(0, 40) })),
-      liked: () => Object.values(get().byTrack).filter((v) => v.kind === "more" || v.kind === "like").length,
+      liked: () =>
+        Object.values(get().byTrack).filter((v) => v.kind === "more" || v.kind === "like").length,
       hated: () => Object.values(get().byTrack).filter((v) => v.kind === "dislike").length,
     }),
     { name: "resonant-fb-v4" }

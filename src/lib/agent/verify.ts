@@ -9,7 +9,11 @@ const byKey = new Map(
 );
 
 export type VerifiedTrackRef = {
-  id: string; title: string; artist: string; verified: true; source: "local-catalog";
+  id: string;
+  title: string;
+  artist: string;
+  verified: true;
+  source: "local-catalog";
 };
 
 export function verifyTrackId(id: string | undefined | null): Track | null {
@@ -21,7 +25,9 @@ export function verifyArtistTitle(artist: string, title: string): Track | null {
   return byKey.get(`${artist.toLowerCase().trim()}::${title.toLowerCase().trim()}`) ?? null;
 }
 
-export function verifyTrackList<T extends { id: string }>(items: T[]): { verified: T[]; dropped: string[] } {
+export function verifyTrackList<T extends { id: string }>(
+  items: T[]
+): { verified: T[]; dropped: string[] } {
   const verified: T[] = [];
   const dropped: string[] = [];
   for (const item of items) {
@@ -35,12 +41,22 @@ export function toVerifiedRef(t: Track): VerifiedTrackRef {
   return { id: t.id, title: t.title, artist: t.artist, verified: true, source: "local-catalog" };
 }
 
-export function catalogIntegrity(): { ok: boolean; size: number; uniqueIds: number; duplicateIds: string[] } {
+export function catalogIntegrity(): {
+  ok: boolean;
+  size: number;
+  uniqueIds: number;
+  duplicateIds: string[];
+} {
   const seen = new Set<string>();
   const duplicateIds: string[] = [];
   for (const t of TRACKS) {
     if (seen.has(t.id)) duplicateIds.push(t.id);
     seen.add(t.id);
   }
-  return { ok: TRACKS.length > 0 && duplicateIds.length === 0, size: TRACKS.length, uniqueIds: seen.size, duplicateIds };
+  return {
+    ok: TRACKS.length > 0 && duplicateIds.length === 0,
+    size: TRACKS.length,
+    uniqueIds: seen.size,
+    duplicateIds,
+  };
 }

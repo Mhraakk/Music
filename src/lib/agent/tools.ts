@@ -70,7 +70,7 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
 
       case "generateRecommendations":
       case "refineRecommendations": {
-        let c = { ...compass };
+        const c = { ...compass };
         const applied: string[] = [];
         if (typeof args.darker === "number" || args.make === "darker") {
           c.dark = Math.min(1, c.dark + 0.15);
@@ -167,8 +167,18 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
 
       case "controlPlayer": {
         const raw = String(args.action || "toggle");
-        const allowed: PlayerAction[] = ["play", "toggle", "next", "prev", "pause", "expand", "collapse"];
-        const action: PlayerAction = (allowed.includes(raw as PlayerAction) ? raw : "toggle") as PlayerAction;
+        const allowed: PlayerAction[] = [
+          "play",
+          "toggle",
+          "next",
+          "prev",
+          "pause",
+          "expand",
+          "collapse",
+        ];
+        const action: PlayerAction = (
+          allowed.includes(raw as PlayerAction) ? raw : "toggle"
+        ) as PlayerAction;
         return {
           name,
           ok: true,

@@ -41,9 +41,7 @@ export function autopsyTrack(
   });
   let nearestLiked: AutopsyReport["nearestLiked"] = null;
   if (liked.length) {
-    const near = liked
-      .map((x) => ({ x, d: emotionalDist(x.v, t.v) }))
-      .sort((a, b) => a.d - b.d)[0];
+    const near = liked.map((x) => ({ x, d: emotionalDist(x.v, t.v) })).sort((a, b) => a.d - b.d)[0];
     nearestLiked = { title: near.x.title, artist: near.x.artist, dist: Number(near.d.toFixed(3)) };
   }
 

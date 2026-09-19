@@ -11,7 +11,13 @@ type Props = {
   priority?: boolean;
 };
 
-export function Artwork({ track, size = 56, className = "", rounded = "rounded-xl", priority }: Props) {
+export function Artwork({
+  track,
+  size = 56,
+  className = "",
+  rounded = "rounded-xl",
+  priority,
+}: Props) {
   const [failed, setFailed] = useState(false);
   const dim = typeof size === "number" ? `${size}px` : size;
 

@@ -15,10 +15,22 @@ type Props = {
 const TIER_COPY: Record<string, { label: string; hint: string; tone: "ok" | "soft" | "warn" }> = {
   primary: { label: "Primary", hint: "Full personalized rank", tone: "ok" },
   relaxed: { label: "Relaxed", hint: "Widened the room — fewer exact matches", tone: "soft" },
-  "soft-fallback": { label: "Soft fallback", hint: "Rejection memory was dense — nearest honest rooms", tone: "warn" },
+  "soft-fallback": {
+    label: "Soft fallback",
+    hint: "Rejection memory was dense — nearest honest rooms",
+    tone: "warn",
+  },
   absolute: { label: "Open catalog", hint: "Filters cleared to soft signals only", tone: "warn" },
-  "full-rotate": { label: "Rotation", hint: "Hard vetoes exhausted the graph — rotating open catalog", tone: "warn" },
-  emergency: { label: "Emergency fill", hint: "Never-empty floor — teach the graph again", tone: "warn" },
+  "full-rotate": {
+    label: "Rotation",
+    hint: "Hard vetoes exhausted the graph — rotating open catalog",
+    tone: "warn",
+  },
+  emergency: {
+    label: "Emergency fill",
+    hint: "Never-empty floor — teach the graph again",
+    tone: "warn",
+  },
   cached: { label: "Cached", hint: "Showing last-good while refreshing", tone: "soft" },
 };
 
@@ -27,7 +39,15 @@ function tierMeta(tier?: string) {
   return TIER_COPY[tier] || { label: tier, hint: "Non-primary path", tone: "soft" as const };
 }
 
-export function HealthBanner({ tier, health, message, poolSize, itemCount, correlationId, sources }: Props) {
+export function HealthBanner({
+  tier,
+  health,
+  message,
+  poolSize,
+  itemCount,
+  correlationId,
+  sources,
+}: Props) {
   const meta = tierMeta(tier);
   const score = health?.score;
   const pct = typeof score === "number" ? Math.round(score * 100) : null;
@@ -50,17 +70,23 @@ export function HealthBanner({ tier, health, message, poolSize, itemCount, corre
           </span>
         )}
         {typeof itemCount === "number" && <span className="text-white/35">{itemCount} tracks</span>}
-        {typeof poolSize === "number" && poolSize > 0 && <span className="text-white/30">pool {poolSize}</span>}
+        {typeof poolSize === "number" && poolSize > 0 && (
+          <span className="text-white/30">pool {poolSize}</span>
+        )}
       </div>
       <p className="text-[11px] text-white/45 leading-relaxed">{meta.hint}</p>
       {message && <p className="text-[11px] text-amber-100/85 leading-relaxed">{message}</p>}
       {health?.warnings && health.warnings.length > 0 && (
-        <p className="text-[10px] text-white/30">{health.warnings.filter((w) => w !== "health_below_threshold").join(" · ") || null}</p>
+        <p className="text-[10px] text-white/30">
+          {health.warnings.filter((w) => w !== "health_below_threshold").join(" · ") || null}
+        </p>
       )}
       {sources && sources.length > 0 && (
         <p className="text-[10px] text-white/28">Sources: {sources.slice(0, 6).join(" · ")}</p>
       )}
-      {correlationId && <p className="text-[9px] text-white/20 font-mono truncate">{correlationId}</p>}
+      {correlationId && (
+        <p className="text-[9px] text-white/20 font-mono truncate">{correlationId}</p>
+      )}
     </div>
   );
 }

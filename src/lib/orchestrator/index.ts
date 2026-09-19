@@ -122,8 +122,7 @@ export function orchestrateRecommendations(
     health = scoreRecommendationHealth({ items, tier, catalogSize: TRACKS.length });
   }
 
-  const latencyMs =
-    (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+  const latencyMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
 
   logEvent("orchestrator.complete", {
     correlationId,
