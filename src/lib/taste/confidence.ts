@@ -43,7 +43,7 @@ export function buildConfidenceMap(fb: FB, compass: Compass): DimensionConfidenc
     const hateVals = hated.map(extract);
     const likeMean = likeVals.length
       ? likeVals.reduce((a, b) => a + b, 0) / likeVals.length
-      : compassVal ?? 0.5;
+      : (compassVal ?? 0.5);
     let separation = 0.3;
     if (hateVals.length && likeVals.length) {
       const hateMean = hateVals.reduce((a, b) => a + b, 0) / hateVals.length;

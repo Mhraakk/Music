@@ -3,12 +3,7 @@ import type { Vec } from "@/lib/tracks";
 
 export type TasteHorizon = "long" | "medium" | "session";
 
-export type ContextLockMode =
-  | "none"
-  | "feel_only"
-  | "genre_only"
-  | "era_lock"
-  | "vocal_lock";
+export type ContextLockMode = "none" | "feel_only" | "genre_only" | "era_lock" | "vocal_lock";
 
 export type DiscoveryTemperature = number;
 
@@ -19,13 +14,7 @@ export type RecBudget = {
 };
 
 export type DimensionKey =
-  | "dark"
-  | "warm"
-  | "organic"
-  | "energy"
-  | "sad"
-  | "obscurity"
-  | "mainstream_tolerance";
+  "dark" | "warm" | "organic" | "energy" | "sad" | "obscurity" | "mainstream_tolerance";
 
 export type DimensionConfidence = {
   key: DimensionKey;

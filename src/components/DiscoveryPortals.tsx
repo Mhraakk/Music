@@ -8,7 +8,10 @@ type Props = {
   compass: Compass;
   fb: FB;
   depth: number;
-  onResult: (items: Track[], meta: { compass?: Partial<Compass>; depth?: number; title: string }) => void;
+  onResult: (
+    items: Track[],
+    meta: { compass?: Partial<Compass>; depth?: number; title: string }
+  ) => void;
 };
 
 export function DiscoveryPortals({ compass, fb, depth, onResult }: Props) {
@@ -21,7 +24,14 @@ export function DiscoveryPortals({ compass, fb, depth, onResult }: Props) {
       <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">Discovery portals</p>
       <div className="flex flex-wrap gap-1.5">
         {PORTAL_LIST.map((p) => (
-          <button key={p.id} type="button" onClick={() => run(p.id)} className="pressable text-[11px] px-3 py-1.5 rounded-full glass-2 text-[#e8a06a]/90 border border-white/10">{p.label}</button>
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => run(p.id)}
+            className="pressable text-[11px] px-3 py-1.5 rounded-full glass-2 text-[#e8a06a]/90 border border-white/10"
+          >
+            {p.label}
+          </button>
         ))}
       </div>
     </div>

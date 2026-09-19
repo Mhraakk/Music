@@ -74,17 +74,36 @@ export function graph(fb: FB) {
   const n = Math.max(1, base.length);
   const at: Vec = { d: 0, w: 0, o: 0, e: 0, m: 0, s: 0 };
   for (const t of base) {
-    at.d += t.v.d; at.w += t.v.w; at.o += t.v.o; at.e += t.v.e; at.m += t.v.m; at.s += t.v.s;
+    at.d += t.v.d;
+    at.w += t.v.w;
+    at.o += t.v.o;
+    at.e += t.v.e;
+    at.m += t.v.m;
+    at.s += t.v.s;
   }
-  (Object.keys(at) as (keyof Vec)[]).forEach((k) => { at[k] /= n; });
+  (Object.keys(at) as (keyof Vec)[]).forEach((k) => {
+    at[k] /= n;
+  });
 
   const avoids: string[] = [];
   for (const t of hated) {
     const r = fb[keyOf(t.artist, t.title)]?.reason;
-    if (r === "mainstream") { at.m = Math.max(0, at.m - 0.2); avoids.push("chart gravity"); }
-    if (r === "cold") { at.w = Math.min(1, at.w + 0.16); avoids.push("sterile cold"); }
-    if (r === "fast") { at.e = Math.max(0, at.e - 0.16); avoids.push("sudden speed"); }
-    if (r === "loud") { at.e = Math.max(0, at.e - 0.12); avoids.push("aggression"); }
+    if (r === "mainstream") {
+      at.m = Math.max(0, at.m - 0.2);
+      avoids.push("chart gravity");
+    }
+    if (r === "cold") {
+      at.w = Math.min(1, at.w + 0.16);
+      avoids.push("sterile cold");
+    }
+    if (r === "fast") {
+      at.e = Math.max(0, at.e - 0.16);
+      avoids.push("sudden speed");
+    }
+    if (r === "loud") {
+      at.e = Math.max(0, at.e - 0.12);
+      avoids.push("aggression");
+    }
     if (r === "never") avoids.push("hard veto");
     if (r === "wrong-feel") avoids.push("wrong feeling");
   }
@@ -99,7 +118,13 @@ export function graph(fb: FB) {
           ? "Tactile collector — grain and breath"
           : "Quiet listener — waits before recommending";
 
-  return { attract: at, voice, avoids: [...new Set(avoids)], liked: liked.length, hated: hated.length };
+  return {
+    attract: at,
+    voice,
+    avoids: [...new Set(avoids)],
+    liked: liked.length,
+    hated: hated.length,
+  };
 }
 
 function feedbackPenalty(f: FE | undefined): { hard: boolean; soft: number; note: string } {
@@ -134,7 +159,14 @@ function hash01(str: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-function scoreTrack(t: Track, tg: Vec, fb: FB, depth: number, seed: number, unratedBoost = 0): Scored {
+function scoreTrack(
+  t: Track,
+  tg: Vec,
+  fb: FB,
+  depth: number,
+  seed: number,
+  unratedBoost = 0
+): Scored {
   const f = fb[keyOf(t.artist, t.title)];
   const pen = feedbackPenalty(f);
   if (pen.hard) {
@@ -154,7 +186,9 @@ function scoreTrack(t: Track, tg: Vec, fb: FB, depth: number, seed: number, unra
     const freshness = (RECENT_CAP - recentIdx) / RECENT_CAP;
     s -= 0.55 + freshness * 4.5 + (RECENT_CAP - recentIdx) * 0.06;
   }
-  s += (hash01(t.id + String(seed) + String(Math.round(tg.w * 50 + tg.d * 50 + tg.e * 50))) - 0.5) * 1.1;
+  s +=
+    (hash01(t.id + String(seed) + String(Math.round(tg.w * 50 + tg.d * 50 + tg.e * 50))) - 0.5) *
+    1.1;
 
   const bits: string[] = [t.why];
   if (!f) bits.unshift("fresh for you");
@@ -184,7 +218,10 @@ function diversify(scored: Scored[], limit: number): Scored[] {
     if (usedArtists.has(artist) && out.length < limit - 1) continue;
     let tooClose = false;
     for (const p of out) {
-      if (emotionalDist(item.t.v, p.t.v) < 0.2) { tooClose = true; break; }
+      if (emotionalDist(item.t.v, p.t.v) < 0.2) {
+        tooClose = true;
+        break;
+      }
     }
     if (tooClose && out.length >= 3) continue;
     out.push(item);
@@ -204,7 +241,10 @@ function diversify(scored: Scored[], limit: number): Scored[] {
     const offset = sessionSeed % TRACKS.length;
     const rotated = [...TRACKS.slice(offset), ...TRACKS.slice(0, offset)];
     return rotated.slice(0, limit).map((t, i) => ({
-      t, s: 1 - i * 0.01, reason: "Catalog open — no signal left to filter", debug: "ABSOLUTE_FALLBACK",
+      t,
+      s: 1 - i * 0.01,
+      reason: "Catalog open — no signal left to filter",
+      debug: "ABSOLUTE_FALLBACK",
     }));
   }
   return out;
@@ -214,13 +254,24 @@ function emergencyFill(limit: number, message: string, tier: string, g: ReturnTy
   const offset = sessionSeed % TRACKS.length;
   const rotated = [...TRACKS.slice(offset), ...TRACKS.slice(0, offset)];
   const items = rotated.slice(0, limit).map((t, i) => ({
-    t, s: 0.5 - i * 0.01, reason: t.why, debug: "EMERGENCY",
+    t,
+    s: 0.5 - i * 0.01,
+    reason: t.why,
+    debug: "EMERGENCY",
   }));
   return {
-    items, message, graph: g, tier,
+    items,
+    message,
+    graph: g,
+    tier,
     health: { score: 0.4, ok: false, warnings: ["emergency"] as string[] },
     correlationId: `em_${sessionSeed}`,
-    metrics: { poolSize: TRACKS.length, latencyMs: 0, catalogSize: TRACKS.length, exposureSuppressed: 0 },
+    metrics: {
+      poolSize: TRACKS.length,
+      latencyMs: 0,
+      catalogSize: TRACKS.length,
+      exposureSuppressed: 0,
+    },
   };
 }
 
@@ -235,7 +286,9 @@ export function recommend(
   try {
     const topN = Math.min(Math.max(limit || 8, 1), 20);
     const exclude = excludeIds
-      ? excludeIds instanceof Set ? excludeIds : new Set(excludeIds)
+      ? excludeIds instanceof Set
+        ? excludeIds
+        : new Set(excludeIds)
       : null;
     sessionSeed += 1;
     const g = graph(fb);
@@ -250,9 +303,19 @@ export function recommend(
     const unratedBoost =
       ratedRatio < 0.15 ? 1.8 : ratedRatio < 0.35 ? 2.8 : ratedRatio < 0.55 ? 3.6 : 4.5;
 
-    log("recommend()", { liked: g.liked, hated: g.hated, hardVetoes: hardCount, catalog: TRACKS.length, rated: ratedCount, unratedBoost, seed: sessionSeed });
+    log("recommend()", {
+      liked: g.liked,
+      hated: g.hated,
+      hardVetoes: hardCount,
+      catalog: TRACKS.length,
+      rated: ratedCount,
+      unratedBoost,
+      seed: sessionSeed,
+    });
 
-    let scored = TRACKS.map((t) => scoreTrack(t, tg, fb, depth, sessionSeed, unratedBoost)).sort((a, b) => b.s - a.s);
+    let scored = TRACKS.map((t) => scoreTrack(t, tg, fb, depth, sessionSeed, unratedBoost)).sort(
+      (a, b) => b.s - a.s
+    );
     if (exclude && exclude.size > 0) {
       scored = scored.filter((x) => !exclude.has(x.t.id));
     }
@@ -284,7 +347,10 @@ export function recommend(
 
     let items = diversify(candidates, topN);
     if (items.length < Math.min(4, topN)) {
-      const more = diversify(scored.filter((x) => x.s > -90), topN);
+      const more = diversify(
+        scored.filter((x) => x.s > -90),
+        topN
+      );
       if (more.length > items.length) items = more;
     }
     if (items.length === 0) {
@@ -294,10 +360,22 @@ export function recommend(
     markRecent(items.map((x) => x.t.id));
     log("recommend result", { tier, count: items.length, top: items.map((x) => x.t.title) });
     return {
-      items, message, graph: g, tier,
-      health: { score: items.length >= 6 ? 0.9 : 0.7, ok: items.length >= 4, warnings: [] as string[] },
+      items,
+      message,
+      graph: g,
+      tier,
+      health: {
+        score: items.length >= 6 ? 0.9 : 0.7,
+        ok: items.length >= 4,
+        warnings: [] as string[],
+      },
       correlationId: `rec_${sessionSeed}`,
-      metrics: { poolSize: scored.length, latencyMs: 0, catalogSize: TRACKS.length, exposureSuppressed: 0 },
+      metrics: {
+        poolSize: scored.length,
+        latencyMs: 0,
+        catalogSize: TRACKS.length,
+        exposureSuppressed: 0,
+      },
     };
   } catch (err) {
     log("recommend CRASH", err);
@@ -341,9 +419,19 @@ export function flow(c: Compass, fb: FB, depth: number) {
         s += (hash01(t.id + String(sessionSeed + i)) - 0.5) * 0.5;
         return { t, s, reason: t.why, debug: `s=${s.toFixed(2)}` };
       }).sort((a, b) => b.s - a.s);
-      let pick = scored.find((x) => x.s > -1e7) || { t: TRACKS[(i + sessionSeed) % TRACKS.length], s: 0, reason: "path fill", debug: "fill" };
+      let pick = scored.find((x) => x.s > -1e7) || {
+        t: TRACKS[(i + sessionSeed) % TRACKS.length],
+        s: 0,
+        reason: "path fill",
+        debug: "fill",
+      };
       if (path.length >= 1) {
-        const alt = scored.find((x) => x.s > -1e7 && !used.has(x.t.id) && x.t.artist.toLowerCase() !== pick.t.artist.toLowerCase());
+        const alt = scored.find(
+          (x) =>
+            x.s > -1e7 &&
+            !used.has(x.t.id) &&
+            x.t.artist.toLowerCase() !== pick.t.artist.toLowerCase()
+        );
         if (alt && alt.s > pick.s - 1.0) pick = alt;
       }
       used.add(pick.t.id);
@@ -358,7 +446,10 @@ export function flow(c: Compass, fb: FB, depth: number) {
     return { path, graph: g };
   } catch {
     const path = TRACKS.slice(0, 6).map((t, i) => ({
-      t, reason: t.why, chapter: i === 0 ? "Open" : i === 5 ? "Land" : "Rise", e: 0.4,
+      t,
+      reason: t.why,
+      chapter: i === 0 ? "Open" : i === 5 ? "Land" : "Rise",
+      e: 0.4,
     }));
     return { path, graph: graph(fb || {}) };
   }

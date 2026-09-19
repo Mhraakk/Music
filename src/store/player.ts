@@ -43,7 +43,11 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   next: () => {
     const { current, queue, progress } = get();
     if (!current || !queue.length) return;
-    try { recordSkip(current.id, progress); } catch { /* */ }
+    try {
+      recordSkip(current.id, progress);
+    } catch {
+      /* */
+    }
     const i = queue.findIndex((x) => x.id === current.id);
     const n = queue[(i + 1) % queue.length];
     set({ current: n, progress: 0, playing: true });
@@ -51,7 +55,10 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   prev: () => {
     const { current, queue, progress } = get();
     if (!current || !queue.length) return;
-    if (progress > 0.08) { set({ progress: 0 }); return; }
+    if (progress > 0.08) {
+      set({ progress: 0 });
+      return;
+    }
     const i = queue.findIndex((x) => x.id === current.id);
     const n = queue[(i - 1 + queue.length) % queue.length];
     set({ current: n, progress: 0, playing: true });

@@ -7,12 +7,7 @@ import { graph, keyOf, emotionalDist, type Compass, type FB } from "@/lib/engine
 import { getSession } from "@/lib/taste/session";
 
 export type PoolName =
-  | "taste-neighbor"
-  | "obscure"
-  | "session"
-  | "serendipity"
-  | "memory"
-  | "micro-texture";
+  "taste-neighbor" | "obscure" | "session" | "serendipity" | "memory" | "micro-texture";
 
 export type PooledTrack = {
   t: Track;
@@ -29,7 +24,11 @@ function uniquePush(map: Map<string, PooledTrack>, t: Track, source: PoolName) {
 }
 
 /** Build overlapping pools; union becomes the orchestrator candidate set */
-export function retrievePools(c: Compass, fb: FB, depth: number): {
+export function retrievePools(
+  c: Compass,
+  fb: FB,
+  depth: number
+): {
   pools: Record<PoolName, Track[]>;
   merged: PooledTrack[];
   stats: Record<PoolName, number>;

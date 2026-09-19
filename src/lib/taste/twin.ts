@@ -8,11 +8,7 @@ import {
   uncertainDimensions,
   confidentDimensions,
 } from "./confidence";
-import {
-  getSession,
-  computeMomentum,
-  sessionNarrative,
-} from "./session";
+import { getSession, computeMomentum, sessionNarrative } from "./session";
 import type { TasteTwinSnapshot, ActiveLearningPair } from "./types";
 import { TRACKS } from "@/lib/tracks";
 import { keyOf } from "@/lib/engine";
@@ -91,7 +87,12 @@ export function answerTasteTwinQuestion(
     }
     return (
       `Because your signal clusters around:\n` +
-      top.map((d) => `• ${d.label} ≈ ${Math.round(d.estimate * 100)}% (conf ${Math.round(d.confidence * 100)}%)`).join("\n") +
+      top
+        .map(
+          (d) =>
+            `• ${d.label} ≈ ${Math.round(d.estimate * 100)}% (conf ${Math.round(d.confidence * 100)}%)`
+        )
+        .join("\n") +
       (twin.avoids.length ? `\nAnd you tend to push away: ${twin.avoids.join(", ")}.` : "")
     );
   }
@@ -109,12 +110,8 @@ export function answerTasteTwinQuestion(
   return [
     twin.summary,
     `Knowing you: ${Math.round(twin.howWellIKnowYou * 100)}%`,
-    twin.confident.length
-      ? `Strong: ${twin.confident.map((d) => d.label).join(" · ")}`
-      : null,
-    twin.uncertain.length
-      ? `Soft: ${twin.uncertain.map((d) => d.label).join(" · ")}`
-      : null,
+    twin.confident.length ? `Strong: ${twin.confident.map((d) => d.label).join(" · ")}` : null,
+    twin.uncertain.length ? `Soft: ${twin.uncertain.map((d) => d.label).join(" · ")}` : null,
     twin.momentum ? `Momentum: ${twin.momentum.label}` : null,
     twin.sessionNarrative,
   ]

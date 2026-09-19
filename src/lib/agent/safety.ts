@@ -13,7 +13,13 @@ export const SAFETY_RULES = [
 ] as const;
 
 export const ALLOWED_EFFECT_TYPES = [
-  "setCompass", "setFeedback", "pushMemory", "play", "player", "setTab", "clearRecent",
+  "setCompass",
+  "setFeedback",
+  "pushMemory",
+  "play",
+  "player",
+  "setTab",
+  "clearRecent",
 ] as const;
 
 export type AllowedEffectType = (typeof ALLOWED_EFFECT_TYPES)[number];

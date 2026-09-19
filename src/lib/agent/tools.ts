@@ -167,8 +167,18 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
 
       case "controlPlayer": {
         const raw = String(args.action || "toggle");
-        const allowed: PlayerAction[] = ["play", "toggle", "next", "prev", "pause", "expand", "collapse"];
-        const action: PlayerAction = (allowed.includes(raw as PlayerAction) ? raw : "toggle") as PlayerAction;
+        const allowed: PlayerAction[] = [
+          "play",
+          "toggle",
+          "next",
+          "prev",
+          "pause",
+          "expand",
+          "collapse",
+        ];
+        const action: PlayerAction = (
+          allowed.includes(raw as PlayerAction) ? raw : "toggle"
+        ) as PlayerAction;
         return {
           name,
           ok: true,

@@ -3,12 +3,7 @@
  */
 import type { Compass, FB } from "@/lib/engine";
 import type { Track } from "@/lib/tracks";
-import type {
-  ContextLockMode,
-  DiscoveryTemperature,
-  MoodMomentum,
-  RecBudget,
-} from "./types";
+import type { ContextLockMode, DiscoveryTemperature, MoodMomentum, RecBudget } from "./types";
 
 const LOCK_KEY = "resonant-session-v1";
 

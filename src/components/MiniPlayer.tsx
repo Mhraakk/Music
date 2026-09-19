@@ -59,9 +59,7 @@ export function MiniPlayer() {
             <p className="text-[14px] font-medium text-[#f8f4ee] truncate leading-tight">
               {current.title}
             </p>
-            <p className="text-[11px] text-white/45 truncate mt-0.5">
-              {current.artist}
-            </p>
+            <p className="text-[11px] text-white/45 truncate mt-0.5">{current.artist}</p>
 
             {/* Progress bar with ambient tint */}
             <div className="mt-2 h-[3px] rounded-full bg-white/8 overflow-hidden">
@@ -80,10 +78,7 @@ export function MiniPlayer() {
           </div>
 
           {/* Controls — glass pills */}
-          <div
-            className="flex items-center gap-1"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               aria-label="Previous"

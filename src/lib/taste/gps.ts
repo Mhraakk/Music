@@ -13,7 +13,7 @@ export type GpsPoint = {
 };
 
 export function compassToGps(c: Compass): GpsPoint {
-  const x = Math.max(0, Math.min(1, (c.dark * 0.55 + (1 - c.warm) * 0.45)));
+  const x = Math.max(0, Math.min(1, c.dark * 0.55 + (1 - c.warm) * 0.45));
   const y = Math.max(0, Math.min(1, c.energy * 0.7 + c.sad * 0.3));
   const z = Math.max(0, Math.min(1, c.organic));
   const tags: string[] = [];

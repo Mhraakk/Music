@@ -185,7 +185,16 @@ export function AgentPanel({ compass, depth, tab, onCompass, onTab }: Props) {
         setBusy(false);
       }
     },
-    [busy, pushMessage, setBusy, buildContext, applyEffects, setDraft, setLastRecIds, setPendingConfirm]
+    [
+      busy,
+      pushMessage,
+      setBusy,
+      buildContext,
+      applyEffects,
+      setDraft,
+      setLastRecIds,
+      setPendingConfirm,
+    ]
   );
 
   return (
@@ -214,21 +223,42 @@ export function AgentPanel({ compass, depth, tab, onCompass, onTab }: Props) {
                   <p className="text-sm text-[#f8f4ee] font-medium">RESONANT intelligence</p>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={clearChat} className="text-[10px] text-white/40 pressable px-2 py-1 rounded-full glass-1">clear</button>
-                  <button type="button" onClick={toggleOpen} className="text-[10px] text-white/40 pressable px-2 py-1 rounded-full glass-1">close</button>
+                  <button
+                    type="button"
+                    onClick={clearChat}
+                    className="text-[10px] text-white/40 pressable px-2 py-1 rounded-full glass-1"
+                  >
+                    clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleOpen}
+                    className="text-[10px] text-white/40 pressable px-2 py-1 rounded-full glass-1"
+                  >
+                    close
+                  </button>
                 </div>
               </div>
 
-              <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[180px]">
+              <div
+                ref={listRef}
+                className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[180px]"
+              >
                 {messages.length === 0 && (
                   <p className="text-[12px] text-white/40 leading-relaxed">
-                    Not a chatbot — wired to taste graph, recommendations, journey, player, and playlist drafts. Try a command below.
+                    Not a chatbot — wired to taste graph, recommendations, journey, player, and
+                    playlist drafts. Try a command below.
                   </p>
                 )}
                 {messages.map((m) => (
-                  <div key={m.id} className={`text-[13px] leading-relaxed whitespace-pre-wrap ${
-                    m.role === "user" ? "text-[#e8a06a]/95 text-right" : "text-[#f0ebe3]/90"
-                  }`}>{m.text}</div>
+                  <div
+                    key={m.id}
+                    className={`text-[13px] leading-relaxed whitespace-pre-wrap ${
+                      m.role === "user" ? "text-[#e8a06a]/95 text-right" : "text-[#f0ebe3]/90"
+                    }`}
+                  >
+                    {m.text}
+                  </div>
                 ))}
                 {busy && <p className="text-[11px] text-white/35">Thinking through the graph…</p>}
               </div>
@@ -237,26 +267,65 @@ export function AgentPanel({ compass, depth, tab, onCompass, onTab }: Props) {
                 <div className="px-4 pb-2">
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 flex items-center justify-between gap-2">
                     <p className="text-[11px] text-amber-100/90">{pendingConfirm.summary}</p>
-                    <button type="button" disabled={busy} onClick={() => send("confirm", pendingConfirm.confirmId)} className="pressable shrink-0 rounded-full bg-[#e8a06a] text-[#1a0e08] text-[11px] font-semibold px-3 py-1">Confirm</button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => send("confirm", pendingConfirm.confirmId)}
+                      className="pressable shrink-0 rounded-full bg-[#e8a06a] text-[#1a0e08] text-[11px] font-semibold px-3 py-1"
+                    >
+                      Confirm
+                    </button>
                   </div>
                 </div>
               )}
 
               {draft && (
                 <div className="px-4 pb-1">
-                  <p className="text-[10px] text-white/35">Draft: {draft.title} · {draft.trackIds.length} tracks</p>
+                  <p className="text-[10px] text-white/35">
+                    Draft: {draft.title} · {draft.trackIds.length} tracks
+                  </p>
                 </div>
               )}
 
               <div className="px-3 pb-2 flex gap-1.5 overflow-x-auto">
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" disabled={busy} onClick={() => send(s)} className="shrink-0 text-[10px] px-2.5 py-1 rounded-full glass-1 text-white/50 pressable">{s}</button>
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send(s)}
+                    className="shrink-0 text-[10px] px-2.5 py-1 rounded-full glass-1 text-white/50 pressable"
+                  >
+                    {s}
+                  </button>
                 ))}
               </div>
 
-              <form className="flex gap-2 p-3 border-t border-white/10" onSubmit={(e) => { e.preventDefault(); send(input); }}>
-                <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="make it darker · why this track · new songs…" className="flex-1 bg-white/5 border border-white/10 rounded-full px-3.5 py-2 text-[13px] text-[#f8f4ee] outline-none focus:border-[#e8a06a]/40" disabled={busy} />
-                <button type="submit" disabled={busy || !input.trim()} className="pressable rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-40" style={{ background: "linear-gradient(145deg, #e8a06a, #c4783a)", color: "#1a0e08" }}>Send</button>
+              <form
+                className="flex gap-2 p-3 border-t border-white/10"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send(input);
+                }}
+              >
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="make it darker · why this track · new songs…"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-3.5 py-2 text-[13px] text-[#f8f4ee] outline-none focus:border-[#e8a06a]/40"
+                  disabled={busy}
+                />
+                <button
+                  type="submit"
+                  disabled={busy || !input.trim()}
+                  className="pressable rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-40"
+                  style={{
+                    background: "linear-gradient(145deg, #e8a06a, #c4783a)",
+                    color: "#1a0e08",
+                  }}
+                >
+                  Send
+                </button>
               </form>
             </div>
           </div>

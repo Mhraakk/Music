@@ -3,6 +3,7 @@
 Cinematic music intelligence. Artwork-driven. Emotional taste graph.
 
 ## What changed in v4
+
 - Real album artwork on every track
 - Persistent floating glass Mini Player
 - Immersive Now Playing (artwork illuminates the room)
@@ -12,6 +13,7 @@ Cinematic music intelligence. Artwork-driven. Emotional taste graph.
 - Preserved recommendation engine + rejection memory
 
 ## Run
+
 ```bash
 npm i && npm run dev
 ```

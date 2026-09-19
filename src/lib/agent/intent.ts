@@ -25,26 +25,54 @@ export function planFromMessage(message: string): IntentPlan {
   const lower = m.toLowerCase();
 
   if (/^confirm(\s+export)?$/i.test(m) || /تایید/.test(m)) {
-    return { intent: "confirm_export", gloss: "Confirm playlist export", tools: [{ name: "confirmPlaylistExport", args: { confirmed: true } }] };
+    return {
+      intent: "confirm_export",
+      gloss: "Confirm playlist export",
+      tools: [{ name: "confirmPlaylistExport", args: { confirmed: true } }],
+    };
   }
   if (EXPORT.test(m) && !/create|make|بساز/.test(lower)) {
-    return { intent: "export_playlist", gloss: "Request playlist export (needs confirm)", tools: [{ name: "confirmPlaylistExport", args: { confirmed: false } }] };
+    return {
+      intent: "export_playlist",
+      gloss: "Request playlist export (needs confirm)",
+      tools: [{ name: "confirmPlaylistExport", args: { confirmed: false } }],
+    };
   }
   if (DEBUG_PHRASES.test(m)) {
-    return { intent: "debug", gloss: "Inspect recommendation pipeline", tools: [{ name: "inspectRecommendationPipeline", args: {} }] };
+    return {
+      intent: "debug",
+      gloss: "Inspect recommendation pipeline",
+      tools: [{ name: "inspectRecommendationPipeline", args: {} }],
+    };
   }
   if (TASTE_PHRASES.test(m)) {
-    return { intent: "taste_profile", gloss: "Read taste profile", tools: [{ name: "getTasteProfile", args: {} }] };
+    return {
+      intent: "taste_profile",
+      gloss: "Read taste profile",
+      tools: [{ name: "getTasteProfile", args: {} }],
+    };
   }
   if (WHY.test(m)) {
-    return { intent: "explain", gloss: "Explain recommendation", tools: [{ name: "explainRecommendation", args: {} }] };
+    return {
+      intent: "explain",
+      gloss: "Explain recommendation",
+      tools: [{ name: "explainRecommendation", args: {} }],
+    };
   }
   if (JOURNEY.test(m)) {
-    return { intent: "journey", gloss: "Build continuous flow journey", tools: [{ name: "buildJourney", args: { setTab: true } }] };
+    return {
+      intent: "journey",
+      gloss: "Build continuous flow journey",
+      tools: [{ name: "buildJourney", args: { setTab: true } }],
+    };
   }
   if (PLAYLIST.test(m)) {
     const fromJourney = JOURNEY.test(m);
-    return { intent: "playlist_draft", gloss: "Create playlist draft (not exported)", tools: [{ name: "createPlaylistDraft", args: { fromRecs: !fromJourney, fromJourney } }] };
+    return {
+      intent: "playlist_draft",
+      gloss: "Create playlist draft (not exported)",
+      tools: [{ name: "createPlaylistDraft", args: { fromRecs: !fromJourney, fromJourney } }],
+    };
   }
 
   const refineArgs: Record<string, boolean> = {};
@@ -65,19 +93,39 @@ export function planFromMessage(message: string): IntentPlan {
   }
 
   if (NEW_SONGS.test(m)) {
-    return { intent: "recommend", gloss: "Generate recommendations", tools: [{ name: "generateRecommendations", args: { limit: 6 } }] };
+    return {
+      intent: "recommend",
+      gloss: "Generate recommendations",
+      tools: [{ name: "generateRecommendations", args: { limit: 6 } }],
+    };
   }
   if (/^next|^skip|بعدی/.test(lower)) {
-    return { intent: "player", gloss: "Next track", tools: [{ name: "controlPlayer", args: { action: "next" } }] };
+    return {
+      intent: "player",
+      gloss: "Next track",
+      tools: [{ name: "controlPlayer", args: { action: "next" } }],
+    };
   }
   if (/^prev|previous|قبلی/.test(lower)) {
-    return { intent: "player", gloss: "Previous track", tools: [{ name: "controlPlayer", args: { action: "prev" } }] };
+    return {
+      intent: "player",
+      gloss: "Previous track",
+      tools: [{ name: "controlPlayer", args: { action: "prev" } }],
+    };
   }
   if (/^pause|توقف/.test(lower)) {
-    return { intent: "player", gloss: "Pause", tools: [{ name: "controlPlayer", args: { action: "pause" } }] };
+    return {
+      intent: "player",
+      gloss: "Pause",
+      tools: [{ name: "controlPlayer", args: { action: "pause" } }],
+    };
   }
   if (/^play$|^پخش$/.test(lower)) {
-    return { intent: "player", gloss: "Play", tools: [{ name: "controlPlayer", args: { action: "play" } }] };
+    return {
+      intent: "player",
+      gloss: "Play",
+      tools: [{ name: "controlPlayer", args: { action: "play" } }],
+    };
   }
 
   return {
@@ -96,7 +144,10 @@ export const TOOL_CATALOG: { name: AgentToolName; description: string }[] = [
   { name: "generateRecommendations", description: "Rank catalog by compass + feedback" },
   { name: "refineRecommendations", description: "Shift compass and re-rank" },
   { name: "explainRecommendation", description: "Explain why a track passed the emotional test" },
-  { name: "inspectRecommendationPipeline", description: "Debug tier, scores, vetoes, catalog size" },
+  {
+    name: "inspectRecommendationPipeline",
+    description: "Debug tier, scores, vetoes, catalog size",
+  },
   { name: "buildJourney", description: "Open→Rise→Settle→Land continuous flow" },
   { name: "controlPlayer", description: "Play, pause, next, prev, expand Now Playing" },
   { name: "createPlaylistDraft", description: "Build in-app draft only — no export" },
