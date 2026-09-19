@@ -199,7 +199,125 @@ def recommend_by_mood(mood: str = "", limit: int = 5) -> dict[str, Any]:
     }
 
 
-def build_tool_registry(granted: set[Permission] | None = None) -> ToolRegistry:
+def build_multi_source_tools(registry: ToolRegistry, sources: Any, taste: Any) -> None:
+    """Register tools that reach the user's connected services and the internet."""
+
+    def search_music(query: str = "", limit: int = 8) -> dict[str, Any]:
+        merged, errors = sources.search_all(query, limit=limit)
+        return {
+            "query": query,
+            "count": len(merged),
+            "sources_queried": [s.id for s in sources.active],
+            "errors": errors,
+            "tracks": [
+                {
+                    "title": m.track.title,
+                    "artist": m.track.artist,
+                    "album": m.track.album,
+                    "year": m.track.year,
+                    "sources": m.sources,
+                    "url": m.track.external_url,
+                }
+                for m in merged[:limit]
+            ],
+        }
+
+    def recommend_for_me(
+        query: str = "", limit: int = 6, user_id: str = "anonymous"
+    ) -> dict[str, Any]:
+        from app.taste.rank import rank_for_profile
+        from app.taste.recommend import gather_candidates
+
+        profile = taste.build_profile(user_id)
+        pool = gather_candidates(sources, profile, query=query or None, per_seed=8)
+        ranked = rank_for_profile(pool.tracks, profile, limit=limit)
+        return {
+            "seed": ", ".join(pool.seeds),
+            "profile_confidence": round(profile.confidence, 3),
+            "voice": profile.voice,
+            "count": len(ranked),
+            "tracks": [
+                {
+                    "title": r.merged.track.title,
+                    "artist": r.merged.track.artist,
+                    "why": "; ".join(r.reasons[:2]),
+                    "sources": r.merged.sources,
+                    "score": round(r.score, 3),
+                }
+                for r in ranked
+            ],
+        }
+
+    def my_taste_profile(user_id: str = "anonymous") -> dict[str, Any]:
+        profile = taste.build_profile(user_id)
+        return {
+            "summary": profile.describe(),
+            "voice": profile.voice,
+            "signals": profile.signal_count,
+            "confidence": round(profile.confidence, 3),
+            "top_artists": [a for a, _ in profile.top_artists[:5]],
+            "top_genres": [g for g, _ in profile.top_genres[:5]],
+            "obscurity_preference": round(profile.obscurity_preference, 3),
+            "source_mix": profile.source_mix,
+        }
+
+    def connected_sources() -> dict[str, Any]:
+        summary = sources.summary()
+        return {
+            "configured": summary["configured"],
+            "total": summary["total"],
+            "connected": [
+                s["label"] for s in summary["internet"] + summary["personal"] if s["configured"]
+            ],
+            "not_connected": [
+                s["label"] for s in summary["internet"] + summary["personal"] if not s["configured"]
+            ],
+            "missing_secrets": summary["missing_secrets"],
+        }
+
+    registry.register(
+        ToolSpec(
+            name="search_music",
+            description="Search every connected music source and the open internet at once.",
+            permission="read",
+            parameters={"query": "string", "limit": "integer"},
+            handler=search_music,
+        )
+    )
+    registry.register(
+        ToolSpec(
+            name="recommend_for_me",
+            description="Recommend tracks from all sources, ranked by the listener's learned taste.",
+            permission="read",
+            parameters={"query": "string", "limit": "integer", "user_id": "string"},
+            handler=recommend_for_me,
+        )
+    )
+    registry.register(
+        ToolSpec(
+            name="my_taste_profile",
+            description="Read the learned taste profile: voice, artists, genres, obscurity, confidence.",
+            permission="read",
+            parameters={"user_id": "string"},
+            handler=my_taste_profile,
+        )
+    )
+    registry.register(
+        ToolSpec(
+            name="connected_sources",
+            description="List which music sources are connected and which secrets are still missing.",
+            permission="read",
+            parameters={},
+            handler=connected_sources,
+        )
+    )
+
+
+def build_tool_registry(
+    granted: set[Permission] | None = None,
+    sources: Any | None = None,
+    taste: Any | None = None,
+) -> ToolRegistry:
     registry = ToolRegistry(granted=granted)
     registry.register(
         ToolSpec(
@@ -228,4 +346,6 @@ def build_tool_registry(granted: set[Permission] | None = None) -> ToolRegistry:
             handler=recommend_by_mood,
         )
     )
+    if sources is not None and taste is not None:
+        build_multi_source_tools(registry, sources, taste)
     return registry

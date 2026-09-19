@@ -15,10 +15,12 @@ from app.orchestrator.graph import AgentService
 from app.orchestrator.tools import ToolRegistry, build_tool_registry
 from app.rag.embeddings import Embedder, build_embedder
 from app.rag.pipeline import RagPipeline
+from app.sources.registry import SourceRegistry
 from app.storage.cache import Cache, build_cache
 from app.storage.database import DatabaseGateway
 from app.storage.files import LocalFileStorage
 from app.storage.vector_store import VectorStore, build_vector_store
+from app.taste.profile import TasteMemory
 
 log = get_logger(__name__)
 
@@ -37,8 +39,11 @@ class ServiceContainer:
     memory: MemoryManager
     tools: ToolRegistry
     agent: AgentService
+    sources: SourceRegistry
+    taste: TasteMemory
 
     def health(self) -> dict[str, Any]:
+        source_summary = self.sources.summary()
         return {
             "vector_store": self.vector_store.health(),
             "database": self.db.health(),
@@ -48,6 +53,11 @@ class ServiceContainer:
             "embeddings": {
                 "provider": self.settings.embedding_provider,
                 "dimension": self.embedder.dimension,
+            },
+            "music_sources": {
+                "status": "up",
+                "configured": source_summary["configured"],
+                "total": source_summary["total"],
             },
         }
 
@@ -73,7 +83,9 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
     llm = InstrumentedLLM(build_llm(s))
     guardrails = Guardrails(s)
     memory = MemoryManager(db=db, cache=cache, settings=s)
-    tools = build_tool_registry(granted={"read"})
+    sources = SourceRegistry(s)
+    taste = TasteMemory(db)
+    tools = build_tool_registry(granted={"read"}, sources=sources, taste=taste)
     agent = AgentService(
         rag=rag, llm=llm, guardrails=guardrails, memory=memory, tools=tools, settings=s
     )
@@ -91,6 +103,8 @@ def build_container(settings: Settings | None = None) -> ServiceContainer:
         memory=memory,
         tools=tools,
         agent=agent,
+        sources=sources,
+        taste=taste,
     )
 
 
