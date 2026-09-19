@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "docs:design": "node scripts/generate-design-docs.mjs"
   },
   "dependencies": {
     "next": "15.5.7",

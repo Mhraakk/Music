@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./neuform.css";
 
 :root {
   /* Core palette — nocturnal cinematic */

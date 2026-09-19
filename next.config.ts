@@ -13,7 +13,7 @@ const csp = [
   `base-uri 'self'`,
   `object-src 'none'`,
   `frame-ancestors 'none'`,
-  `img-src 'self' data: blob: https://*.mzstatic.com`,
+  `img-src 'self' data: blob: https://*.mzstatic.com https://api.iconify.design`,
   `font-src 'self' data:`,
   `style-src 'self' 'unsafe-inline'`,
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://va.vercel-scripts.com`,
