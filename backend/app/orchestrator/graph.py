@@ -14,6 +14,7 @@ guard_input ─┬─(blocked)────────────────�
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -58,6 +59,18 @@ def _route_after_guard_input(state: AgentState) -> str:
 
 def _route_after_evaluate(state: AgentState) -> str:
     return "reflect" if state.get("should_retry") else "finish"
+
+
+def _cited_only(answer: str, citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Surface only the sources the answer actually references.
+
+    Retrieval intentionally over-fetches; showing every candidate as a "source"
+    misrepresents what the answer was built from.
+    """
+    used = {int(n) for n in re.findall(r"\[(\d+)\]", answer)}
+    if not used:
+        return citations
+    return [c for c in citations if c.get("ref") in used]
 
 
 def build_agent_graph(nodes: AgentNodes):
@@ -151,6 +164,7 @@ class AgentService:
 
         answer = final.get("answer") or final.get("draft") or ""
         latency_ms = round((time.perf_counter() - started) * 1000, 2)
+        citations = _cited_only(answer, final.get("citations", []))
 
         self.memory.append_turn(cid, "user", question)
         self.memory.append_turn(
@@ -162,7 +176,7 @@ class AgentService:
 
         return AgentReply(
             answer=answer,
-            citations=final.get("citations", []),
+            citations=citations,
             route=final.get("route", "blocked" if final.get("blocked") else "unknown"),
             steps=final.get("steps", []),
             safety=final.get("safety", {}),

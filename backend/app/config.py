@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     retrieval_top_k: int = 12
     rerank_top_n: int = 4
-    min_relevance_score: float = 0.02
+    min_relevance_score: float = 0.05
 
     # --- Orchestrator (block 3) ---
     max_agent_steps: int = 6

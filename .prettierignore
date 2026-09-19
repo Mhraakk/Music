@@ -7,3 +7,8 @@ playwright-report
 test-results
 package-lock.json
 next-env.d.ts
+
+# Python backend: runtime state and virtualenv
+backend/.venv
+backend/var
+backend/**/__pycache__

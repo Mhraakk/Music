@@ -164,11 +164,29 @@ class LocalGroundedLLM:
             # blocks arrive rank-ordered; earlier blocks are better evidence
             rank_bonus = max(0.0, 0.25 - 0.05 * position)
             header_score = _score_sentence(header, query_tokens) if header else 0.0
-            for sentence in _candidate_units(body):
-                unit_score = _score_sentence(sentence, query_tokens)
-                # a strong header match (e.g. a tool block) makes its units eligible
-                if unit_score <= 0 and header_score <= 0:
+
+            units = _candidate_units(body)
+            unit_scores = [(u, _score_sentence(u, query_tokens)) for u in units]
+
+            if header.lower().startswith("tool"):
+                # A tool result is atomic evidence: once the block is relevant,
+                # keep its rows in order (a recommendation list is useless if
+                # only the header line survives).
+                if header_score <= 0 and not any(s > 0 for _, s in unit_scores):
                     continue
+                base = 1.0 + header_score + rank_bonus
+                for order, (sentence, unit_score) in enumerate(unit_scores):
+                    scored.append(
+                        (base + unit_score - order * 0.001, ref, sentence, set(tokenize(sentence)))
+                    )
+                continue
+
+            # For prose, prefer units that answer the question directly; a matching
+            # heading alone would otherwise pull in unrelated sentences.
+            direct = [(u, s) for u, s in unit_scores if s > 0]
+            if not direct:
+                continue
+            for sentence, unit_score in direct:
                 score = unit_score + 0.25 * header_score + rank_bonus
                 scored.append((score, ref, sentence, set(tokenize(sentence))))
 
@@ -182,7 +200,7 @@ class LocalGroundedLLM:
 
         selected: list[tuple[int, str]] = []
         kept_tokens: list[set[str]] = []
-        budget = min(max_chars, 900)
+        budget = min(max_chars, 1000)
         used = 0
 
         for _score, ref, sentence, tokens in scored:
@@ -193,7 +211,7 @@ class LocalGroundedLLM:
             selected.append((ref, sentence))
             kept_tokens.append(tokens)
             used += len(sentence)
-            if len(selected) >= 4:
+            if len(selected) >= 6:
                 break
 
         lines: list[str] = []
