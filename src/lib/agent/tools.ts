@@ -70,7 +70,7 @@ export function runTool(call: ToolCall, ctx: AgentContext): ToolResult {
 
       case "generateRecommendations":
       case "refineRecommendations": {
-        let c = { ...compass };
+        const c = { ...compass };
         const applied: string[] = [];
         if (typeof args.darker === "number" || args.make === "darker") {
           c.dark = Math.min(1, c.dark + 0.15);
