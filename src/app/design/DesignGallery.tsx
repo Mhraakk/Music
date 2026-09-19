@@ -157,7 +157,10 @@ export function DesignGallery() {
                       {skill.status}
                     </span>
                     {skill.routes.map((r) => (
-                      <span key={r} className="rounded-full bg-white/5 px-2 py-0.5 text-white/45">
+                      <span
+                        key={r}
+                        className="nf-ltr rounded-full bg-white/5 px-2 py-0.5 text-white/45"
+                      >
                         {r}
                       </span>
                     ))}
@@ -189,10 +192,17 @@ export function DesignGallery() {
                       {FIELDS.map((field) => {
                         const raw = skill[field.key];
                         const value = Array.isArray(raw) ? raw.join(", ") : String(raw);
+                        // Routes, components and file paths are latin identifiers:
+                        // isolate them so RTL never reorders their punctuation.
+                        const isToken = ["Route", "Component", "Source files"].includes(
+                          field.label
+                        );
                         return (
                           <div key={field.label} className="grid grid-cols-[6.5rem_1fr] gap-2">
                             <dt className="text-white/35">{field.label}</dt>
-                            <dd className="m-0 text-white/60">{value}</dd>
+                            <dd className={`m-0 text-white/60 ${isToken ? "nf-ltr" : ""}`}>
+                              {value}
+                            </dd>
                           </div>
                         );
                       })}

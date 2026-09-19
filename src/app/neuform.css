@@ -322,6 +322,16 @@
   direction: ltr;
 }
 
+/**
+ * Bidi isolation for latin technical tokens (routes, file paths, identifiers).
+ * Without it, neutral characters like "/" reorder inside RTL text and
+ * "/design" renders as "design/".
+ */
+.nf-ltr {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+
 /* ───────────────────────────── Marquee (34) ──────────────────────────────── */
 .nf-marquee {
   overflow: hidden;
