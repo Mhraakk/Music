@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { MaskedReveal, Marquee, Reveal } from "@/components/neuform";
+import { NeuformBackdrop } from "@/components/neuform/NeuformBackdrop";
 import { TRACKS } from "@/lib/tracks";
 import { recommend, flow, graph, clearRecent, getDebugSnapshot, type Compass } from "@/lib/engine";
 import { orchestrateRecommendations } from "@/lib/orchestrator";
@@ -122,10 +124,16 @@ export default function App() {
     : res.items;
   const queue = displayItems.map((x) => x.t);
   const twin = getTasteTwin(by, c, depth);
+  // Kindred artists drive the marquee strip under the hero.
+  const kinArtists = useMemo(
+    () => Array.from(new Set(TRACKS.flatMap((t) => t.kin))).slice(0, 14),
+    []
+  );
 
   return (
     <div className="relative min-h-dvh">
       <Ambient />
+      <NeuformBackdrop />
       <div className="relative z-10 mx-auto max-w-lg px-4 pt-8 pb-44">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -162,14 +170,25 @@ export default function App() {
 
         {tab === "graph" && (
           <>
-            <h1 className="mt-8 text-[1.85rem] font-semibold tracking-tight text-[#f8f4ee] leading-[1.15]">
-              Listen by feeling,
-              <br />
-              <span className="text-white/38">not by genre.</span>
-            </h1>
-            <p className="mt-2.5 text-[14px] text-white/38 leading-relaxed max-w-[22rem]">
-              Artwork, atmosphere, rejection memory — recommendations that pass an emotional test.
-            </p>
+            <MaskedReveal>
+              <h1 className="mt-8 text-[1.85rem] font-semibold tracking-tight text-[#f8f4ee] leading-[1.15]">
+                Listen by feeling,
+                <br />
+                <span className="text-white/38">not by genre.</span>
+              </h1>
+            </MaskedReveal>
+            <Reveal variant="blur" delay={140}>
+              <p className="mt-2.5 text-[14px] text-white/38 leading-relaxed max-w-[22rem]">
+                Artwork, atmosphere, rejection memory — recommendations that pass an emotional test.
+              </p>
+            </Reveal>
+            <Marquee durationSeconds={26} className="mt-4" gap="1.75rem">
+              {kinArtists.map((artist) => (
+                <span key={artist} className="text-[11px] whitespace-nowrap text-white/25">
+                  {artist}
+                </span>
+              ))}
+            </Marquee>
 
             {res.items[0] && (
               <button

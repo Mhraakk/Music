@@ -3,6 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Ambient } from "@/components/Ambient";
+import {
+  CornerDiagonals,
+  FlashlightBorder,
+  GradientBorder,
+  NumberDetail,
+  ProgressiveBlur,
+  Reveal,
+  TerminalPanel,
+} from "@/components/neuform";
 
 type Citation = {
   ref: number;
@@ -182,59 +191,69 @@ export default function AskPage() {
                 </div>
               </div>
             ) : (
-              <article key={turn.id} className="glass-1 glass-edge rounded-2xl p-4">
-                {turn.meta && (
-                  <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">
-                      {ROUTE_LABEL[turn.meta.route] ?? turn.meta.route}
-                    </span>
-                    {turn.meta.safety?.blocked && (
-                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-300">
-                        guardrail blocked
-                      </span>
-                    )}
-                    <span className="text-white/35">
-                      grounding {Math.round((turn.meta.groundedness ?? 0) * 100)}%
-                    </span>
-                    <span className="text-white/35">{Math.round(turn.meta.latency_ms)} ms</span>
-                    <span className="text-white/35">
-                      {turn.meta.llm?.provider}/{turn.meta.llm?.model}
-                    </span>
-                  </div>
-                )}
-
-                <div
-                  className={`whitespace-pre-wrap text-sm leading-relaxed ${
-                    turn.failed ? "text-amber-300" : "text-white/85"
-                  }`}
-                >
-                  {turn.text}
-                </div>
-
-                {turn.meta?.citations && turn.meta.citations.length > 0 && (
-                  <div className="mt-4 border-t border-white/10 pt-3">
-                    <p className="text-[11px] tracking-wide text-white/40">SOURCES</p>
-                    <ul className="mt-2 flex flex-col gap-2">
-                      {turn.meta.citations.map((c) => (
-                        <li key={`${turn.id}-${c.ref}`} className="text-xs text-white/55">
-                          <span className="mr-1.5 rounded bg-white/10 px-1.5 py-0.5 text-white/70">
-                            {c.ref}
+              <Reveal key={turn.id} as="article" variant="blur">
+                <FlashlightBorder className="glass-1 glass-edge nf-shadow-2 rounded-2xl">
+                  <CornerDiagonals className="rounded-2xl p-4">
+                    {turn.meta && (
+                      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">
+                          {ROUTE_LABEL[turn.meta.route] ?? turn.meta.route}
+                        </span>
+                        {turn.meta.safety?.blocked && (
+                          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-300">
+                            guardrail blocked
                           </span>
-                          <span className="text-white/75">{c.title}</span>
-                          {c.section && <span className="text-white/40"> › {c.section}</span>}
-                          <span className="ml-1.5 text-white/30">score {c.score.toFixed(2)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                        )}
+                        <span className="text-white/35">
+                          grounding {Math.round((turn.meta.groundedness ?? 0) * 100)}%
+                        </span>
+                        <span className="text-white/35">{Math.round(turn.meta.latency_ms)} ms</span>
+                        <span className="text-white/35">
+                          {turn.meta.llm?.provider}/{turn.meta.llm?.model}
+                        </span>
+                      </div>
+                    )}
 
-                {turn.meta?.steps && turn.meta.steps.length > 0 && (
-                  <p className="mt-3 text-[11px] text-white/25">
-                    graph: {turn.meta.steps.join(" → ")}
-                  </p>
-                )}
-              </article>
+                    <div
+                      className={`whitespace-pre-wrap text-sm leading-relaxed ${
+                        turn.failed ? "text-amber-300" : "text-white/85"
+                      }`}
+                    >
+                      {turn.text}
+                    </div>
+
+                    {turn.meta?.citations && turn.meta.citations.length > 0 && (
+                      <div className="mt-4 border-t border-white/10 pt-3">
+                        <p className="text-[11px] tracking-wide text-white/40">SOURCES</p>
+                        <ul className="mt-2 flex flex-col gap-2">
+                          {turn.meta.citations.map((c) => (
+                            <li key={`${turn.id}-${c.ref}`} className="text-xs text-white/55">
+                              <NumberDetail
+                                value={c.ref}
+                                className="me-1.5 rounded bg-white/10 px-1.5 py-0.5"
+                              />
+                              <span className="text-white/75">{c.title}</span>
+                              {c.section && <span className="text-white/40"> › {c.section}</span>}
+                              <span className="ms-1.5 text-white/30">
+                                score {c.score.toFixed(2)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {turn.meta?.steps && turn.meta.steps.length > 0 && (
+                      <div className="mt-3">
+                        <TerminalPanel
+                          title="langgraph://trace"
+                          lines={[turn.meta.steps.join(" → ")]}
+                        />
+                      </div>
+                    )}
+                  </CornerDiagonals>
+                </FlashlightBorder>
+              </Reveal>
             )
           )}
 
@@ -246,32 +265,44 @@ export default function AskPage() {
           <div ref={endRef} />
         </section>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send(input);
-          }}
-          className="glass-2 glass-edge sticky bottom-4 flex items-center gap-2 rounded-full p-2"
+        <div className="pointer-events-none sticky bottom-0 h-10">
+          <ProgressiveBlur edge="bottom" height={72} layers={4} />
+        </div>
+
+        <GradientBorder
+          tone="premium"
+          interactive
+          animated={busy}
+          radius="999px"
+          className="glass-2 sticky bottom-4"
         >
-          <label htmlFor="ask-input" className="sr-only">
-            Ask the RESONANT assistant
-          </label>
-          <input
-            id="ask-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about the engine, catalog or architecture…"
-            disabled={busy}
-            className="flex-1 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-white/30"
-          />
-          <button
-            type="submit"
-            disabled={busy || !input.trim()}
-            className="pressable glow-accent rounded-full bg-white/90 px-5 py-2 text-sm font-medium text-black disabled:opacity-40"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(input);
+            }}
+            className="flex items-center gap-2 rounded-full p-2"
           >
-            Ask
-          </button>
-        </form>
+            <label htmlFor="ask-input" className="sr-only">
+              Ask the RESONANT assistant
+            </label>
+            <input
+              id="ask-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about the engine, catalog or architecture…"
+              disabled={busy}
+              className="flex-1 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-white/30"
+            />
+            <button
+              type="submit"
+              disabled={busy || !input.trim()}
+              className="pressable glow-accent rounded-full bg-white/90 px-5 py-2 text-sm font-medium text-black disabled:opacity-40"
+            >
+              Ask
+            </button>
+          </form>
+        </GradientBorder>
       </main>
     </div>
   );
