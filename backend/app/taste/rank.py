@@ -12,12 +12,26 @@ recommendation the listener cannot interrogate is not trustworthy.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.sources.registry import MergedTrack
 from app.taste.features import distance, infer_vector, obscurity_of
 from app.taste.profile import TasteProfile
+
+#: Catalogues are full of karaoke, tribute and cover uploads that share a title
+#: with the real recording. They pollute a taste profile, so they are demoted.
+_DERIVATIVE = re.compile(
+    r"\b(karaoke|tribute|made famous by|made popular by|originally performed|"
+    r"in the style of|piano cover|cover version|instrumental version|backing track|"
+    r"8-bit|lullaby version|workout mix)\b",
+    re.I,
+)
+
+
+def is_derivative(artist: str, title: str) -> bool:
+    return bool(_DERIVATIVE.search(f"{artist} {title}"))
 
 
 @dataclass
@@ -111,6 +125,10 @@ def rank_for_profile(
         if not track.artwork_url and not track.preview_url:
             score -= 0.45
             reasons.append("metadata-only entry")
+
+        if is_derivative(track.artist, track.title):
+            score -= 0.7
+            reasons.append("karaoke/cover version")
 
         if candidate.in_library:
             score += 0.2

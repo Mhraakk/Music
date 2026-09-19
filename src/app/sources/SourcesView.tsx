@@ -56,6 +56,10 @@ export function SourcesView() {
     setBusy(true);
     setError(null);
     setMode("foryou");
+    // Clear immediately: leaving stale rows on screen lets a like/reject land
+    // on a track from the previous query.
+    setTracks([]);
+    stopPreview();
     try {
       const res = await fetch(api("taste/recommendations"), {
         method: "POST",
@@ -79,6 +83,8 @@ export function SourcesView() {
     setBusy(true);
     setError(null);
     setMode("search");
+    setTracks([]);
+    stopPreview();
     try {
       const res = await fetch(api("music/search"), {
         method: "POST",
@@ -116,11 +122,16 @@ export function SourcesView() {
     await loadProfile();
   }
 
+  function stopPreview() {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlaying(null);
+  }
+
   function togglePreview(track: ResultTrack) {
     if (!track.preview_url) return;
     if (playing === track.key) {
-      audioRef.current?.pause();
-      setPlaying(null);
+      stopPreview();
       return;
     }
     audioRef.current?.pause();

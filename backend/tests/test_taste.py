@@ -188,3 +188,32 @@ class TestSeeds:
     def test_cold_start_falls_back_to_defaults(self, container):
         profile = TasteMemory(container.db).build_profile("cold")
         assert build_seeds(profile) == ["ambient electronic", "modern classical"]
+
+
+class TestDerivativeFiltering:
+    def test_detects_karaoke_and_cover_uploads(self):
+        from app.taste.rank import is_derivative
+
+        assert is_derivative("Piano Cover by Lily Morgan", "Levitating")
+        assert is_derivative("Karaoke Kings", "Levitating (Karaoke Version)")
+        assert is_derivative("Tribute Band", "Everlong (Made Famous By Foo Fighters)")
+
+    def test_leaves_real_recordings_alone(self):
+        from app.taste.rank import is_derivative
+
+        assert not is_derivative("Dua Lipa", "Levitating")
+        assert not is_derivative("Bohren & der Club of Gore", "Prowler")
+
+    def test_derivatives_rank_below_the_real_recording(self, container):
+        from app.taste.profile import TasteMemory
+
+        memory = TasteMemory(container.db)
+        memory.record_signal(user_id="deriv", track=t(genres=["pop"]), kind="like")
+        profile = memory.build_profile("deriv")
+
+        real = merged(t(title="Levitating", artist="Dua Lipa", genres=["pop"], preview_url="u"))
+        cover = merged(
+            t(title="Levitating", artist="Piano Cover by X", genres=["pop"], preview_url="u")
+        )
+        ranked = rank_for_profile([cover, real], profile, limit=2, diversify=False)
+        assert ranked[0].merged.track.artist == "Dua Lipa"
