@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { TRACKS } from "@/lib/tracks";
 import { recommend, flow, graph, clearRecent, getDebugSnapshot, type Compass } from "@/lib/engine";
 import { orchestrateRecommendations } from "@/lib/orchestrator";
@@ -145,9 +146,17 @@ export default function App() {
               <p className="text-[10px] text-white/32 tracking-wide">Emotional taste graph</p>
             </div>
           </div>
-          <div className="glass-2 glass-edge rounded-full px-3.5 py-1.5 flex gap-3 text-[11px]">
-            <span className="text-emerald-400/90">+{liked}</span>
-            <span className="text-red-400/85">−{hated}</span>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/ask"
+              className="glass-2 glass-edge pressable rounded-full px-3.5 py-1.5 text-[11px] text-white/70"
+            >
+              Ask
+            </Link>
+            <div className="glass-2 glass-edge rounded-full px-3.5 py-1.5 flex gap-3 text-[11px]">
+              <span className="text-emerald-400/90">+{liked}</span>
+              <span className="text-red-400/85">−{hated}</span>
+            </div>
           </div>
         </header>
 
