@@ -1,0 +1,597 @@
+/**
+ * Neuform primitive layer.
+ *
+ * CSS implementations for the Style, Layout, Shadow and Animation skills.
+ * Every primitive is prefixed `nf-`, direction-aware via `--nf-dir`, and
+ * neutralised by the global reduced-motion block at the end of this file.
+ */
+
+:root {
+  /* +1 in LTR, -1 in RTL — every directional effect multiplies by this. */
+  --nf-dir: 1;
+
+  --nf-line: rgba(255, 224, 190, 0.16);
+  --nf-line-strong: rgba(255, 214, 170, 0.34);
+  --nf-accent: #e8a06a;
+  --nf-accent-2: #7ab7ff;
+  --nf-ink: #f3eee6;
+
+  --nf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --nf-dur-fast: 220ms;
+  --nf-dur: 620ms;
+  --nf-dur-slow: 1100ms;
+}
+
+[dir="rtl"] {
+  --nf-dir: -1;
+}
+
+/* ─────────────────────────── Beautiful Shadows (7) ───────────────────────── */
+/* Layered stops approximate real light falloff instead of one uniform blur. */
+.nf-shadow-1 {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.16),
+    0 2px 4px rgba(0, 0, 0, 0.14);
+}
+.nf-shadow-2 {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.14),
+    0 3px 6px rgba(0, 0, 0, 0.16),
+    0 8px 16px rgba(0, 0, 0, 0.18);
+}
+.nf-shadow-3 {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    0 4px 8px rgba(0, 0, 0, 0.16),
+    0 12px 24px rgba(0, 0, 0, 0.2),
+    0 24px 48px rgba(0, 0, 0, 0.22);
+}
+.nf-shadow-4 {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.18),
+    0 8px 16px rgba(0, 0, 0, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.24),
+    0 40px 80px rgba(0, 0, 0, 0.28);
+}
+
+/* ───────────────── Border Gradients (1) · Premium system (36) ────────────── */
+@property --nf-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.nf-border-gradient {
+  position: relative;
+  border-radius: var(--nf-radius, 1.1rem);
+  isolation: isolate;
+}
+.nf-border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--nf-border-width, 1px);
+  background: linear-gradient(
+    calc(120deg * var(--nf-dir)),
+    var(--nf-line-strong),
+    rgba(255, 255, 255, 0.04) 38%,
+    rgba(255, 255, 255, 0.02) 62%,
+    var(--nf-line-strong)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.nf-border-gradient[data-tone="premium"]::before {
+  background: conic-gradient(
+    from calc(var(--nf-angle) * var(--nf-dir)),
+    rgba(232, 160, 106, 0.85),
+    rgba(122, 183, 255, 0.5) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(232, 160, 106, 0.55) 75%,
+    rgba(232, 160, 106, 0.85)
+  );
+}
+.nf-border-gradient[data-animated="true"]::before {
+  animation: nf-rotate-angle 6s linear infinite;
+}
+.nf-border-gradient[data-interactive="true"]:hover::before,
+.nf-border-gradient[data-interactive="true"]:focus-within::before {
+  animation-duration: 2.4s;
+  filter: saturate(1.5) brightness(1.25);
+}
+
+@keyframes nf-rotate-angle {
+  to {
+    --nf-angle: 360deg;
+  }
+}
+
+/* ─────────── Cursor-Reactive Flashlight Glow Border (42) · Glow (43) ─────── */
+.nf-flashlight {
+  position: relative;
+  isolation: isolate;
+}
+.nf-flashlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    180px circle at var(--nf-x, 50%) var(--nf-y, 50%),
+    rgba(255, 214, 170, 0.85),
+    rgba(255, 214, 170, 0.12) 42%,
+    transparent 70%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--nf-dur-fast) var(--nf-ease-out);
+  pointer-events: none;
+}
+.nf-flashlight:hover::after,
+.nf-flashlight:focus-within::after {
+  opacity: 1;
+}
+/* Coarse pointers get a steady rim instead of tracking. */
+@media (pointer: coarse) {
+  .nf-flashlight::after {
+    opacity: 0.35;
+    background: radial-gradient(140% 80% at 50% 0%, rgba(255, 214, 170, 0.5), transparent 60%);
+  }
+}
+
+/* ──────────────────────── Skeuomorphic UI (8) · (16) ─────────────────────── */
+.nf-skeuo {
+  border-radius: 0.85rem;
+  background: linear-gradient(180deg, #2a211b 0%, #17110d 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 228, 200, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    0 2px 3px rgba(0, 0, 0, 0.5),
+    0 8px 18px rgba(0, 0, 0, 0.42);
+  color: var(--nf-ink);
+  transition:
+    transform 90ms var(--nf-ease-out),
+    box-shadow 90ms var(--nf-ease-out);
+}
+.nf-skeuo:active,
+.nf-skeuo[aria-pressed="true"] {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.72),
+    inset 0 -1px 0 rgba(255, 228, 200, 0.08);
+}
+.nf-skeuo[data-contrast="high"] {
+  background: linear-gradient(180deg, #f4f1ec 0%, #d9d3c9 100%);
+  color: #14100c;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    0 2px 0 #8d8478,
+    0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ────────────────────────── Dither Background (9) ────────────────────────── */
+.nf-dither {
+  position: relative;
+  background-color: #0b0806;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(232, 160, 106, 0.16), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='4' height='4'><rect width='4' height='4' fill='none'/><rect width='1' height='1' x='0' y='0' fill='%23ffffff' fill-opacity='0.10'/><rect width='1' height='1' x='2' y='1' fill='%23ffffff' fill-opacity='0.07'/><rect width='1' height='1' x='1' y='2' fill='%23ffffff' fill-opacity='0.05'/><rect width='1' height='1' x='3' y='3' fill='%23ffffff' fill-opacity='0.08'/></svg>");
+  background-size:
+    100% 100%,
+    4px 4px;
+  image-rendering: pixelated;
+}
+@media (min-resolution: 2dppx) {
+  .nf-dither {
+    background-size:
+      100% 100%,
+      6px 6px;
+  }
+}
+
+/* ───────────────────────── Progressive Blur (33) ─────────────────────────── */
+.nf-progressive-blur {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+  display: grid;
+}
+.nf-progressive-blur > span {
+  grid-area: 1 / 1;
+  backdrop-filter: blur(var(--nf-blur, 2px));
+  -webkit-backdrop-filter: blur(var(--nf-blur, 2px));
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .nf-progressive-blur {
+    background: linear-gradient(to top, rgba(5, 4, 3, 0.92), transparent);
+  }
+  .nf-progressive-blur > span {
+    display: none;
+  }
+}
+
+/* ───────────────────────── Container Lines (5) ───────────────────────────── */
+.nf-container-lines {
+  position: relative;
+}
+.nf-container-lines::before,
+.nf-container-lines::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--nf-line), transparent);
+  pointer-events: none;
+}
+.nf-container-lines::before {
+  inset-inline-start: 0;
+}
+.nf-container-lines::after {
+  inset-inline-end: 0;
+}
+.nf-corner-square {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--nf-line-strong);
+  background: #0b0806;
+}
+@media (max-width: 640px) {
+  .nf-container-lines::before,
+  .nf-container-lines::after,
+  .nf-corner-square {
+    display: none;
+  }
+}
+
+/* ───────────────────────── Corner Diagonals (25) ─────────────────────────── */
+.nf-corner-diagonals {
+  position: relative;
+}
+.nf-corner-diagonals > i {
+  position: absolute;
+  width: var(--nf-notch, 14px);
+  height: 1px;
+  background: var(--nf-line-strong);
+  pointer-events: none;
+}
+.nf-corner-diagonals > i:nth-child(1) {
+  top: 6px;
+  inset-inline-start: -3px;
+  transform: rotate(calc(45deg * var(--nf-dir)));
+}
+.nf-corner-diagonals > i:nth-child(2) {
+  top: 6px;
+  inset-inline-end: -3px;
+  transform: rotate(calc(-45deg * var(--nf-dir)));
+}
+.nf-corner-diagonals > i:nth-child(3) {
+  bottom: 6px;
+  inset-inline-start: -3px;
+  transform: rotate(calc(-45deg * var(--nf-dir)));
+}
+.nf-corner-diagonals > i:nth-child(4) {
+  bottom: 6px;
+  inset-inline-end: -3px;
+  transform: rotate(calc(45deg * var(--nf-dir)));
+}
+@media (max-width: 640px) {
+  .nf-corner-diagonals > i {
+    --nf-notch: 8px;
+  }
+}
+
+/* ──────────── Nested Frames (30) · Framed Grid (4) · Technical (23) ───────── */
+.nf-frame {
+  border: 1px solid var(--nf-line);
+  border-radius: 0.75rem;
+  padding: 0.6rem;
+}
+.nf-framed-grid {
+  border: 1px solid var(--nf-line);
+  display: grid;
+  gap: 1px;
+  background: var(--nf-line);
+}
+.nf-framed-grid > * {
+  background: #0b0806;
+  padding: 1rem;
+  min-height: 84px;
+}
+
+/* ───────────────────────── Number Details (53) ───────────────────────────── */
+.nf-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0.08em;
+  color: var(--nf-accent);
+  opacity: 0.75;
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+
+/* ───────────────────────────── Marquee (34) ──────────────────────────────── */
+.nf-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+.nf-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: var(--nf-gap, 2.5rem);
+  animation: nf-marquee var(--nf-marquee-duration, 24s) linear infinite;
+  animation-direction: var(--nf-marquee-direction, normal);
+}
+.nf-marquee:hover .nf-marquee-track,
+.nf-marquee:focus-within .nf-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes nf-marquee {
+  to {
+    transform: translateX(calc(-50% - var(--nf-gap, 2.5rem) / 2));
+  }
+}
+[dir="rtl"] .nf-marquee-track {
+  --nf-marquee-direction: reverse;
+}
+
+/* ─────────────────────────── Masked Reveal (2) ───────────────────────────── */
+.nf-masked-reveal {
+  --nf-mask: 0%;
+  -webkit-mask-image: linear-gradient(
+    calc(90deg * var(--nf-dir)),
+    #000 var(--nf-mask),
+    rgba(0, 0, 0, 0.15) calc(var(--nf-mask) + 14%),
+    transparent calc(var(--nf-mask) + 26%)
+  );
+  mask-image: linear-gradient(
+    calc(90deg * var(--nf-dir)),
+    #000 var(--nf-mask),
+    rgba(0, 0, 0, 0.15) calc(var(--nf-mask) + 14%),
+    transparent calc(var(--nf-mask) + 26%)
+  );
+  transition: --nf-mask var(--nf-dur-slow) var(--nf-ease-out);
+}
+.nf-masked-reveal[data-revealed="true"] {
+  --nf-mask: 100%;
+}
+@property --nf-mask {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}
+
+/* ─────────── Fade / slide / blur entrance (24) · Perspective deck (46) ───── */
+.nf-reveal {
+  opacity: 0;
+  will-change: opacity, transform, filter;
+  transition:
+    opacity var(--nf-dur) var(--nf-ease-out),
+    transform var(--nf-dur) var(--nf-ease-out),
+    filter var(--nf-dur) var(--nf-ease-out);
+  transition-delay: var(--nf-delay, 0ms);
+}
+.nf-reveal[data-variant="fade"] {
+  transform: none;
+}
+.nf-reveal[data-variant="slide"] {
+  transform: translateY(18px);
+}
+.nf-reveal[data-variant="blur"] {
+  transform: translateY(14px);
+  filter: blur(10px);
+}
+.nf-reveal[data-variant="inline"] {
+  transform: translateX(calc(22px * var(--nf-dir)));
+  filter: blur(8px);
+}
+.nf-reveal[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+@media (max-width: 768px) {
+  .nf-reveal[data-variant="slide"],
+  .nf-reveal[data-variant="blur"] {
+    transform: translateY(12px);
+  }
+  .nf-reveal[data-variant="blur"] {
+    filter: blur(6px);
+  }
+}
+
+.nf-deck {
+  perspective: 1200px;
+}
+.nf-deck-panel {
+  transform: rotateY(calc(14deg * var(--nf-dir))) rotateX(6deg) translateZ(-40px);
+  opacity: 0;
+  transition:
+    transform var(--nf-dur-slow) var(--nf-ease-out),
+    opacity var(--nf-dur) var(--nf-ease-out);
+  transition-delay: var(--nf-delay, 0ms);
+  transform-style: preserve-3d;
+}
+.nf-deck-panel[data-shown="true"] {
+  transform: none;
+  opacity: 1;
+}
+@media (max-width: 768px) {
+  .nf-deck-panel {
+    transform: rotateY(calc(6deg * var(--nf-dir))) translateZ(-20px);
+  }
+}
+
+/* ───────────────── Ambient rays & particles (44) · Kinetic radial (69) ───── */
+.nf-rays {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.nf-ray {
+  position: absolute;
+  top: -20%;
+  width: 1px;
+  height: 140%;
+  background: linear-gradient(to bottom, transparent, rgba(255, 214, 170, 0.32), transparent);
+  transform: rotate(calc(12deg * var(--nf-dir)));
+  animation: nf-ray-drift var(--nf-ray-duration, 14s) ease-in-out infinite alternate;
+  animation-delay: var(--nf-delay, 0ms);
+}
+.nf-dust {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 228, 200, 0.5);
+  animation: nf-dust-float var(--nf-dust-duration, 18s) linear infinite;
+  animation-delay: var(--nf-delay, 0ms);
+}
+@keyframes nf-ray-drift {
+  from {
+    transform: translateX(calc(-18px * var(--nf-dir))) rotate(calc(12deg * var(--nf-dir)));
+    opacity: 0.35;
+  }
+  to {
+    transform: translateX(calc(18px * var(--nf-dir))) rotate(calc(16deg * var(--nf-dir)));
+    opacity: 0.85;
+  }
+}
+@keyframes nf-dust-float {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate3d(calc(26px * var(--nf-dir)), -120px, 0);
+    opacity: 0;
+  }
+}
+
+.nf-kinetic-radial {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.nf-kinetic-radial > i {
+  position: absolute;
+  border: 1px solid var(--nf-line-strong);
+  border-radius: 999px;
+  inset: calc(var(--nf-ring-index) * 9%);
+  animation: nf-kinetic-spin calc(14s + var(--nf-ring-index) * 4s) linear infinite;
+  animation-direction: var(--nf-ring-dir, normal);
+  border-inline-end-color: transparent;
+  border-block-start-color: rgba(232, 160, 106, 0.6);
+}
+@keyframes nf-kinetic-spin {
+  to {
+    transform: rotate(calc(360deg * var(--nf-dir)));
+  }
+}
+
+/* ──────────────────────────── Gooey blobs (64) ───────────────────────────── */
+.nf-gooey {
+  position: absolute;
+  inset: 0;
+  filter: url(#nf-goo) blur(0.5px);
+  pointer-events: none;
+  isolation: isolate;
+  overflow: hidden;
+}
+.nf-blob {
+  position: absolute;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, rgba(232, 160, 106, 0.9), rgba(139, 58, 26, 0.55));
+  animation: nf-blob-drift var(--nf-blob-duration, 18s) ease-in-out infinite alternate;
+  animation-delay: var(--nf-delay, 0ms);
+}
+@keyframes nf-blob-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(calc(40px * var(--nf-dir)), -32px, 0) scale(1.18);
+  }
+}
+
+/* ───────────────────────── Terminal / wireframe furniture ────────────────── */
+.nf-terminal {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  border: 1px solid var(--nf-line);
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), #080605;
+}
+.nf-terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--nf-line);
+  color: rgba(243, 238, 230, 0.5);
+}
+.nf-wireframe {
+  border: 1px dashed var(--nf-line-strong);
+  border-radius: 0.5rem;
+  position: relative;
+}
+.nf-wireframe::after {
+  content: attr(data-label);
+  position: absolute;
+  top: -0.6rem;
+  inset-inline-start: 0.6rem;
+  background: #0b0806;
+  padding: 0 0.35rem;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(243, 238, 230, 0.45);
+}
+
+/* ─────────────────────── Reduced motion: one global stop ─────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .nf-marquee-track,
+  .nf-ray,
+  .nf-dust,
+  .nf-blob,
+  .nf-kinetic-radial > i,
+  .nf-border-gradient[data-animated="true"]::before {
+    animation: none !important;
+  }
+  .nf-reveal,
+  .nf-deck-panel {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    transition: none !important;
+  }
+  .nf-masked-reveal {
+    --nf-mask: 100%;
+    transition: none !important;
+  }
+  .nf-rays,
+  .nf-gooey {
+    display: none;
+  }
+}
