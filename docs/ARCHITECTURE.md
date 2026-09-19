@@ -1,23 +1,54 @@
 # Architecture & Production Layers
 
-RESONANT is a local-first music intelligence app. The UI renders an emotional
-"compass"; the engine (`src/lib/engine.ts`) ranks a 60-track catalog by emotional
-distance, obscurity, and a feedback-driven taste graph with rejection memory. A
-deterministic agent (`src/lib/agent`) maps natural language to tool calls.
+RESONANT is a local-first music intelligence app with a full AI application
+stack. The UI renders an emotional "compass"; the engine (`src/lib/engine.ts`)
+ranks a 60-track catalog by emotional distance, obscurity, and a feedback-driven
+taste graph with rejection memory. A separate Python service (`backend/`) adds
+RAG, a LangGraph agent, guardrails and memory.
 
-## Request flow
+## End-to-end AI architecture
 
 ```
-UI (compass + feedback)
-      │
-      ▼
-/api/agent ──► intent plan ──► tool calls ──► engine.recommend / flow
-      │                                            │
-      └────────── verified track refs ◄────────────┘
+ [1] Frontend (Next.js)
+        │  same-origin proxy (/api/ai/chat) — keeps CSP connect-src 'self'
+        ▼
+ [2] API Gateway (FastAPI)  auth · rate limit · validation · logging · metrics
+        ▼
+ [3] Orchestrator (LangGraph)
+        guard_input ─(blocked)─► END
+             └─► plan ─┬─(retrieve)─► [5] RAG ─┐
+                       ├─(tool)─────► tools ───┤─► generate ─► evaluate ─┬─weak─► reflect ─┐
+                       └─(direct)──────────────┘                         └─ok──► guard_out │
+                                     ▲                                                     │
+                                     └─────────────────────────────────────────────────────┘
+        │              │              │             │              │
+ [5] RAG        [6] Knowledge   [7] LLM       [8] Guardrails  [9] Memory
+  embed/search   parse/chunk     providers     filters/PII     short+long term
+        │              │              │             │              │
+        └──────── Vector store · Postgres/SQLite · Redis/memory · file storage ────────┘
 ```
 
-The engine is pure and deterministic, which makes it unit-testable and keeps the
-recommendation surface reproducible.
+The music engine remains pure and deterministic (unit-testable, reproducible);
+the AI backend adds retrieval-grounded answering on top of it.
+
+## AI backend at a glance
+
+| Block        | Implementation                                  | Local default      | Production                  |
+| ------------ | ----------------------------------------------- | ------------------ | --------------------------- |
+| API gateway  | `backend/app/main.py`                           | uvicorn            | container + WAF             |
+| Orchestrator | `backend/app/orchestrator/graph.py` (LangGraph) | —                  | —                           |
+| RAG          | `backend/app/rag/*`                             | numpy vector store | Qdrant                      |
+| Knowledge    | `backend/data/knowledge`                        | seeded on boot     | uploaded corpora            |
+| LLM          | `backend/app/llm/*`                             | offline extractive | OpenAI / Anthropic / Ollama |
+| Guardrails   | `backend/app/guardrails/*`                      | always on          | + policy service            |
+| Memory       | `backend/app/memory/manager.py`                 | SQLite + in-memory | Postgres + Redis            |
+| Evaluation   | `backend/app/eval/harness.py`                   | CI gate            | scheduled regression runs   |
+
+Routing rule: actionable requests ("recommend something dark", "how many
+tracks") go to catalog tools; explanatory questions go to retrieval. The
+evaluator scores groundedness and can trigger one Reflexion re-query.
+
+See [`backend/README.md`](../backend/README.md) for endpoints and configuration.
 
 ## The 20 production layers
 
