@@ -234,3 +234,39 @@ input[type="range"]::-moz-range-thumb {
   letter-spacing: -0.025em;
   line-height: 1.15;
 }
+
+/* Accessibility — skip link + keyboard focus (Layer 18) */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: var(--r-ink);
+  color: var(--r-bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: top 0.18s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
+  outline: 2px solid var(--r-accent);
+  outline-offset: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--r-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
