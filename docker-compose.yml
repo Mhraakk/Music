@@ -1,14 +1,19 @@
 services:
+  # ---------------- Frontend (block 1) ----------------
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    image: resonant:latest
+    image: resonant-web:latest
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"
+      AI_BACKEND_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test:
@@ -22,3 +27,88 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  # ---------------- API gateway + AI services (blocks 2-9) ----------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: resonant-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      VECTOR_STORE: qdrant
+      QDRANT_URL: http://qdrant:6333
+      CACHE_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://resonant:resonant@postgres:5432/resonant
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      # LLM_PROVIDER: openai
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------- Vector database ----------------
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  # ---------------- Cache / sessions / queue ----------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------- Relational database ----------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: resonant
+      POSTGRES_PASSWORD: resonant
+      POSTGRES_DB: resonant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resonant"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------- Observability ----------------
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:
+  redis_data:
+  postgres_data:
