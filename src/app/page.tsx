@@ -156,6 +156,12 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href="/sources"
+              className="glass-2 glass-edge pressable rounded-full px-3.5 py-1.5 text-[11px] text-white/70"
+            >
+              Sources
+            </Link>
+            <Link
               href="/ask"
               className="glass-2 glass-edge pressable rounded-full px-3.5 py-1.5 text-[11px] text-white/70"
             >

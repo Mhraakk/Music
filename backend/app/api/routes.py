@@ -13,14 +13,26 @@ from app.api.schemas import (
     HealthResponse,
     IngestResponse,
     IngestTextRequest,
+    LibraryResponse,
     MemoryResponse,
+    MusicSearchRequest,
+    MusicSearchResponse,
     RagQueryRequest,
     RagQueryResponse,
+    RecommendRequest,
+    RecommendResponse,
+    SourcesResponse,
+    TasteProfileResponse,
+    TasteSignalRequest,
+    TasteSignalResponse,
     ToolSummary,
 )
 from app.core.logging import get_logger
 from app.core.security import require_api_key
 from app.services import ServiceContainer, get_container
+from app.sources.base import ExternalTrack
+from app.taste.rank import rank_for_profile
+from app.taste.recommend import gather_candidates
 
 log = get_logger(__name__)
 
@@ -224,3 +236,123 @@ def forget_memory(
 ) -> dict[str, object]:
     removed = c.memory.forget_user(user_id)
     return {"user_id": user_id, "facts_removed": removed}
+
+
+# --------------------------------------------------------------- sources
+@router.get("/sources", response_model=SourcesResponse, tags=["music"])
+def list_sources(
+    c: ServiceContainer = Depends(container), _: str = Depends(require_api_key)
+) -> SourcesResponse:
+    return SourcesResponse(**c.sources.summary())
+
+
+@router.post("/music/search", response_model=MusicSearchResponse, tags=["music"])
+def search_music(
+    payload: MusicSearchRequest,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> MusicSearchResponse:
+    merged, errors = c.sources.search_all(payload.query, limit=payload.limit, only=payload.sources)
+    c.sources.enrich_with_audio_features(merged)
+
+    profile = c.taste.build_profile(payload.user_id)
+    ranked = rank_for_profile(merged, profile, limit=payload.limit, diversify=False)
+
+    # Seeing a track is itself worth remembering: it keeps vectors stable.
+    for item in ranked[:10]:
+        c.taste.remember_track(item.merged.track, item.merged.sources)
+
+    return MusicSearchResponse(
+        query=payload.query,
+        count=len(ranked),
+        sources_queried=[s.id for s in c.sources.active],
+        errors=errors,
+        tracks=[item.as_dict() for item in ranked],
+    )
+
+
+@router.get("/music/library", response_model=LibraryResponse, tags=["music"])
+def music_library(
+    limit: int = 50,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> LibraryResponse:
+    merged, errors = c.sources.library_all(limit=limit)
+    return LibraryResponse(
+        count=len(merged),
+        sources_queried=[s.id for s in c.sources.active if s.kind == "personal"],
+        errors=errors,
+        tracks=[m.as_dict() for m in merged],
+    )
+
+
+# ----------------------------------------------------------------- taste
+def _track_from_signal(payload: TasteSignalRequest) -> ExternalTrack:
+    return ExternalTrack(
+        source=payload.source,
+        source_id=payload.source_id,
+        title=payload.title,
+        artist=payload.artist,
+        album=payload.album,
+        year=payload.year,
+        isrc=payload.isrc,
+        genres=payload.genres,
+        popularity=payload.popularity,
+    )
+
+
+@router.post("/taste/signal", response_model=TasteSignalResponse, tags=["taste"])
+def record_taste_signal(
+    payload: TasteSignalRequest,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> TasteSignalResponse:
+    result = c.taste.record_signal(
+        user_id=payload.user_id,
+        track=_track_from_signal(payload),
+        kind=payload.kind,
+        reason=payload.reason,
+    )
+    profile = c.taste.build_profile(payload.user_id)
+    return TasteSignalResponse(**result, profile=profile.as_dict())
+
+
+@router.get("/taste/profile/{user_id}", response_model=TasteProfileResponse, tags=["taste"])
+def taste_profile(
+    user_id: str,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> TasteProfileResponse:
+    profile = c.taste.build_profile(user_id)
+    return TasteProfileResponse(profile=profile.as_dict(), summary=profile.describe())
+
+
+@router.delete("/taste/profile/{user_id}", tags=["taste"])
+def forget_taste(
+    user_id: str,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> dict[str, object]:
+    removed = c.taste.forget(user_id)
+    return {"user_id": user_id, "signals_removed": removed}
+
+
+@router.post("/taste/recommendations", response_model=RecommendResponse, tags=["taste"])
+def taste_recommendations(
+    payload: RecommendRequest,
+    c: ServiceContainer = Depends(container),
+    _: str = Depends(require_api_key),
+) -> RecommendResponse:
+    profile = c.taste.build_profile(payload.user_id)
+    pool = gather_candidates(c.sources, profile, query=payload.query, per_seed=8)
+    c.sources.enrich_with_audio_features(pool.tracks)
+    ranked = rank_for_profile(
+        pool.tracks, profile, limit=payload.limit, exclude_known=payload.exclude_known
+    )
+
+    return RecommendResponse(
+        seed=", ".join(pool.seeds),
+        count=len(ranked),
+        profile=profile.as_dict(),
+        tracks=[item.as_dict() for item in ranked],
+    )

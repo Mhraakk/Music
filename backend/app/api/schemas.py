@@ -110,3 +110,85 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None
     request_id: str | None = None
+
+
+# ----------------------------- music sources -----------------------------
+class SourceStatusModel(BaseModel):
+    id: str
+    label: str
+    kind: Literal["internet", "personal"]
+    configured: bool
+    reachable: bool | None = None
+    detail: str = ""
+    required_secrets: list[str] = []
+
+
+class SourcesResponse(BaseModel):
+    total: int
+    configured: int
+    internet: list[SourceStatusModel]
+    personal: list[SourceStatusModel]
+    missing_secrets: list[str]
+
+
+class MusicSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=300)
+    limit: int = Field(default=10, ge=1, le=40)
+    sources: list[str] | None = None
+    user_id: str = Field(default="anonymous", max_length=128)
+
+
+class MusicSearchResponse(BaseModel):
+    query: str
+    count: int
+    sources_queried: list[str]
+    errors: dict[str, str] = {}
+    tracks: list[dict[str, Any]]
+
+
+class LibraryResponse(BaseModel):
+    count: int
+    sources_queried: list[str]
+    errors: dict[str, str] = {}
+    tracks: list[dict[str, Any]]
+
+
+class TasteSignalRequest(BaseModel):
+    user_id: str = Field(default="anonymous", max_length=128)
+    kind: Literal["like", "dislike", "play", "skip", "save"]
+    reason: str | None = Field(default=None, max_length=32)
+    source: str = Field(default="local", max_length=32)
+    source_id: str = Field(default="", max_length=128)
+    title: str = Field(min_length=1, max_length=320)
+    artist: str = Field(min_length=1, max_length=320)
+    album: str | None = Field(default=None, max_length=320)
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    isrc: str | None = Field(default=None, max_length=32)
+    genres: list[str] = []
+    popularity: float | None = Field(default=None, ge=0, le=1)
+
+
+class TasteSignalResponse(BaseModel):
+    track_key: str
+    kind: str
+    inferred: dict[str, Any]
+    profile: dict[str, Any]
+
+
+class TasteProfileResponse(BaseModel):
+    profile: dict[str, Any]
+    summary: str
+
+
+class RecommendRequest(BaseModel):
+    user_id: str = Field(default="anonymous", max_length=128)
+    query: str | None = Field(default=None, max_length=300)
+    limit: int = Field(default=8, ge=1, le=30)
+    exclude_known: bool = False
+
+
+class RecommendResponse(BaseModel):
+    seed: str
+    count: int
+    profile: dict[str, Any]
+    tracks: list[dict[str, Any]]

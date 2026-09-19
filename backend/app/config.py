@@ -79,6 +79,28 @@ class Settings(BaseSettings):
     # --- Knowledge seed ---
     knowledge_seed_dir: Path = BASE_DIR / "data" / "knowledge"
 
+    # --- Music sources -------------------------------------------------
+    # Open-internet sources (iTunes/Apple search, Deezer, MusicBrainz) need no
+    # credentials. Everything below unlocks a personal library.
+    spotify_client_id: str | None = None
+    spotify_client_secret: str | None = None
+    #: OAuth user token with user-library-read + user-read-recently-played.
+    spotify_user_token: str | None = None
+
+    apple_music_developer_token: str | None = None
+    apple_music_user_token: str | None = None
+    apple_music_storefront: str = "us"
+
+    youtube_api_key: str | None = None
+    youtube_oauth_token: str | None = None
+
+    telegram_bot_token: str | None = None
+
+    #: Per-source result cap when fanning out a search.
+    source_search_limit: int = 10
+    #: How long merged search results stay cached.
+    source_cache_ttl_seconds: int = 300
+
     @property
     def auth_enabled(self) -> bool:
         return bool(self.api_keys)

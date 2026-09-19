@@ -85,6 +85,10 @@ class DatabaseGateway:
         connect_args = {"check_same_thread": False} if s.database_url.startswith("sqlite") else {}
         self.engine = create_engine(s.database_url, connect_args=connect_args, future=True)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
+        # Imported for its side effect: the taste tables must be attached to the
+        # shared metadata before create_all runs. Local import avoids a cycle.
+        from app.storage import taste_models  # noqa: F401
+
         Base.metadata.create_all(self.engine)
 
     def session(self) -> Session:

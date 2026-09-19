@@ -12,8 +12,9 @@ test.describe("Neuform design gallery", () => {
     await page.goto("/design");
 
     await page.getByRole("button", { name: /^WebGL/ }).click();
-    const webglCount = await page.locator("article[id]").count();
-    expect(webglCount).toBe(14);
+    // Retrying assertion: filtering re-renders asynchronously, so a captured
+    // count can race the render under parallel load.
+    await expect(page.locator("article[id]")).toHaveCount(14);
 
     await page.getByRole("button", { name: "All", exact: true }).click();
     await page.getByLabel("Search skills").fill("marquee");
